@@ -33,7 +33,7 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS bulldozer_rate
 (
    rate_id SERIAL PRIMARY KEY NOT NULL,
-   timestamp TIMESTAMP DEFAULT current_timestamp NOT NULL,
+   timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
    rate INT NOT NULL
 )
 """)
