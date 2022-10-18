@@ -86,3 +86,5 @@ RUN cd /tmp && \
     ./config no-shared && \
     make -j8 && make install && \
     rm -rf /tmp/openssl-1.1.1q /tmp/openssl-1.1.1q.tar.gz
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
