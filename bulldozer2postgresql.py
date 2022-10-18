@@ -50,12 +50,16 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
+discard = 2
 while run:
    time.sleep(1)
    line = proc_stats.stdout.readline()
    if not line:
       break
    rate=line.decode('utf-8').rstrip()
+   if rate and discard > 0:
+      discard -= 1
+      continue
    print(rate)
    cur.execute(f"""
    INSERT INTO bulldozer_rate (rate) VALUES
