@@ -45,6 +45,9 @@ my_env["YAMALCOMPPATH"] = os.path.join(src_dir, 'build', 'dependencies', 'build'
 proc_comp = subprocess.Popen(['yamal-run', '-c', os.path.join(src_dir, 'build', 'dependencies', 'src', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini'), '-s', 'main'],
                         env=my_env)
 
+#patch to delay initialization
+time.sleep(1)
+
 proc_stats = subprocess.Popen(['yamal-stats', 'ore_coinbase_l2.ytp', '-f', '-b'],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
