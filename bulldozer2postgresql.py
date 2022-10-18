@@ -32,7 +32,6 @@ if __name__ == "__main__":
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  env=my_env)
 
-   
    tries = 10
    while True:
       try:
