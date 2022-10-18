@@ -6,6 +6,9 @@ import os
 import time
 import signal
 
+print("current user:")
+import os; import pwd; print(pwd.getpwuid(os.getuid())[0])
+
 src_dir = os.path.dirname(os.path.realpath(__file__))
 
 #patch to delay initialization
