@@ -8,6 +8,9 @@ import signal
 
 src_dir = os.path.dirname(os.path.realpath(__file__))
 
+#patch to delay initialization
+time.sleep(5)
+
 conn = psycopg2.connect(database="myusername", user = "myusername", password = "mypassword", host = "127.0.0.1", port = "5432")
 
 print("Opened database successfully")
