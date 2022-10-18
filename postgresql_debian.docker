@@ -1,0 +1,88 @@
+FROM postgres
+ENV container docker
+
+# dependencies
+RUN apt-get update -y
+RUN apt-get upgrade -y
+RUN apt-get install -y build-essential
+RUN apt-get install -y wget libgmp-dev libmpfr-dev libmpc-dev
+
+# custom gcc
+
+ENV GCC_NAME gcc-10.2.0
+
+RUN wget https://ftp.gnu.org/gnu/gcc/$GCC_NAME/$GCC_NAME.tar.gz.sig
+RUN wget https://ftp.gnu.org/gnu/gnu-keyring.gpg
+RUN gpg --import gnu-keyring.gpg | true
+
+RUN wget https://ftp.gnu.org/gnu/gcc/$GCC_NAME/$GCC_NAME.tar.gz && \
+    gpg --verify $GCC_NAME.tar.gz.sig $GCC_NAME.tar.gz && \
+    tar xzf $GCC_NAME.tar.gz && \
+    rm $GCC_NAME.tar.gz && \
+    cd $GCC_NAME && \
+    mkdir release && \
+    cd release && \
+    ../configure --prefix=/opt/$GCC_NAME --disable-libstdcxx-visibility \
+                 --disable-multilib --enable-languages=c,c++ \
+                 --with-default-libstdcxx-abi=gcc4-compatible && \
+    make bootstrap -j 17 && \
+    make install && cd .. && cd .. && rm -rf $GCC_NAME
+
+ENV CXX /opt/$GCC_NAME/bin/c++
+ENV CC /opt/$GCC_NAME/bin/gcc
+
+# dependencies
+ENV TZ=America/New_York
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apt-get update -y && \
+    apt-get -y install autoconf automake pkg-config doxygen graphviz libstdc++-10-dev \
+    zlib1g-dev libbz2-dev git libstdc++-10-dev python3 python3-dev python3-sphinx python3-pip \
+    curl lsb-release tzdata software-properties-common libpq-dev
+
+RUN python3 -m pip install --upgrade pip && \
+    pip3 install pkgconfig mypy Cython wheel faker boto3 cibuildwheel==2.8.1 twine packaging==21.3 \
+    breathe sphinx_rtd_theme mistune==0.8.4 m2r sphinx-autodoc-typehints psycopg2
+
+RUN cd /tmp && \
+    wget --no-check-certificate https://capnproto.org/capnproto-c++-0.9.0.tar.gz && \
+    tar zxf capnproto-c++-0.9.0.tar.gz && \
+    cd capnproto-c++-0.9.0 && \
+    ./configure --with-pic --enable-shared=no --prefix=/usr --libdir=/usr/lib64 && \
+    make -j8 && make install && cd /tmp && \
+    rm -rf /tmp/capnproto-c++-0.9.0 /tmp/capnproto-c++-0.9.0.tar.gz && \
+    LDFLAGS="-static-libstdc++ -static-libgcc" pip3 install pycapnp --no-cache-dir
+
+RUN cd /tmp && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.21.0/cmake-3.21.0-linux-x86_64.tar.gz && \
+    tar xvzf cmake-3.21.0-linux-x86_64.tar.gz && \
+    cp /tmp/cmake-3.21.0-linux-x86_64/bin/* /usr/bin/ && \
+    cp -r /tmp/cmake-3.21.0-linux-x86_64/share/* /usr/share/ && \
+    rm -rf /tmp/cmake-3.21.0-linux-x86_64 /tmp/cmake-3.21.0-linux-x86_64.tar.gz
+
+RUN cd /tmp && \
+    git clone --depth 1 https://github.com/google/googletest.git -b release-1.11.0 && \
+    cd googletest && mkdir build && cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr .. && \
+    make -j8 && make install && \
+    rm -rf /tmp/googletest
+
+RUN cd /tmp && \
+    git clone --depth 1 -b v1.2.3 https://github.com/mirror/tclap.git tclap-code && \
+    cd tclap-code && \
+    ./autotools.sh && \
+    ./configure --prefix=/usr --libdir=/usr/lib64 && \
+    make -j8 && make install && \
+    rm -rf /tmp/tclap-code
+
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 23F3D4EA75716059 && \
+    apt-add-repository https://cli.github.com/packages && \
+    apt-get -y update && \
+    apt-get -y install gh
+
+RUN cd /tmp && \
+    wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz --no-check-certificate && \
+    tar xzf openssl-1.1.1q.tar.gz && \
+    cd openssl-1.1.1q && \
+    ./config no-shared && \
+    make -j8 && make install && \
+    rm -rf /tmp/openssl-1.1.1q /tmp/openssl-1.1.1q.tar.gz
