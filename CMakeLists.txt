@@ -14,15 +14,15 @@ find_package(Subproject REQUIRED)
 
 add_subproject(
     NAME yamal
-    VERSION "7.2.19"
-    GIT_REVISION "v7.2.19"
+    VERSION "7.2.21"
+    GIT_REVISION "v7.2.21"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-run yamal-stats
 )
 add_subproject(
     NAME bulldozer
-    VERSION "0.0.1"
-    GIT_REVISION "v0.0.1"
+    VERSION "0.0.5"
+    GIT_REVISION "v0.0.5"
     GIT_URL "https://github.com/featuremine/bulldozer.git"
     TARGETS bulldozer
 )
