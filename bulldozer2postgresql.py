@@ -6,37 +6,7 @@ import os
 import time
 import signal
 
-print("current user:")
-import os; import pwd; print(pwd.getpwuid(os.getuid())[0])
-
 src_dir = os.path.dirname(os.path.realpath(__file__))
-
-#patch to delay initialization
-time.sleep(5)
-
-conn = psycopg2.connect(database="myusername", user = "myusername", password = "mypassword", host = "127.0.0.1", port = "5432")
-
-print("Opened database successfully")
-
-cur = conn.cursor()
-cur.execute("SELECT * from temperature")
-rows = cur.fetchall()
-for row in rows:
-   print (f"temp_id = {row[0]}")
-   print (f"timestamp = {row[1]}")
-   print (f"temp = {row[2]}")
-
-cur.execute("""
-CREATE TABLE IF NOT EXISTS bulldozer_rate
-(
-   rate_id SERIAL PRIMARY KEY NOT NULL,
-   timestamp TIMESTAMP DEFAULT current_timestamp NOT NULL,
-   rate INT NOT NULL
-)
-""")
- 
-# commit the changes
-conn.commit()
 
 my_env = os.environ.copy()
 my_env["PATH"] = os.path.join(src_dir, 'build', 'dependencies', 'build', 'yamal') + ":" + my_env["PATH"]
@@ -52,6 +22,24 @@ proc_stats = subprocess.Popen(['yamal-stats', 'ore_coinbase_l2.ytp', '-f', '-b']
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         env=my_env)
+
+#patch to delay initialization
+time.sleep(3)
+
+conn = psycopg2.connect(database="myusername", user = "myusername", password = "mypassword", host = "127.0.0.1", port = "5432")
+print("Opened database successfully")
+cur = conn.cursor()
+cur.execute("""
+CREATE TABLE IF NOT EXISTS bulldozer_rate
+(
+   rate_id SERIAL PRIMARY KEY NOT NULL,
+   timestamp TIMESTAMP DEFAULT current_timestamp NOT NULL,
+   rate INT NOT NULL
+)
+""")
+ # commit the changes
+conn.commit()
+
 run = True
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C!')
