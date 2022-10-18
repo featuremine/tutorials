@@ -50,7 +50,7 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-discard = 2
+discard = 4
 while run:
    time.sleep(1)
    line = proc_stats.stdout.readline()
