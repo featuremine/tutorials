@@ -23,7 +23,8 @@ if __name__ == "__main__":
    parser = argparse.ArgumentParser()
    parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
    args = parser.parse_args()
-   proc_comp = subprocess.Popen(['yamal-run', '-c', os.path.join(src_dir, 'build', 'dependencies', 'src', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini'), '-s', 'main'],
+
+   proc_comp = subprocess.Popen(['yamal-run', '-c', os.path.join(os.sep, 'usr', 'local', 'lib', 'yamal', 'modules', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini'), '-s', 'main'],
                                 env=my_env)
    while not os.path.exists('ore_coinbase_l2.ytp'):
       time.sleep(0.1)

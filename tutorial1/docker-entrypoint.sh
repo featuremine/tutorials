@@ -343,21 +343,27 @@ _main() {
 
 ENTRYPINT_USER=$(whoami)
 echo "${ENTRYPINT_USER}"
-if [ ! -d "/src/grafana" ] && [ "${ENTRYPINT_USER}" = "root" ]
+if [ "${ENTRYPINT_USER}" = "root" ]
 then
-	mkdir /src && cd /src && \
-	git config --global user.email "${GITHUB_MAIL}" && \
-	git config --global user.name "${GITHUB_USER}" && \
-	git config --global credential.helper store && \
-	echo https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com > /root/.git-credentials && \
-	git clone --recurse-submodules https://github.com/featuremine/grafana.git && \
-	cd /src/grafana && mkdir build && cd build && cmake .. && make
+	if [ ! -f "/bin/yamal-run" ]
+	then
+		cd /opt && \
+		wget https://github.com/featuremine/yamal/releases/download/v7.2.21/yamal-7.2.21-Linux.tar.gz && \
+		tar xvzf yamal-7.2.21-Linux.tar.gz -C /
+	fi
+	if [ ! -f "/usr/local/lib/yamal/modules/bulldozer/bulldozer.so" ]
+	then
+		cd /opt && \
+		chmod +x bulldozer.sh && \
+		./bulldozer.sh
+	fi
 fi
 
 if ! _is_sourced; then
 	if [ "${ENTRYPINT_USER}" = "root" ]
 	then
-		cd /src/grafana && python3 bulldozer2postgresql.py &
+		cd /opt && \
+		python3 bulldozer2postgresql.py &
 	fi
 	_main "$@"
 fi
