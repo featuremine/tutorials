@@ -343,22 +343,6 @@ _main() {
 
 ENTRYPOINT_USER=$(whoami)
 
-if [ "${ENTRYPOINT_USER}" = "root" ]
-then
-	if [ ! -f "/bin/yamal-run" ]
-	then
-		cd /opt && \
-		wget https://github.com/featuremine/yamal/releases/download/v7.2.21/yamal-7.2.21-Linux.tar.gz && \
-		tar xvzf yamal-7.2.21-Linux.tar.gz -C /
-	fi
-	if [ ! -f "/usr/local/lib/yamal/modules/bulldozer/bulldozer.so" ]
-	then
-		cd /opt && \
-		chmod +x bulldozer.sh && \
-		./bulldozer.sh
-	fi
-fi
-
 if ! _is_sourced; then
 	if [ "${ENTRYPOINT_USER}" = "root" ]
 	then
