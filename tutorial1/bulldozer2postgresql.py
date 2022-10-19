@@ -7,12 +7,6 @@ import os
 import time
 import signal
 
-src_dir = os.path.dirname(os.path.realpath(__file__))
-
-my_env = os.environ.copy()
-my_env["PATH"] = os.path.join(src_dir, 'build', 'dependencies', 'build', 'yamal') + ":" + my_env["PATH"]
-my_env["YAMALCOMPPATH"] = os.path.join(src_dir, 'build', 'dependencies', 'build', 'bulldozer', 'package', 'lib', 'yamal', 'modules')
-
 if __name__ == "__main__":
    run = True
    def signal_handler(sig, frame):
@@ -24,14 +18,13 @@ if __name__ == "__main__":
    parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
    args = parser.parse_args()
 
-   proc_comp = subprocess.Popen(['yamal-run', '-c', os.path.join(os.sep, 'usr', 'local', 'lib', 'yamal', 'modules', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini'), '-s', 'main'],
-                                env=my_env)
+   proc_comp = subprocess.Popen(['yamal-run', '-c',
+                                 os.path.join(os.sep, 'usr', 'local', 'lib', 'yamal', 'modules', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini'), '-s', 'main'])
    while not os.path.exists('ore_coinbase_l2.ytp'):
       time.sleep(0.1)
    
    proc_stats = subprocess.Popen(['yamal-stats', 'ore_coinbase_l2.ytp', '-f', '-b'],
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 env=my_env)
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
    tries = 10
    while True:
