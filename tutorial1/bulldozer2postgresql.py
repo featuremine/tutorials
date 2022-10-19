@@ -7,11 +7,13 @@ import os
 import time
 import signal
 
+run = True
+
 if __name__ == "__main__":
-   run = True
    def signal_handler(sig, frame):
-      print('You pressed Ctrl+C!')
+      global run
       run = False
+      print('Signal SIGINT received')
    signal.signal(signal.SIGINT, signal_handler)
    
    parser = argparse.ArgumentParser()
