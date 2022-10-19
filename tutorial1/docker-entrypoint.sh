@@ -341,9 +341,9 @@ _main() {
 	exec "$@"
 }
 
-ENTRYPINT_USER=$(whoami)
-echo "${ENTRYPINT_USER}"
-if [ "${ENTRYPINT_USER}" = "root" ]
+ENTRYPOINT_USER=$(whoami)
+
+if [ "${ENTRYPOINT_USER}" = "root" ]
 then
 	if [ ! -f "/bin/yamal-run" ]
 	then
@@ -360,10 +360,11 @@ then
 fi
 
 if ! _is_sourced; then
-	if [ "${ENTRYPINT_USER}" = "root" ]
+	if [ "${ENTRYPOINT_USER}" = "root" ]
 	then
+		DB_NAME="${POSTGRES_DB:-${POSTGRES_USER}}"
 		cd /opt && \
-		python3 bulldozer2postgresql.py &
+		python3 bulldozer2postgresql.py --database ${DB_NAME} --user ${POSTGRES_USER}  &
 	fi
 	_main "$@"
 fi

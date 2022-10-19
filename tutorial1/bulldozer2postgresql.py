@@ -15,11 +15,13 @@ if __name__ == "__main__":
    signal.signal(signal.SIGINT, signal_handler)
    
    parser = argparse.ArgumentParser()
+   parser.add_argument("--database", help="postgreSQL database name", required=True)
+   parser.add_argument("--user", help="postgreSQL user name", required=True)
    parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
    args = parser.parse_args()
 
-   proc_comp = subprocess.Popen(['yamal-run', '-c',
-                                 os.path.join(os.sep, 'usr', 'local', 'lib', 'yamal', 'modules', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini'), '-s', 'main'])
+   cfg_file = os.path.join(os.sep, 'usr', 'local', 'lib', 'yamal', 'modules', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini')
+   proc_comp = subprocess.Popen(['yamal-run', '-c', cfg_file, '-s', 'main'])
    while not os.path.exists('ore_coinbase_l2.ytp'):
       time.sleep(0.1)
    
@@ -29,7 +31,7 @@ if __name__ == "__main__":
    tries = 10
    while True:
       try:
-         conn = psycopg2.connect(database="myusername", user = "myusername", password =  args.password, host = "127.0.0.1", port = "5432")
+         conn = psycopg2.connect(database = args.database, user = args.user, password = args.password, host = "127.0.0.1", port = "5432")
          break
       except psycopg2.OperationalError as e:
          if tries > 0:
