@@ -9,11 +9,11 @@ Get the bulldozer installer (e.g. bulldozer-0.0.1.sh) and copy it to this locati
 
 ### Build our postgreSQL docker container
 
-docker build -t <docker-image-tag> -f postgresql.docker .
+docker build -t *docker-image-tag* -f postgresql.docker .
 
 ### Run our postgreSQL docker container 
 
-docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 <docker-image-tag>
+docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 *docker-image-tag*
 
 ### Run grafana docker container
 
@@ -21,4 +21,4 @@ docker run -d --name=grafana -p 3000:3000 grafana/grafana
 
 ##### Config with UI
 
-Open http://localhost:3000 on a browser. Connect to the database adding it to "Data sources". Create a new dashboard with the configuration dashboard_cfg.json.
+Open http://localhost:3000 on a browser. Connect to the database adding it to "Data sources". Create a new dashboard importing the configuration dashboard_cfg.json.

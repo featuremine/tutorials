@@ -1,0 +1,22 @@
+FROM postgres
+ENV container docker
+
+# dependencies
+RUN apt-get update -y && \
+    apt-get -y install wget python3 python3-pip libpq-dev
+
+RUN pip3 install psycopg2
+
+RUN cd /tmp && \
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.21/yamal-7.2.21-Linux.tar.gz && \
+    tar xvzf yamal-7.2.21-Linux.tar.gz -C / && \
+    rm -rf yamal-7.2.21-Linux.tar.gz
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
+COPY bulldozer-*.sh /tmp/bulldozer.sh
+
+RUN cd /tmp && \
+    chmod +x bulldozer.sh && \
+    ./bulldozer.sh && \
+    rm -rf bulldozer.sh
