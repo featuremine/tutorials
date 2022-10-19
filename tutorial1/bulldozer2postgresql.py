@@ -43,6 +43,8 @@ if __name__ == "__main__":
             proc_comp.wait()
             proc_stats.send_signal(subprocess.signal.SIGINT)
             proc_stats.wait()
+            proc_stats.stdout.close()
+            proc_stats.stderr.close()
             raise
       time.sleep(1)
 
