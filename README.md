@@ -1,4 +1,4 @@
-# grafana
+# Dashboard
 Graphic visualization of market data
 
 ## Basic configuration
