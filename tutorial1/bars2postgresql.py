@@ -72,6 +72,16 @@ if __name__ == "__main__":
         {db_fields_imnt_create}
     )
     """)
+    # commit the changes
+    conn.commit()
+
+    cur.execute("""
+    SELECT MAX(vwap_id) FROM vwap;
+    """)
+    last_id = cur.fetchall()
+    if last_id[0][0]:
+        for k, v in counters.items():
+            counters[k] = last_id[0][0] + 1
 
     def print_vwap(x):
         print(x)
