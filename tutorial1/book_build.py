@@ -1,6 +1,6 @@
 import argparse
 import extractor
-import ytp
+from yamal import ytp
 from datetime import timedelta
 
 
@@ -14,7 +14,7 @@ def print_bbos(x):
 def setup_prod_sip(universe, symbology, markets, lvls, graph, ytpfile):
     op = graph.features
     seq = ytp.sequence(ytpfile, readonly=True)
-    peer = seq.peer("peer_reader")
+    peer = seq.peer("feed_handler")
     op.ytp_sequence(seq, timedelta(milliseconds=1))
     for imnt in universe.get("all"):
         ticker = symbology.info(imnt)["ticker"]
