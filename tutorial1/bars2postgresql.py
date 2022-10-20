@@ -1,11 +1,11 @@
 import argparse
 import extractor
-import ytp
+from yamal import ytp
 from datetime import datetime, timedelta, date
 import pytz
 from time import time_ns
 
-prefix = "ore_data/imnts"
+prefix = "ore/imnts"
 
 def epoch_delta(date):
     return date - pytz.timezone("UTC").localize(datetime(1970, 1, 1))
