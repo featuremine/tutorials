@@ -4,6 +4,8 @@ from yamal import ytp
 from datetime import datetime, timedelta, date
 import pytz
 from time import time_ns
+import psycopg2
+import time
 
 prefix = "ore/imnts"
 
@@ -140,12 +142,11 @@ def bars_L3_live(op, yamal, peer_name, channels, date: date, period):
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
     return bars_L3(op, upds, start=start, stop=stop, period=period)
 
-def print_vwap(x):
-    print(x)
-    print(x.as_pandas()['vwap'][0])
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--database", help="postgreSQL database name", required=True)
+    parser.add_argument("--user", help="postgreSQL user name", required=True)
+    parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
     parser.add_argument("--ytp", help="YTP file", required=True)
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
@@ -156,6 +157,37 @@ if __name__ == "__main__":
         default="../test/test.lic")
     args = parser.parse_args()
 
+    tries = 10
+    while True:
+        try:
+            conn = psycopg2.connect(database = args.database, user = args.user, password = args.password, host = "127.0.0.1", port = "5432")
+            break
+        except psycopg2.OperationalError as e:
+            if tries > 0:
+                tries -= 1
+            else:
+                raise
+        time.sleep(1)
+
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS bar
+    (
+        vwap_id SERIAL PRIMARY KEY NOT NULL,
+        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
+        vwap NUMERIC NOT NULL
+    )
+    """)
+
+    def print_vwap(x):
+        table_pandas = x.as_pandas()
+        vwap = table_pandas['vwap'][0]
+        cur.execute(f"""
+        INSERT INTO bar (vwap) VALUES
+        ({vwap})
+        """)
+        conn.commit()
+    
     extractor.set_license(args.license)
     graph = extractor.system.comp_graph()
     op = graph.features
