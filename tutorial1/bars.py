@@ -206,15 +206,18 @@ def bars_L3_s3(op, date: date, period, version, inurl, outurl, residurl):
         op.csv_record(out, "| aws s3 cp - {}".format(residurl).format(date, version))
 
 
-def bars_L3_live(op, yamal, peer_name, date: date, period):
+def bars_L3_live(op, yamal, peer_name, channels, date: date, period):
     start = UTC_time(date.year, date.month, date.day, 0)
     stop = UTC_time(date.year, date.month, date.day, 23, 59, 59)
 
-    import ytp
-    seq = ytp.sequence(yamal)
+    from yamal import ytp
+    seq = ytp.sequence(yamal, readonly=True)
     op.ytp_sequence(seq, timedelta(milliseconds=1))
     peer = seq.peer(peer_name)
-    upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), prefix + ch))) for ch in tickers]
+    if channels:
+        upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
+    else:
+        upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), prefix + ch))) for ch in tickers]
     return bars_L3(op, upds, start=start, stop=stop, period=period)
 
 
