@@ -52,11 +52,14 @@ if __name__ == "__main__":
     channels = []
     mktimnt = []
     db_fields_imnt_create = ""
+    counters = {}
     for imnt in args.imnts.split(','):
         for mkt in args.markets.split(','):
             channels += [f"{prefix}/{mkt}/{imnt}"]
-            mktimnt += [f"{mkt}_{imnt}".replace("-", "_" )]
-            db_fields_imnt_create += f"{mkt}_{imnt} NUMERIC NOT NULL,".replace("-", "_" )
+            db_field = f"{mkt}_{imnt}".replace("-", "_" )
+            mktimnt += [db_field]
+            db_fields_imnt_create += f"{db_field} NUMERIC NOT NULL DEFAULT 0.00,"
+            counters[db_field] = 1 # db table id starts at 1
 
     db_fields_imnt_create = db_fields_imnt_create.rstrip(db_fields_imnt_create[-1])
 
@@ -71,22 +74,27 @@ if __name__ == "__main__":
     """)
 
     def print_vwap(x):
-        #TODO: separate instruments
         print(x)
         table_pandas = x.as_pandas()
+        ticker = table_pandas['ticker'][0]
         vwap = table_pandas['vwap'][0]
         cur.execute(f"""
-        INSERT INTO vwap ({mktimnt[0]}) VALUES
-        ({vwap})
+        INSERT INTO vwap (vwap_id,{ticker}) VALUES
+        ({counters[ticker]},{vwap})
+        ON CONFLICT (vwap_id)
+        DO UPDATE
+        SET {ticker} = {vwap};
         """)
         conn.commit()
+        counters[ticker] += 1
     
     extractor.set_license(args.license)
     graph = extractor.system.comp_graph()
     op = graph.features
 
     bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", channels, date.today(), period=timedelta(seconds=1))
-    for bar in bars:
-        graph.callback(bar, print_vwap)
+    out_stream = op.join(*bars, "ticker", extractor.Array(extractor.Char, 32),
+                         tuple([ticker for ticker in mktimnt]))
+    graph.callback(out_stream, print_vwap)
 
     graph.stream_ctx().run_live()
