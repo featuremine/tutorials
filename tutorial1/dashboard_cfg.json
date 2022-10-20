@@ -114,19 +114,19 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  vwap\nFROM bar\nORDER BY 1",
+          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  coinbase_btc_usd\nFROM vwap\nORDER BY 1",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "vwap"
+                  "coinbase_btc_usd"
                 ],
                 "type": "column"
               }
             ]
           ],
-          "table": "bar",
+          "table": "vwap",
           "timeColumn": "\"timestamp\"",
           "timeColumnType": "timestamp",
           "where": []
@@ -259,6 +259,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 10,
+  "version": 11,
   "weekStart": ""
 }

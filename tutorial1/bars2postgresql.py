@@ -36,29 +36,6 @@ if __name__ == "__main__":
                 raise
         time.sleep(1)
 
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS bar
-    (
-        vwap_id SERIAL PRIMARY KEY NOT NULL,
-        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-        vwap NUMERIC NOT NULL
-    )
-    """)
-
-    def print_vwap(x):
-        table_pandas = x.as_pandas()
-        vwap = table_pandas['vwap'][0]
-        cur.execute(f"""
-        INSERT INTO bar (vwap) VALUES
-        ({vwap})
-        """)
-        conn.commit()
-    
-    extractor.set_license(args.license)
-    graph = extractor.system.comp_graph()
-    op = graph.features
-
     # E.G.
     # imnts = [
     #     "ADA-USD",
@@ -72,11 +49,41 @@ if __name__ == "__main__":
     #     "binance"
     # ]
 
-
     channels = []
+    mktimnt = []
+    db_fields_imnt_create = ""
     for imnt in args.imnts.split(','):
         for mkt in args.markets.split(','):
             channels += [f"{prefix}/{mkt}/{imnt}"]
+            mktimnt += [f"{mkt}_{imnt}".replace("-", "_" )]
+            db_fields_imnt_create += f"{mkt}_{imnt} NUMERIC NOT NULL,".replace("-", "_" )
+
+    db_fields_imnt_create = db_fields_imnt_create.rstrip(db_fields_imnt_create[-1])
+
+    cur = conn.cursor()
+    cur.execute(f"""
+    CREATE TABLE IF NOT EXISTS vwap
+    (
+        vwap_id SERIAL PRIMARY KEY NOT NULL,
+        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
+        {db_fields_imnt_create}
+    )
+    """)
+
+    def print_vwap(x):
+        #TODO: separate instruments
+        print(x)
+        table_pandas = x.as_pandas()
+        vwap = table_pandas['vwap'][0]
+        cur.execute(f"""
+        INSERT INTO vwap ({mktimnt[0]}) VALUES
+        ({vwap})
+        """)
+        conn.commit()
+    
+    extractor.set_license(args.license)
+    graph = extractor.system.comp_graph()
+    op = graph.features
 
     bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", channels, date.today(), period=timedelta(seconds=1))
     for bar in bars:
