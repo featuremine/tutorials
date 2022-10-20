@@ -1,4 +1,6 @@
 build/*
 .vscode/*
 *.ytp
+*.so
+*.whl
 bulldozer-*.sh
