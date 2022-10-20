@@ -114,13 +114,13 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  coinbase_btc_usd\nFROM vwap\nORDER BY 1",
+          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  $instrument\nFROM vwap\nORDER BY 1",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "coinbase_btc_usd"
+                  "$instrument"
                 ],
                 "type": "column"
               }
@@ -249,7 +249,28 @@
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "coinbase_btc_usd",
+          "value": "coinbase_btc_usd"
+        },
+        "definition": "SELECT column_name FROM information_schema.columns WHERE table_name = 'vwap';",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Instrument",
+        "multi": false,
+        "name": "instrument",
+        "options": [],
+        "query": "SELECT column_name FROM information_schema.columns WHERE table_name = 'vwap';",
+        "refresh": 1,
+        "regex": "coinbase.*",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-5m",
@@ -259,6 +280,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 11,
+  "version": 13,
   "weekStart": ""
 }
