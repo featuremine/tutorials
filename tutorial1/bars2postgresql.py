@@ -142,6 +142,7 @@ def bars_L3_live(op, yamal, peer_name, channels, date: date, period):
 
 def print_vwap(x):
     print(x)
+    print(x.as_pandas()['vwap'][0])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -180,6 +181,6 @@ if __name__ == "__main__":
 
     bars = bars_L3_live(op, args.ytp, "feed_handler", channels, date.today(), period=timedelta(seconds=1))
     for bar in bars:
-        graph.callback(op.field(bar, "vwap"), print_vwap)
+        graph.callback(bar, print_vwap)
 
     graph.stream_ctx().run_live()
