@@ -58,6 +58,7 @@ if __name__ == "__main__":
             else:
                 raise
         time.sleep(1)
+    cur = conn.cursor()
 
     # Markets and instruments examples
     # E.G.
@@ -88,7 +89,6 @@ if __name__ == "__main__":
     db_fields_imnt_create = db_fields_imnt_create.rstrip(db_fields_imnt_create[-1])
 
     # Create database table to store market data
-    cur = conn.cursor()
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS vwap
     (
@@ -141,3 +141,5 @@ if __name__ == "__main__":
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
+
+    conn.close()
