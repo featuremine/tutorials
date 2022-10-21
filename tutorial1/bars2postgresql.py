@@ -22,6 +22,7 @@
  */
 """
 import argparse
+import os
 import extractor
 from datetime import timedelta, date
 import psycopg2
@@ -45,6 +46,10 @@ if __name__ == "__main__":
         required=False,
         default="test.lic")
     args = parser.parse_args()
+   
+    # Wait until the YTP file is created
+    while not os.path.exists(args.ytp):
+        time.sleep(0.1)
 
     # Connect to PostgreSQL database
     tries = 10
