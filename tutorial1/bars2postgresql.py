@@ -85,7 +85,7 @@ if __name__ == "__main__":
     for imnt in args.imnts.split(','):
         for mkt in args.markets.split(','):
             channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
-            mktimnt += [(mkt,imnt)] # database field name for each market/instrument pair
+            mktimnt += [(mkt,imnt)] # market/instrument pair
 
     # Create database table to store market data
     cur.execute(f"""
@@ -119,10 +119,9 @@ if __name__ == "__main__":
     # Get the bars frames with the market data from the bars module
     bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", date.today(), period=timedelta(seconds=1), channels=channels)
     
-    i = 0
-    for bar in bars:
-        graph.callback(bar, functools.partial(vwap2db, market=mktimnt[i][0], imnt=mktimnt[i][1]))
-        i += 1
+    #for level, header, mkt_imnt in zip(levels, filtered_headers, mkt_imnts)
+    for bar, mi in zip(bars, mktimnt):
+        graph.callback(bar, functools.partial(vwap2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
