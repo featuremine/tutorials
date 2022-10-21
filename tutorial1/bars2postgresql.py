@@ -95,15 +95,14 @@ if __name__ == "__main__":
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
         market VARCHAR(32),
         imnt VARCHAR(32),
-        value NUMERIC NOT NULL DEFAULT 0.00
+        value NUMERIC NOT NULL
     )
     """)
     conn.commit()
 
     def vwap2db(x, market, imnt):
         # Get the vwap
-        table_pandas = x.as_pandas()
-        vwap = table_pandas['vwap'][0]
+        vwap = x[0].vwap
         # Populate the vwap into the database
         cur.execute(f"""
         INSERT INTO vwap (market,imnt,value) VALUES
