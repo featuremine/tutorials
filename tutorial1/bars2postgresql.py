@@ -28,6 +28,7 @@ import psycopg2
 import time
 import bars as bars_lib
 
+# YTP channels prefix
 prefix = "ore/imnts"
 
 if __name__ == "__main__":
@@ -78,9 +79,9 @@ if __name__ == "__main__":
     counters = {}
     for imnt in args.imnts.split(','):
         for mkt in args.markets.split(','):
-            channels += [f"{prefix}/{mkt}/{imnt}"]
+            channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
             db_field = f"{mkt}_{imnt}".replace("-", "_" )
-            mktimnt += [db_field]
+            mktimnt += [db_field] # database field name for each market/instrument pair
             db_fields_imnt_create += f"{db_field} NUMERIC NOT NULL DEFAULT 0.00,"
             counters[db_field] = 1 # db table id starts with 1
 
@@ -107,11 +108,12 @@ if __name__ == "__main__":
         for k, v in counters.items():
             counters[k] = last_id[0][0] + 1
 
-    def print_vwap(x):
-        print(x)
+    def vwap2db(x):
+        # Get the ticker and the vwap
         table_pandas = x.as_pandas()
         ticker = table_pandas['ticker'][0]
         vwap = table_pandas['vwap'][0]
+        # Populate the ticker and the vwap into the database
         cur.execute(f"""
         INSERT INTO vwap (vwap_id,{ticker}) VALUES
         ({counters[ticker]},{vwap})
@@ -130,12 +132,12 @@ if __name__ == "__main__":
     # Get the bars frames with the market data from the bars module
     bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", channels, date.today(), period=timedelta(seconds=1))
     
-    # Append the ticker name to the corresponding bar frame
+    # Append the ticker database name to the corresponding bar frame
     out_stream = op.join(*bars, "ticker", extractor.Array(extractor.Char, 32),
                          tuple([ticker for ticker in mktimnt]))
     
     # Add a function callback for each new frame with the market data
-    graph.callback(out_stream, print_vwap)
+    graph.callback(out_stream, vwap2db)
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
