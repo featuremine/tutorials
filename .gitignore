@@ -3,4 +3,5 @@ build/*
 *.ytp
 *.so
 *.whl
+*.lic
 bulldozer-*.sh
