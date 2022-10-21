@@ -23,6 +23,7 @@
 """
 import argparse
 import os
+import functools
 import extractor
 from datetime import timedelta, date
 import psycopg2
@@ -81,17 +82,10 @@ if __name__ == "__main__":
     # Parse markets and instruments
     channels = []
     mktimnt = []
-    db_fields_imnt_create = ""
-    counters = {}
     for imnt in args.imnts.split(','):
         for mkt in args.markets.split(','):
             channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
-            db_field = f"{mkt}_{imnt}".replace("-", "_" )
-            mktimnt += [db_field] # database field name for each market/instrument pair
-            db_fields_imnt_create += f"{db_field} NUMERIC NOT NULL DEFAULT 0.00,"
-            counters[db_field] = 1 # db table id starts with 1
-
-    db_fields_imnt_create = db_fields_imnt_create.rstrip(db_fields_imnt_create[-1])
+            mktimnt += [(mkt,imnt)] # database field name for each market/instrument pair
 
     # Create database table to store market data
     cur.execute(f"""
@@ -99,35 +93,23 @@ if __name__ == "__main__":
     (
         vwap_id SERIAL PRIMARY KEY NOT NULL,
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-        {db_fields_imnt_create}
+        market VARCHAR(32),
+        imnt VARCHAR(32),
+        value NUMERIC NOT NULL DEFAULT 0.00
     )
     """)
     conn.commit()
 
-    # Get the last id from the table if there was any
-    cur.execute("""
-    SELECT MAX(vwap_id) FROM vwap;
-    """)
-    last_id = cur.fetchall()
-    if last_id[0][0]:
-        for k, v in counters.items():
-            counters[k] = last_id[0][0] + 1
-
-    def vwap2db(x):
-        # Get the ticker and the vwap
+    def vwap2db(x, market, imnt):
+        # Get the vwap
         table_pandas = x.as_pandas()
-        ticker = table_pandas['ticker'][0]
         vwap = table_pandas['vwap'][0]
-        # Populate the ticker and the vwap into the database
+        # Populate the vwap into the database
         cur.execute(f"""
-        INSERT INTO vwap (vwap_id,{ticker}) VALUES
-        ({counters[ticker]},{vwap})
-        ON CONFLICT (vwap_id)
-        DO UPDATE
-        SET {ticker} = {vwap};
+        INSERT INTO vwap (market,imnt,value) VALUES
+        ('{market}','{imnt}',{vwap})
         """)
         conn.commit()
-        counters[ticker] += 1
     
     # Set the extractor's license
     extractor.set_license(args.license)
@@ -135,14 +117,12 @@ if __name__ == "__main__":
     op = graph.features
 
     # Get the bars frames with the market data from the bars module
-    bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", channels, date.today(), period=timedelta(seconds=1))
+    bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", date.today(), period=timedelta(seconds=1), channels=channels)
     
-    # Append the ticker database name to the corresponding bar frame
-    out_stream = op.join(*bars, "ticker", extractor.Array(extractor.Char, 32),
-                         tuple([ticker for ticker in mktimnt]))
-    
-    # Add a function callback for each new frame with the market data
-    graph.callback(out_stream, vwap2db)
+    i = 0
+    for bar in bars:
+        graph.callback(bar, functools.partial(vwap2db, market=mktimnt[i][0], imnt=mktimnt[i][1]))
+        i += 1
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()

@@ -206,7 +206,7 @@ def bars_L3_s3(op, date: date, period, version, inurl, outurl, residurl):
         op.csv_record(out, "| aws s3 cp - {}".format(residurl).format(date, version))
 
 
-def bars_L3_live(op, yamal, peer_name, channels, date: date, period):
+def bars_L3_live(op, yamal, peer_name, date: date, period, channels=None):
     start = UTC_time(date.year, date.month, date.day, 0)
     stop = UTC_time(date.year, date.month, date.day, 23, 59, 59)
 

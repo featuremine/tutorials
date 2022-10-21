@@ -114,13 +114,13 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  $instrument\nFROM vwap\nORDER BY 1",
+          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  value\nFROM vwap\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "$instrument"
+                  "value"
                 ],
                 "type": "column"
               }
@@ -129,7 +129,28 @@
           "table": "vwap",
           "timeColumn": "\"timestamp\"",
           "timeColumnType": "timestamp",
-          "where": []
+          "where": [
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "market",
+                "=",
+                "'$market'"
+              ],
+              "type": "expression"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "imnt",
+                "=",
+                "'$instrument'"
+              ],
+              "type": "expression"
+            }
+          ]
         }
       ],
       "title": "VWAP",
@@ -253,21 +274,45 @@
       {
         "current": {
           "selected": true,
-          "text": "coinbase_btc_usd",
-          "value": "coinbase_btc_usd"
+          "text": "BTC-USD",
+          "value": "BTC-USD"
         },
-        "definition": "SELECT column_name FROM information_schema.columns WHERE table_name = 'vwap';",
+        "datasource": {
+          "type": "postgres",
+          "uid": "eUBoZEIVz"
+        },
+        "definition": "SELECT DISTINCT imnt FROM vwap;",
         "hide": 0,
         "includeAll": false,
         "label": "Instrument",
         "multi": false,
         "name": "instrument",
         "options": [],
-        "query": "SELECT column_name FROM information_schema.columns WHERE table_name = 'vwap';",
+        "query": "SELECT DISTINCT imnt FROM vwap;",
         "refresh": 1,
-        "regex": "coinbase.*",
+        "regex": "",
         "skipUrlSync": false,
         "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "coinbase",
+          "value": "coinbase"
+        },
+        "definition": "SELECT DISTINCT market FROM vwap;",
+        "hide": 0,
+        "includeAll": false,
+        "label": "market",
+        "multi": false,
+        "name": "market",
+        "options": [],
+        "query": "SELECT DISTINCT market FROM vwap;",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 2,
         "type": "query"
       }
     ]
@@ -280,6 +325,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 13,
+  "version": 15,
   "weekStart": ""
 }
