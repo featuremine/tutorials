@@ -11,7 +11,7 @@ Get the bulldozer installer (e.g. bulldozer-0.0.1.sh) and copy it to this locati
 
 ### Build our postgreSQL docker container
 
-docker build -t *docker-image-tag* -f postgresql.docker .
+docker build -t *docker-image-tag* -f tutorial1.docker .
 
 ### Run our postgreSQL docker container 
 
