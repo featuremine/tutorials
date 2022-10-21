@@ -1,4 +1,7 @@
 build/*
 .vscode/*
 *.ytp
+*.so
+*.whl
+*.lic
 bulldozer-*.sh
