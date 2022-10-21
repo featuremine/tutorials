@@ -89,24 +89,26 @@ if __name__ == "__main__":
 
     # Create database table to store market data
     cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS vwap
+    CREATE TABLE IF NOT EXISTS market_data
     (
         vwap_id SERIAL PRIMARY KEY NOT NULL,
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
         market VARCHAR(32),
         imnt VARCHAR(32),
-        value NUMERIC NOT NULL
+        vwap NUMERIC NOT NULL,
+        open_px NUMERIC NOT NULL,
+        close_px NUMERIC NOT NULL,
+        high_px NUMERIC NOT NULL,
+        low_px NUMERIC NOT NULL
     )
     """)
     conn.commit()
 
     def vwap2db(x, market, imnt):
-        # Get the vwap
-        vwap = x[0].vwap
-        # Populate the vwap into the database
+        # Populate the market data parameters into the database
         cur.execute(f"""
-        INSERT INTO vwap (market,imnt,value) VALUES
-        ('{market}','{imnt}',{vwap})
+        INSERT INTO market_data (market,imnt,vwap,open_px,close_px,high_px,low_px) VALUES
+        ('{market}','{imnt}',{x[0].vwap},{x[0].open_px},{x[0].close_px},{x[0].high_px},{x[0].low_px})
         """)
         conn.commit()
     

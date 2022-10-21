@@ -114,19 +114,19 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  value\nFROM vwap\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
+          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "value"
+                  "vwap"
                 ],
                 "type": "column"
               }
             ]
           ],
-          "table": "vwap",
+          "table": "market_data",
           "timeColumn": "\"timestamp\"",
           "timeColumnType": "timestamp",
           "where": [
@@ -297,7 +297,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "coinbase",
           "value": "coinbase"
         },
@@ -325,6 +325,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 15,
+  "version": 16,
   "weekStart": ""
 }
