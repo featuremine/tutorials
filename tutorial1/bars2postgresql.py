@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # Get the bars frames with the market data from the bars module
     bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", date.today(), period=timedelta(seconds=1), channels=channels)
     
-    #for level, header, mkt_imnt in zip(levels, filtered_headers, mkt_imnts)
+    # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi in zip(bars, mktimnt):
         graph.callback(bar, functools.partial(vwap2db, market=mi[0], imnt=mi[1]))
 
