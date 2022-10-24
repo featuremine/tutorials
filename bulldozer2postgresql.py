@@ -41,18 +41,15 @@ if __name__ == "__main__":
     parser.add_argument("--database", help="postgreSQL database name", required=True)
     parser.add_argument("--user", help="postgreSQL user name", required=True)
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
+    parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
     args = parser.parse_args()
-
-    # Run the bulldozer component to get crypto market data into YTP file
-    cfg_file = os.path.join(os.sep, 'usr', 'local', 'lib', 'yamal', 'modules', 'bulldozer', 'samples', 'coinbase_l2_ore_ytp.ini')
-    proc_comp = subprocess.Popen(['yamal-run', '-c', cfg_file, '-s', 'main'])
    
     # Wait until the YTP file is created by yamal-run
-    while not os.path.exists('ore_coinbase_l2.ytp'):
+    while not os.path.exists(args.ytp):
         time.sleep(0.1)
    
     # Run yamal-stats to print the byte rate generated from market data
-    proc_stats = subprocess.Popen(['yamal-stats', 'ore_coinbase_l2.ytp', '-f', '-b'],
+    proc_stats = subprocess.Popen(['yamal-stats', args.ytp, '-f', '-b'],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Connect to PostgreSQL database
@@ -65,8 +62,6 @@ if __name__ == "__main__":
             if tries > 0:
                 tries -= 1
             else:
-                proc_comp.send_signal(subprocess.signal.SIGINT)
-                proc_comp.wait()
                 proc_stats.send_signal(subprocess.signal.SIGINT)
                 proc_stats.wait()
                 proc_stats.stdout.close()
@@ -106,8 +101,6 @@ if __name__ == "__main__":
         conn.commit()
 
     conn.close()
-    proc_comp.send_signal(subprocess.signal.SIGINT)
-    proc_comp.wait()
     proc_stats.send_signal(subprocess.signal.SIGINT)
     proc_stats.wait()
     proc_stats.stdout.close()
