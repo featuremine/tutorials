@@ -1,0 +1,38 @@
+FROM postgres
+ENV container docker
+
+# dependencies
+RUN apt-get update -y && \
+    apt-get -y install wget python3 python3-pip libpq-dev
+
+RUN pip3 install psycopg2 numpy==1.21.0 pytz pandas
+
+RUN cd /tmp && \
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.21/yamal-7.2.21-Linux.tar.gz && \
+    tar xvzf yamal-7.2.21-Linux.tar.gz -C / && \
+    rm -f yamal-7.2.21-Linux.tar.gz
+
+RUN cd /tmp && \
+    wget https://github.com/featuremine/yamal-python/releases/download/v7.2.20/yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && \
+    pip3 install yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && \
+    rm -f yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY market-data2_2.sh /opt/market-data.sh
+COPY bars.py /opt/bars.py
+COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
+COPY bars2postgresql.py /opt/bars2postgresql.py
+COPY test.lic /opt/test.lic
+COPY extractor-6.7.0-py3-none-any.whl /tmp/extractor-6.7.0-py3-none-any.whl
+COPY libextractor.so /lib/x86_64-linux-gnu/libextractor.so
+COPY syncer-*.sh /tmp/syncer.sh
+COPY syncer-sink.ini /opt/syncer-sink.ini
+
+RUN cd /tmp && \
+    chmod +x syncer.sh && \
+    ./syncer.sh && \
+    rm -f syncer.sh
+
+RUN cd /tmp && \
+    pip3 install extractor-6.7.0-py3-none-any.whl && \
+    rm -f extractor-6.7.0-py3-none-any.whl
