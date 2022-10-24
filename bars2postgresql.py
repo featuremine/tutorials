@@ -25,13 +25,31 @@ import argparse
 import os
 import functools
 import extractor
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 import psycopg2
 import time
 import bars as bars_lib
+import math
 
 # YTP channels prefix
 prefix = "ore/imnts"
+
+def extractor2psqlfield(name, t):
+    if t == extractor.Time64:
+        return f'{name} TIMESTAMP WITHOUT TIME ZONE'
+    elif t == extractor.Decimal64 or t == extractor.Float64:
+        return f'{name} NUMERIC NOT NULL'
+    else:
+        return f'{name} VARCHAR(32)'
+
+def extractor2psqlvalue(val):
+    if isinstance(val, timedelta):
+        return f"'{val + datetime(1970, 1, 1)}'"
+        #return str(val + datetime(1970, 1, 1) )
+    elif math.isnan(val):
+        return '0.0'
+    else:
+        return str(val)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -87,6 +105,16 @@ if __name__ == "__main__":
             channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
+    db_fields_array = []
+    db_fields_create = ''
+    for field in bars_lib.bars_descr:
+        if field[0] == 'ticker':
+            continue
+        db_fields_array += [field[0]]
+        db_fields_create += extractor2psqlfield(field[0], field[1]) + ','
+    db_fields_create = db_fields_create[:-1]
+    db_fields_str = ",".join(db_fields_array)
+
     # Create database table to store market data
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS market_data
@@ -95,20 +123,18 @@ if __name__ == "__main__":
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
         market VARCHAR(32),
         imnt VARCHAR(32),
-        vwap NUMERIC NOT NULL,
-        open_px NUMERIC NOT NULL,
-        close_px NUMERIC NOT NULL,
-        high_px NUMERIC NOT NULL,
-        low_px NUMERIC NOT NULL
+        {db_fields_create}
     )
     """)
     conn.commit()
 
     def vwap2db(x, market, imnt):
         # Populate the market data parameters into the database
+        values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array]
+        values_str = ",".join(values)
         cur.execute(f"""
-        INSERT INTO market_data (market,imnt,vwap,open_px,close_px,high_px,low_px) VALUES
-        ('{market}','{imnt}',{x[0].vwap},{x[0].open_px},{x[0].close_px},{x[0].high_px},{x[0].low_px})
+        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
+        ('{market}','{imnt}',{values_str})
         """)
         conn.commit()
     

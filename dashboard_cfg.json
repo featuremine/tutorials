@@ -32,6 +32,7 @@
         "type": "postgres",
         "uid": "eUBoZEIVz"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -51,7 +52,7 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -90,18 +91,28 @@
         "x": 0,
         "y": 0
       },
-      "id": 10,
+      "id": 12,
       "options": {
+        "candleStyle": "candles",
+        "colorStrategy": "open-close",
+        "colors": {
+          "down": "red",
+          "up": "green"
+        },
+        "fields": {
+          "close": "close_px",
+          "high": "high_px",
+          "low": "low_px",
+          "open": "open_px"
+        },
+        "includeAllFields": true,
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "mode": "candles+volume"
       },
       "targets": [
         {
@@ -113,9 +124,17 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  open_px,\n  close_px\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
+          "rawSql": "SELECT\n  close_time AS \"time\",\n  close_px,\n  open_px,\n  high_px,\n  low_px,\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
           "refId": "A",
           "select": [
+            [
+              {
+                "params": [
+                  "close_px"
+                ],
+                "type": "column"
+              }
+            ],
             [
               {
                 "params": [
@@ -127,131 +146,11 @@
             [
               {
                 "params": [
-                  "close_px"
+                  "high_px"
                 ],
                 "type": "column"
               }
-            ]
-          ],
-          "table": "market_data",
-          "timeColumn": "\"timestamp\"",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "market",
-                "=",
-                "'$market'"
-              ],
-              "type": "expression"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "imnt",
-                "=",
-                "'$instrument'"
-              ],
-              "type": "expression"
-            }
-          ]
-        }
-      ],
-      "title": "open/close price",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 8,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
-          },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  low_px,\n  high_px\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
-          "refId": "A",
-          "select": [
+            ],
             [
               {
                 "params": [
@@ -263,14 +162,14 @@
             [
               {
                 "params": [
-                  "high_px"
+                  "vwap"
                 ],
                 "type": "column"
               }
             ]
           ],
           "table": "market_data",
-          "timeColumn": "\"timestamp\"",
+          "timeColumn": "close_time",
           "timeColumnType": "timestamp",
           "where": [
             {
@@ -296,8 +195,8 @@
           ]
         }
       ],
-      "title": "high/low price",
-      "type": "timeseries"
+      "title": "Prices",
+      "type": "candlestick"
     },
     {
       "datasource": {
@@ -361,7 +260,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 8
       },
       "id": 6,
       "options": {
@@ -490,7 +389,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 16
       },
       "id": 4,
       "options": {
@@ -569,7 +468,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "coinbase",
           "value": "coinbase"
         },
@@ -601,6 +500,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 20,
+  "version": 25,
   "weekStart": ""
 }
