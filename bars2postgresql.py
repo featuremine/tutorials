@@ -31,40 +31,6 @@ import time
 import bars as bars_lib
 import math
 
-# TODO: cant make it work if I do not find ticker
-bars_descr2 = (("close_time", extractor.Time64),
-              ("close_askpx", extractor.Decimal64),
-              ("close_asksz", extractor.Decimal64),
-              ("close_bidpx", extractor.Decimal64),
-              ("close_bidsz", extractor.Decimal64),
-              ("close_px", extractor.Decimal64),
-              ("close_sz", extractor.Decimal64),
-              ("high_askpx", extractor.Decimal64),
-              ("high_asksz", extractor.Decimal64),
-              ("high_bidpx", extractor.Decimal64),
-              ("high_bidsz", extractor.Decimal64),
-              ("high_px", extractor.Decimal64),
-              ("high_sz", extractor.Decimal64),
-              ("low_askpx", extractor.Decimal64),
-              ("low_asksz", extractor.Decimal64),
-              ("low_bidpx", extractor.Decimal64),
-              ("low_bidsz", extractor.Decimal64),
-              ("low_px", extractor.Decimal64),
-              ("low_sz", extractor.Decimal64),
-              ("notional", extractor.Decimal64),
-              ("open_askpx", extractor.Decimal64),
-              ("open_asksz", extractor.Decimal64),
-              ("open_bidpx", extractor.Decimal64),
-              ("open_bidsz", extractor.Decimal64),
-              ("open_px", extractor.Decimal64),
-              ("open_sz", extractor.Decimal64),
-              ("shares", extractor.Float64),
-              ("tw_askpx", extractor.Float64),
-              ("tw_asksz", extractor.Float64),
-              ("tw_bidpx", extractor.Float64),
-              ("tw_bidsz", extractor.Float64),
-              ("vwap", extractor.Float64))
-
 # YTP channels prefix
 prefix = "ore/imnts"
 
@@ -141,7 +107,9 @@ if __name__ == "__main__":
 
     db_fields_array = []
     db_fields_create = ''
-    for field in bars_descr2:
+    for field in bars_lib.bars_descr:
+        if field[0] == 'ticker':
+            continue
         db_fields_array += [field[0]]
         db_fields_create += extractor2psqlfield(field[0], field[1]) + ','
     db_fields_create = db_fields_create[:-1]
