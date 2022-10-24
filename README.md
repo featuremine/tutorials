@@ -9,6 +9,10 @@ Guide to build a docker with our market data stack (bulldozer, extractor) and sh
 
 Get the bulldozer installer (e.g. bulldozer-0.0.1.sh) and copy it to this location.
 
+### Copy other requirementes (This step will not be required in the future)
+
+Copy extractor wheel and library it to this location. Copy extractor license to this location.
+
 ### Build our postgreSQL docker container
 
 docker build -t *docker-image-tag* -f tutorial1.docker .
