@@ -12,64 +12,6 @@ def print_trades(x):
 def print_bbos(x):
     print(x)
 
-
-def setup_prod_sip(universe, symbology, markets, lvls, graph, ytpfile, peer):
-    op = graph.features
-    seq = ytp.sequence(ytpfile, readonly=True)
-    peer = seq.peer(peer)
-    op.ytp_sequence(seq, timedelta(milliseconds=1))
-    for imnt in universe.get("all"):
-        ticker = symbology.info(imnt)["ticker"]
-        bbos_book = []
-        trades = []
-        cum_trades = []
-        statuses = []
-        for mkt in markets:
-            ch = peer.channel(1000, f"ore/imnts/{mkt}/{ticker}")  # E.G. "ore/imnts/coinbase/BTC-USD"
-            bookupd = op.ore_ytp_decode(ch)
-            decoded = op.decode_data(bookupd)
-            bbo_book = op.book_build(decoded, lvls)
-
-            book_receive = op.decode_receive(bookupd)
-            bbo_receive = op.asof(book_receive, bbo_book)
-
-            bidqty_int32 = op.convert(op.round(bbo_book.bid_shr_0), extractor.Int32)
-            askqty_int32 = op.convert(op.round(bbo_book.ask_shr_0), extractor.Int32)
-            bbo_book_combined = op.combine(
-                bbo_book, (
-                    ("bid_prx_0", "bidprice"),
-                    ("ask_prx_0", "askprice")
-                ),
-                bidqty_int32, (("bid_shr_0", "bidqty"),),
-                askqty_int32, (("ask_shr_0", "askqty"),),
-                bbo_receive, (("time", "receive"),)
-            )
-            graph.callback(bbo_book_combined, print_bbos)
-
-            trade = op.book_trades(decoded)  # change
-            trade_receive = op.asof(book_receive, trade)
-
-            bid, ask, unk = op.split(trade.decoration, 'decoration', ('b', 'a', 'u'))
-            bid_val = op.constant(bid, ('side', extractor.Int32, 0))
-            ask_val = op.constant(ask, ('side', extractor.Int32, 1))
-            unk_val = op.constant(unk, ('side', extractor.Int32, 2))
-            side = op.join(
-                bid_val, ask_val, unk_val, 'decoration', extractor.Array(
-                    extractor.Char, 1), ('b', 'a', 'u')).side
-
-            qty_decimal64 = op.round(trade.qty)
-            qty_int32 = op.convert(qty_decimal64, extractor.Int32)
-
-            trade_combined = op.combine(
-                trade, (("trade_price", "price"),),
-                qty_int32, (("qty", "qty"),),
-                trade_receive, (("time", "receive"),),
-                side, (("side", "side"),)
-            )
-            graph.callback(trade_combined, print_trades)
-
-
-
 class Universe:
     def __init__(self, universe_keys):
         self.universe_keys = universe_keys
@@ -130,7 +72,58 @@ if __name__ == "__main__":
     #     "binance"
     # ]
     markets = args.markets.split(',')
+    
+    seq = ytp.sequence(args.ytp, readonly=True)
+    peer = seq.peer(args.peer)
+    op.ytp_sequence(seq, timedelta(milliseconds=1))
+    for imnt in universe.get("all"):
+        ticker = symbology.info(imnt)["ticker"]
+        bbos_book = []
+        trades = []
+        cum_trades = []
+        statuses = []
+        for mkt in markets:
+            ch = peer.channel(1000, f"ore/imnts/{mkt}/{ticker}")  # E.G. "ore/imnts/coinbase/BTC-USD"
+            bookupd = op.ore_ytp_decode(ch)
+            decoded = op.decode_data(bookupd)
+            bbo_book = op.book_build(decoded, args.levels)
 
-    setup_prod_sip(universe, symbology, markets, args.levels, graph, args.ytp, args.peer)
+            book_receive = op.decode_receive(bookupd)
+            bbo_receive = op.asof(book_receive, bbo_book)
+
+            bidqty_int32 = op.convert(op.round(bbo_book.bid_shr_0), extractor.Int32)
+            askqty_int32 = op.convert(op.round(bbo_book.ask_shr_0), extractor.Int32)
+            bbo_book_combined = op.combine(
+                bbo_book, (
+                    ("bid_prx_0", "bidprice"),
+                    ("ask_prx_0", "askprice")
+                ),
+                bidqty_int32, (("bid_shr_0", "bidqty"),),
+                askqty_int32, (("ask_shr_0", "askqty"),),
+                bbo_receive, (("time", "receive"),)
+            )
+            graph.callback(bbo_book_combined, print_bbos)
+
+            trade = op.book_trades(decoded)  # change
+            trade_receive = op.asof(book_receive, trade)
+
+            bid, ask, unk = op.split(trade.decoration, 'decoration', ('b', 'a', 'u'))
+            bid_val = op.constant(bid, ('side', extractor.Int32, 0))
+            ask_val = op.constant(ask, ('side', extractor.Int32, 1))
+            unk_val = op.constant(unk, ('side', extractor.Int32, 2))
+            side = op.join(
+                bid_val, ask_val, unk_val, 'decoration', extractor.Array(
+                    extractor.Char, 1), ('b', 'a', 'u')).side
+
+            qty_decimal64 = op.round(trade.qty)
+            qty_int32 = op.convert(qty_decimal64, extractor.Int32)
+
+            trade_combined = op.combine(
+                trade, (("trade_price", "price"),),
+                qty_int32, (("qty", "qty"),),
+                trade_receive, (("time", "receive"),),
+                side, (("side", "side"),)
+            )
+            graph.callback(trade_combined, print_trades)
 
     graph.stream_ctx().run_live()
