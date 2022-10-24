@@ -32,6 +32,7 @@
         "type": "postgres",
         "uid": "eUBoZEIVz"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -53,7 +54,7 @@
             },
             "lineInterpolation": "smooth",
             "lineWidth": 1,
-            "pointSize": 3,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -90,9 +91,9 @@
         "x": 0,
         "y": 0
       },
-      "id": 8,
+      "id": 12,
       "options": {
-        "candleStyle": "ohlcbars",
+        "candleStyle": "candles",
         "colorStrategy": "open-close",
         "colors": {
           "down": "red",
@@ -123,25 +124,9 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  low_px,\n  high_px,\n  close_px,\n  open_px,\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
+          "rawSql": "SELECT\n  close_time AS \"time\",\n  close_px,\n  open_px,\n  high_px,\n  low_px,\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
           "refId": "A",
           "select": [
-            [
-              {
-                "params": [
-                  "low_px"
-                ],
-                "type": "column"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "high_px"
-                ],
-                "type": "column"
-              }
-            ],
             [
               {
                 "params": [
@@ -161,6 +146,22 @@
             [
               {
                 "params": [
+                  "high_px"
+                ],
+                "type": "column"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "low_px"
+                ],
+                "type": "column"
+              }
+            ],
+            [
+              {
+                "params": [
                   "vwap"
                 ],
                 "type": "column"
@@ -168,7 +169,7 @@
             ]
           ],
           "table": "market_data",
-          "timeColumn": "\"timestamp\"",
+          "timeColumn": "close_time",
           "timeColumnType": "timestamp",
           "where": [
             {
@@ -194,7 +195,7 @@
           ]
         }
       ],
-      "title": "high/low price",
+      "title": "Prices",
       "type": "candlestick"
     },
     {
@@ -467,7 +468,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "coinbase",
           "value": "coinbase"
         },
@@ -499,6 +500,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 22,
+  "version": 25,
   "weekStart": ""
 }
