@@ -57,11 +57,11 @@ docker build -t *docker-image-tag-22* -f tutorial2_2.docker .
 
 ### Run our market data generator docker container 
 
-docker run -p 3333:3333 *docker-image-tag-21*
+docker run --add-host host.docker.internal:host-gateway *docker-image-tag-21*
 
 ### Run our postgreSQL docker container 
 
-docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 *docker-image-tag-22*
+docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 -p 3333:3333 *docker-image-tag-22*
 
 ### Run grafana docker container
 

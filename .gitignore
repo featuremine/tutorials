@@ -4,6 +4,5 @@ build/*
 *.so
 *.whl
 *.lic
-*.ini
 bulldozer-*.sh
 syncer-*.sh
