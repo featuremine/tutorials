@@ -57,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--user", help="postgreSQL user name", required=True)
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
     parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
+    parser.add_argument("--peer", help="YTP peer reader", required=False, default="feed_handler")
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
     parser.add_argument(
@@ -144,7 +145,7 @@ if __name__ == "__main__":
     op = graph.features
 
     # Get the bars frames with the market data from the bars module
-    bars = bars_lib.bars_L3_live(op, args.ytp, "feed_handler", date.today(), period=timedelta(seconds=1), channels=channels)
+    bars = bars_lib.bars_L3_live(op, args.ytp, args.peer, date.today(), period=timedelta(seconds=1), channels=channels)
     
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi in zip(bars, mktimnt):

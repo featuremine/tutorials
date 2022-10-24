@@ -32,3 +32,41 @@ Open http://localhost:3000 on a browser. Connect to the database adding it to "D
 # Tutorial 2
 
 Guide to build 2 docker containers with our market data stack (bulldozer, extractor) connected with the syncer component and show the data in a Grafana dashboard
+
+## Steps
+
+### Copy bulldozer installer to this location
+
+Get the bulldozer installer (e.g. bulldozer-0.0.1.sh) and copy it to this location.
+
+### Copy syncer installer to this location
+
+Get the bulldozer installer (e.g. bulldozer-2.1.1.sh) and copy it to this location.
+
+### Copy other requirementes (This step will not be required in the future)
+
+Copy extractor wheel and library it to this location. Copy extractor license to this location.
+
+### Build our market data generator docker container
+
+docker build -t *docker-image-tag-21* -f tutorial2_1.docker .
+
+### Build our postgreSQL docker container
+
+docker build -t *docker-image-tag-22* -f tutorial2_2.docker .
+
+### Run our market data generator docker container 
+
+docker run --add-host host.docker.internal:host-gateway *docker-image-tag-21*
+
+### Run our postgreSQL docker container 
+
+docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 -p 3333:3333 *docker-image-tag-22*
+
+### Run grafana docker container
+
+docker run -d --name=grafana -p 3000:3000 grafana/grafana
+
+##### Config with UI
+
+Open http://localhost:3000 on a browser. Connect to the database adding it to "Data sources". Create a new dashboard importing the configuration dashboard_cfg.json.

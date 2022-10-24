@@ -5,3 +5,4 @@ build/*
 *.whl
 *.lic
 bulldozer-*.sh
+syncer-*.sh

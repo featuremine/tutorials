@@ -370,10 +370,8 @@ ENTRYPOINT_USER=$(whoami)
 if ! _is_sourced; then
 	if [ "${ENTRYPOINT_USER}" = "root" ]
 	then
-		DB_NAME="${POSTGRES_DB:-${POSTGRES_USER}}"
 		cd /opt
-		python3 bulldozer2postgresql.py --database ${DB_NAME} --user ${POSTGRES_USER} &
-		python3 bars2postgresql.py --license /opt/test.lic --ytp /opt/ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-BTC,ADA-USD" --database ${DB_NAME} --user ${POSTGRES_USER} &
+		./market-data.sh &
 	fi
 	_main "$@"
 fi
