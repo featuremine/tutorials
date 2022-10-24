@@ -18,19 +18,20 @@ RUN cd /tmp && \
     rm -f yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY market-data1.sh /opt/market-data.sh
+COPY market-data2_2.sh /opt/market-data.sh
 COPY bars.py /opt/bars.py
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
 COPY test.lic /opt/test.lic
-COPY bulldozer-*.sh /tmp/bulldozer.sh
 COPY extractor-6.7.0-py3-none-any.whl /tmp/extractor-6.7.0-py3-none-any.whl
 COPY libextractor.so /lib/x86_64-linux-gnu/libextractor.so
+COPY syncer-*.sh /tmp/syncer.sh
+COPY syncer-sink.ini /opt/syncer-sink.ini
 
 RUN cd /tmp && \
-    chmod +x bulldozer.sh && \
-    ./bulldozer.sh && \
-    rm -f bulldozer.sh
+    chmod +x syncer.sh && \
+    ./syncer.sh && \
+    rm -f syncer.sh
 
 RUN cd /tmp && \
     pip3 install extractor-6.7.0-py3-none-any.whl && \
