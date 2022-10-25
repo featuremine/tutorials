@@ -24,7 +24,7 @@
 import argparse
 import os
 import functools
-import extractor as e
+import extractor
 from yamal import ytp
 from datetime import timedelta, date, datetime
 import psycopg2
@@ -36,11 +36,11 @@ from time import time_ns
 prefix = "ore/imnts"
 
 def extractor2psqlfield(name, t):
-    if t == e.Time64:
+    if t == extractor.Time64:
         return f'{name} TIMESTAMP WITHOUT TIME ZONE'
-    elif t == e.Decimal64 or t == e.Float64:
+    elif t == extractor.Decimal64 or t == extractor.Float64:
         return f'{name} NUMERIC NOT NULL'
-    elif t == e.Int32:
+    elif t == extractor.Int32:
         return f'{name} INT NOT NULL'
     else:
         return f'{name} VARCHAR(32)'
@@ -72,50 +72,50 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    bars_descr = (("close_time", e.Time64),
-                ("close_askpx", e.Decimal64),
-                ("close_asksz", e.Decimal64),
-                ("close_bidpx", e.Decimal64),
-                ("close_bidsz", e.Decimal64),
-                ("close_px", e.Decimal64),
-                ("close_sz", e.Decimal64),
-                ("high_askpx", e.Decimal64),
-                ("high_asksz", e.Decimal64),
-                ("high_bidpx", e.Decimal64),
-                ("high_bidsz", e.Decimal64),
-                ("high_px", e.Decimal64),
-                ("high_sz", e.Decimal64),
-                ("low_askpx", e.Decimal64),
-                ("low_asksz", e.Decimal64),
-                ("low_bidpx", e.Decimal64),
-                ("low_bidsz", e.Decimal64),
-                ("low_px", e.Decimal64),
-                ("low_sz", e.Decimal64),
-                ("notional", e.Decimal64),
-                ("open_askpx", e.Decimal64),
-                ("open_asksz", e.Decimal64),
-                ("open_bidpx", e.Decimal64),
-                ("open_bidsz", e.Decimal64),
-                ("open_px", e.Decimal64),
-                ("open_sz", e.Decimal64),
-                ("shares", e.Float64),
-                ("ticker", e.Array(e.Char, 16)),
-                ("tw_askpx", e.Float64),
-                ("tw_asksz", e.Float64),
-                ("tw_bidpx", e.Float64),
-                ("tw_bidsz", e.Float64),
-                ("vwap", e.Float64))
+    bars_descr = (("close_time", extractor.Time64),
+                ("close_askpx", extractor.Decimal64),
+                ("close_asksz", extractor.Decimal64),
+                ("close_bidpx", extractor.Decimal64),
+                ("close_bidsz", extractor.Decimal64),
+                ("close_px", extractor.Decimal64),
+                ("close_sz", extractor.Decimal64),
+                ("high_askpx", extractor.Decimal64),
+                ("high_asksz", extractor.Decimal64),
+                ("high_bidpx", extractor.Decimal64),
+                ("high_bidsz", extractor.Decimal64),
+                ("high_px", extractor.Decimal64),
+                ("high_sz", extractor.Decimal64),
+                ("low_askpx", extractor.Decimal64),
+                ("low_asksz", extractor.Decimal64),
+                ("low_bidpx", extractor.Decimal64),
+                ("low_bidsz", extractor.Decimal64),
+                ("low_px", extractor.Decimal64),
+                ("low_sz", extractor.Decimal64),
+                ("notional", extractor.Decimal64),
+                ("open_askpx", extractor.Decimal64),
+                ("open_asksz", extractor.Decimal64),
+                ("open_bidpx", extractor.Decimal64),
+                ("open_bidsz", extractor.Decimal64),
+                ("open_px", extractor.Decimal64),
+                ("open_sz", extractor.Decimal64),
+                ("shares", extractor.Float64),
+                ("ticker", extractor.Array(extractor.Char, 16)),
+                ("tw_askpx", extractor.Float64),
+                ("tw_asksz", extractor.Float64),
+                ("tw_bidpx", extractor.Float64),
+                ("tw_bidsz", extractor.Float64),
+                ("vwap", extractor.Float64))
 
-    bbos_descr = [("close_time", e.Time64)] + \
-                sum([[(f"bid_prx_{i}", e.Decimal64),
-                        (f"bid_shr_{i}", e.Decimal64),
-                        (f"ask_prx_{i}", e.Decimal64),
-                        (f"ask_shr_{i}", e.Decimal64)] for i in range(0, args.levels)])
+    bbos_descr = sum([[(f"bid_prx_{i}", extractor.Decimal64),
+                       (f"bid_shr_{i}", extractor.Decimal64),
+                       (f"ask_prx_{i}", extractor.Decimal64),
+                       (f"ask_shr_{i}", extractor.Decimal64)] for i in range(0, args.levels)],
+                     [("close_time", extractor.Time64)])
 
-    trade_descr = (("price", e.Decimal64),
-                ("qty", e.Decimal64),
-                ("side", e.Int32),
-                ("receive", e.Time64))
+    trade_descr = (("price", extractor.Decimal64),
+                ("qty", extractor.Decimal64),
+                ("side", extractor.Int32),
+                ("receive", extractor.Time64))
 
     # Wait until the YTP file is created
     while not os.path.exists(args.ytp):
@@ -231,8 +231,8 @@ if __name__ == "__main__":
         conn.commit()
 
     # Set the extractor's license
-    e.set_license(args.license)
-    graph = e.system.comp_graph()
+    extractor.set_license(args.license)
+    graph = extractor.system.comp_graph()
     op = graph.features
 
     # Parse markets and instruments
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         def quote_side_float64(quote, name):
             return op.cond(op.is_zero(op.field(quote, name)),
                         op.nan(quote),
-                        op.convert(quote, e.Float64))
+                        op.convert(quote, extractor.Float64))
 
         def quote_float64(quote):
             bid_quote = op.fields(quote, ("bidprice", "bidqty"))
@@ -262,9 +262,9 @@ if __name__ == "__main__":
         quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
         quote_bid = op.field(bbo, "bidprice")
         quote_ask = op.field(bbo, "askprice")
-        open_quote = op.op._prev(quote, close)
+        open_quote = op.asof_prev(quote, close)
         close_quote = op.left_lim(quote, close)
-        high_quote = op.left_lim(op.op.(quote, op.max(quote_ask, close)), close)
+        high_quote = op.left_lim(op.asof(quote, op.max(quote_ask, close)), close)
         low_quote = op.left_lim(op.asof(quote, op.min(quote_bid, close)), close)
 
         tw_quote = op.average_tw(quote_float64(quote), close)
@@ -276,15 +276,15 @@ if __name__ == "__main__":
         high_trade = op.last_asof(op.asof(trade, op.max(trade_px, first_trade)), close)
         low_trade = op.last_asof(op.asof(trade, op.min(trade_px, first_trade)), close)
 
-        ftrade_px = op.convert(trade_px, e.Float64)
-        ftrade_qty = op.convert(trade.qty, e.Float64)
+        ftrade_px = op.convert(trade_px, extractor.Float64)
+        ftrade_qty = op.convert(trade.qty, extractor.Float64)
         total_notional = op.left_lim(op.cumulative(ftrade_px * ftrade_qty), close)
         total_shares = op.left_lim(op.cumulative(ftrade_qty), close)
         prev_total_notional = op.tick_lag(total_notional, 1)
         prev_total_shares = op.tick_lag(total_shares, 1)
         notional = total_notional - prev_total_notional
         shares = total_shares - prev_total_shares
-        vwap = op.cond(op.is_zero(shares), op.convert(open_trade.price, e.Float64), notional / shares)
+        vwap = op.cond(op.is_zero(shares), op.convert(open_trade.price, extractor.Float64), notional / shares)
 
         combined = op.combine(
             open_trade, (("price", "open_px"),
@@ -325,10 +325,10 @@ if __name__ == "__main__":
         return [compute_bar(op, quote, trd) for quote, trd in zip(quotes, trades)]
 
     def filter_quote(op, quote, maximum_spread_ratio=0.1):
-        max_spread_ratio = op.constant(("max_spread_ratio", e.Float64, maximum_spread_ratio))
-        midpx_multiplier = op.constant(("price", e.Float64, 0.5))
-        cleanbidpx = op.filter_unless(op.is_zero(quote.bidqty), op.convert(quote.bidprice, e.Float64))
-        cleanaskpx = op.filter_unless(op.is_zero(quote.askqty), op.convert(quote.askprice, e.Float64))
+        max_spread_ratio = op.constant(("max_spread_ratio", extractor.Float64, maximum_spread_ratio))
+        midpx_multiplier = op.constant(("price", extractor.Float64, 0.5))
+        cleanbidpx = op.filter_unless(op.is_zero(quote.bidqty), op.convert(quote.bidprice, extractor.Float64))
+        cleanaskpx = op.filter_unless(op.is_zero(quote.askqty), op.convert(quote.askprice, extractor.Float64))
         spread = cleanaskpx - cleanbidpx
         raw_fairpx = midpx_multiplier * (cleanbidpx + cleanaskpx)
         bad_spread = spread / raw_fairpx > max_spread_ratio
@@ -354,7 +354,9 @@ if __name__ == "__main__":
                 for upd in upds]
 
     bars = compute_bars(op, quotes, trades)
-    sampled_levels = op.asof(levels, close)
+    sampled_levels = [op.combine(
+                        op.asof(level, close), tuple(),
+                        close, (("actual", "close_time"),)) for level in levels]
 
     # Add a callback for each bar that corresponds to a market/instrument pair
     for level, bar, mi in zip(sampled_levels, bars, mktimnt):

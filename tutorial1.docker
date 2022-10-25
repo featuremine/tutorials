@@ -18,9 +18,6 @@ RUN cd /tmp && \
     rm -f yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY market-data1.sh /opt/market-data.sh
-COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
-COPY bars2postgresql.py /opt/bars2postgresql.py
 COPY test.lic /opt/test.lic
 COPY bulldozer-*.sh /tmp/bulldozer.sh
 COPY extractor-*.whl /tmp/
@@ -34,3 +31,7 @@ RUN cd /tmp && \
 RUN cd /tmp && \
     pip3 install extractor-*.whl && \
     rm -f extractor-*.whl
+
+COPY market-data1.sh /opt/market-data.sh
+COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
+COPY bars2postgresql.py /opt/bars2postgresql.py
