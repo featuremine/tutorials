@@ -321,8 +321,6 @@ def valid_date(s):
 
 
 if __name__ == "__main__":
-    e.set_license("aws s3 cp s3://fm-trial-dist/featuremine.lic - |")
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--residuals', default=None)
     parser.add_argument('-gv', '--graphviz', action='store_true')

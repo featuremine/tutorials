@@ -23,278 +23,10 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
-    {
-      "datasource": {
-        "type": "postgres"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres"
-          },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  price AS \"bidprice\"\nFROM trades\nWHERE\n  market = '$market' AND\n  imnt = '$instrument' AND\n  side = 0\nORDER BY 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "price"
-                ],
-                "type": "column"
-              },
-              {
-                "params": [
-                  "bidprice"
-                ],
-                "type": "alias"
-              }
-            ]
-          ],
-          "table": "trades",
-          "timeColumn": "\"timestamp\"",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "market",
-                "=",
-                "'$market'"
-              ],
-              "type": "expression"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "imnt",
-                "=",
-                "'$instrument'"
-              ],
-              "type": "expression"
-            },
-            {
-              "datatype": "int4",
-              "name": "",
-              "params": [
-                "side",
-                "=",
-                "0"
-              ],
-              "type": "expression"
-            }
-          ]
-        }
-      ],
-      "title": "Trades",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres"
-          },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  bidprice\nFROM book\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "bidprice"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "book",
-          "timeColumn": "\"timestamp\"",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "market",
-                "=",
-                "'$market'"
-              ],
-              "type": "expression"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "imnt",
-                "=",
-                "'$instrument'"
-              ],
-              "type": "expression"
-            }
-          ]
-        }
-      ],
-      "title": "Book",
-      "type": "timeseries"
-    },
     {
       "datasource": {
         "type": "postgres"
@@ -350,13 +82,34 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "vwap"
+            },
+            "properties": [
+              {
+                "id": "custom.lineInterpolation",
+                "value": "smooth"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed",
+                  "seriesBy": "last"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 0
       },
       "id": 12,
       "options": {
@@ -370,7 +123,8 @@
           "close": "close_px",
           "high": "high_px",
           "low": "low_px",
-          "open": "open_px"
+          "open": "open_px",
+          "volume": "notional"
         },
         "includeAllFields": true,
         "legend": {
@@ -390,7 +144,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  close_time AS \"time\",\n  close_px,\n  open_px,\n  high_px,\n  low_px,\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
+          "rawSql": "SELECT\n  close_time AS \"time\",\n  close_px,\n  open_px,\n  high_px,\n  low_px,\n  vwap,\n  notional\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -429,6 +183,14 @@
               {
                 "params": [
                   "vwap"
+                ],
+                "type": "column"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "notional"
                 ],
                 "type": "column"
               }
@@ -525,7 +287,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -626,13 +388,13 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-2m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 27,
+  "version": 2,
   "weekStart": ""
 }
