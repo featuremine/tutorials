@@ -113,7 +113,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  price\nFROM trades\nWHERE\n  market = '$market' AND\n  imnt = '$instrument' AND\n  side = 0\nORDER BY 1",
+          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  price AS \"bidprice\"\nFROM trades\nWHERE\n  market = '$market' AND\n  imnt = '$instrument' AND\n  side = 0\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -122,6 +122,12 @@
                   "price"
                 ],
                 "type": "column"
+              },
+              {
+                "params": [
+                  "bidprice"
+                ],
+                "type": "alias"
               }
             ]
           ],
@@ -637,6 +643,6 @@
   "timezone": "",
   "title": "Bulldozer Rate",
   "uid": "rD_20UI4k",
-  "version": 26,
+  "version": 27,
   "weekStart": ""
 }
