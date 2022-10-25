@@ -1,4 +1,4 @@
-FROM postgres
+FROM --platform=amd64 postgres
 ENV container docker
 
 # dependencies
@@ -24,7 +24,7 @@ COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
 COPY test.lic /opt/test.lic
 COPY bulldozer-*.sh /tmp/bulldozer.sh
-COPY extractor-6.7.0-py3-none-any.whl /tmp/extractor-6.7.0-py3-none-any.whl
+COPY extractor-*.whl /tmp/
 COPY libextractor.so /lib/x86_64-linux-gnu/libextractor.so
 
 RUN cd /tmp && \
@@ -33,5 +33,5 @@ RUN cd /tmp && \
     rm -f bulldozer.sh
 
 RUN cd /tmp && \
-    pip3 install extractor-6.7.0-py3-none-any.whl && \
-    rm -f extractor-6.7.0-py3-none-any.whl
+    pip3 install extractor-*.whl && \
+    rm -f extractor-*.whl

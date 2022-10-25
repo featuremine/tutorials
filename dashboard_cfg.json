@@ -29,8 +29,7 @@
   "panels": [
     {
       "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
+        "type": "postgres"
       },
       "description": "",
       "fieldConfig": {
@@ -117,8 +116,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
+            "type": "postgres"
           },
           "format": "time_series",
           "group": [],
@@ -200,8 +198,7 @@
     },
     {
       "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
+        "type": "postgres"
       },
       "fieldConfig": {
         "defaults": {
@@ -278,8 +275,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
+            "type": "postgres"
           },
           "format": "time_series",
           "group": [],
@@ -329,8 +325,7 @@
     },
     {
       "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
+        "type": "postgres"
       },
       "fieldConfig": {
         "defaults": {
@@ -407,8 +402,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
+            "type": "postgres"
           },
           "format": "time_series",
           "group": [],
@@ -449,8 +443,7 @@
           "value": "BTC-USD"
         },
         "datasource": {
-          "type": "postgres",
-          "uid": "eUBoZEIVz"
+          "type": "postgres"
         },
         "definition": "SELECT DISTINCT imnt FROM market_data;",
         "hide": 0,
@@ -473,8 +466,7 @@
           "value": "coinbase"
         },
         "datasource": {
-          "type": "postgres",
-          "uid": "eUBoZEIVz"
+          "type": "postgres"
         },
         "definition": "SELECT DISTINCT market FROM market_data;",
         "hide": 0,
