@@ -45,7 +45,6 @@ def extractor2psqlfield(name, t):
 def extractor2psqlvalue(val):
     if isinstance(val, timedelta):
         return f"'{val + datetime(1970, 1, 1)}'"
-        #return str(val + datetime(1970, 1, 1) )
     elif math.isnan(val):
         return '0.0'
     else:
@@ -120,7 +119,7 @@ if __name__ == "__main__":
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS market_data
     (
-        vwap_id SERIAL PRIMARY KEY NOT NULL,
+        bars_id SERIAL PRIMARY KEY NOT NULL,
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
         market VARCHAR(32),
         imnt VARCHAR(32),
@@ -129,7 +128,7 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
-    def vwap2db(x, market, imnt):
+    def marketdata2db(x, market, imnt):
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array]
         values_str = ",".join(values)
@@ -145,11 +144,11 @@ if __name__ == "__main__":
     op = graph.features
 
     # Get the bars frames with the market data from the bars module
-    bars = bars_lib.bars_L3_live(op, args.ytp, args.peer, date.today(), period=timedelta(seconds=1), channels=channels)
+    bars = bars_lib.bars_L3_live(op, args.ytp, args.peer, date.today(), period=timedelta(seconds=5), channels=channels)
     
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi in zip(bars, mktimnt):
-        graph.callback(bar, functools.partial(vwap2db, market=mi[0], imnt=mi[1]))
+        graph.callback(bar, functools.partial(marketdata2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
