@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     trade_descr = (("price", extractor.Decimal64),
                 ("qty", extractor.Decimal64),
-                ("side", extractor.Int32),
+                ("side", extractor.Array(extractor.Char, 1)),
                 ("receive", extractor.Time64))
 
     # Wait until the YTP file is created
@@ -324,16 +324,6 @@ if __name__ == "__main__":
     def compute_bars(op, quotes, trades):
         return [compute_bar(op, quote, trd) for quote, trd in zip(quotes, trades)]
 
-    def filter_quote(op, quote, maximum_spread_ratio=0.1):
-        max_spread_ratio = op.constant(("max_spread_ratio", extractor.Float64, maximum_spread_ratio))
-        midpx_multiplier = op.constant(("price", extractor.Float64, 0.5))
-        cleanbidpx = op.filter_unless(op.is_zero(quote.bidqty), op.convert(quote.bidprice, extractor.Float64))
-        cleanaskpx = op.filter_unless(op.is_zero(quote.askqty), op.convert(quote.askprice, extractor.Float64))
-        spread = cleanaskpx - cleanbidpx
-        raw_fairpx = midpx_multiplier * (cleanbidpx + cleanaskpx)
-        bad_spread = spread / raw_fairpx > max_spread_ratio
-        return op.filter_unless(bad_spread, quote)
-
     seq = ytp.sequence(args.ytp, readonly=True)
     op.ytp_sequence(seq, timedelta(milliseconds=1))
     peer = seq.peer(args.peer)
@@ -350,18 +340,16 @@ if __name__ == "__main__":
     trades = [op.combine(op.book_trades(upd),
                         (("trade_price", "price"),
                          ("vendor", "receive"),
-                         ("qty", "qty")))
+                         ("qty", "qty"),
+                         ("decoration", "side")))
                 for upd in upds]
 
     bars = compute_bars(op, quotes, trades)
-    sampled_levels = [op.combine(
-                        op.asof(level, close), tuple(),
-                        close, (("actual", "close_time"),)) for level in levels]
 
     # Add a callback for each bar that corresponds to a market/instrument pair
-    for level, bar, mi in zip(sampled_levels, bars, mktimnt):
+    for bar, mi, trade in zip(bars, mktimnt, trades):
         graph.callback(bar, functools.partial(marketdata2db, market=mi[0], imnt=mi[1]))
-        graph.callback(level, functools.partial(book2db, market=mi[0], imnt=mi[1]))
+        graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
