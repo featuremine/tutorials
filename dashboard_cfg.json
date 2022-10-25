@@ -171,8 +171,7 @@
     },
     {
       "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
+        "type": "postgres"
       },
       "fieldConfig": {
         "defaults": {
@@ -248,8 +247,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
+            "type": "postgres"
           },
           "format": "time_series",
           "group": [],
