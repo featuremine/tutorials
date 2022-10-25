@@ -144,7 +144,7 @@ if __name__ == "__main__":
     op = graph.features
 
     # Get the bars frames with the market data from the bars module
-    bars = bars_lib.bars_L3_live(op, args.ytp, args.peer, date.today(), period=timedelta(seconds=5), channels=channels)
+    bars = bars_lib.bars_L3_live(op, args.ytp, args.peer, date.today(), period=timedelta(seconds=10), channels=channels)
     
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi in zip(bars, mktimnt):
