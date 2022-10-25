@@ -22,6 +22,7 @@ COPY market-data2_2.sh /opt/market-data.sh
 COPY bars.py /opt/bars.py
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
+COPY book2postgresql.py /opt/book2postgresql.py
 COPY test.lic /opt/test.lic
 COPY extractor-6.7.0-py3-none-any.whl /tmp/extractor-6.7.0-py3-none-any.whl
 COPY libextractor.so /lib/x86_64-linux-gnu/libextractor.so
