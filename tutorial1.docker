@@ -22,7 +22,6 @@ COPY market-data1.sh /opt/market-data.sh
 COPY bars.py /opt/bars.py
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
-COPY book2postgresql.py /opt/book2postgresql.py
 COPY test.lic /opt/test.lic
 COPY bulldozer-*.sh /tmp/bulldozer.sh
 COPY extractor-*.whl /tmp/
