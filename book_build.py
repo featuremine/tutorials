@@ -10,20 +10,22 @@ import functools
 
 bbos_descr = (("bidprice", extractor.Decimal64),
               ("askprice", extractor.Decimal64),
-              ("bidqty", extractor.Int32),
-              ("askqty", extractor.Int32),
+              ("bidqty", extractor.Decimal64),
+              ("askqty", extractor.Decimal64),
               ("receive", extractor.Time64))
 
 trade_descr = (("price", extractor.Decimal64),
-               ("qty", extractor.Int32),
+               ("qty", extractor.Decimal64),
                ("side", extractor.Int32),
                ("receive", extractor.Time64))
 
 def extractor2psqlfield(name, t):
     if t == extractor.Time64:
         return f'{name} TIMESTAMP WITHOUT TIME ZONE'
-    elif t == extractor.Decimal64 or t == extractor.Int32 or t == extractor.Float64:
+    elif t == extractor.Decimal64 or t == extractor.Float64:
         return f'{name} NUMERIC NOT NULL'
+    elif t == extractor.Int32:
+        return f'{name} INT NOT NULL'
     else:
         return f'{name} VARCHAR(32)'
 
@@ -134,9 +136,6 @@ if __name__ == "__main__":
     conn.commit()
 
     def book2db(x, market, imnt):
-        print(market)
-        print(imnt)
-        print(x)
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_bbos]
         values_str = ",".join(values)
@@ -147,9 +146,6 @@ if __name__ == "__main__":
         conn.commit()
         
     def trades2db(x, market, imnt):
-        print(market)
-        print(imnt)
-        print(x)
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_trades]
         values_str = ",".join(values)
@@ -202,15 +198,13 @@ if __name__ == "__main__":
             book_receive = op.decode_receive(bookupd)
             bbo_receive = op.asof(book_receive, bbo_book)
 
-            bidqty_int32 = op.convert(op.round(bbo_book.bid_shr_0), extractor.Int32)
-            askqty_int32 = op.convert(op.round(bbo_book.ask_shr_0), extractor.Int32)
             bbo_book_combined = op.combine(
                 bbo_book, (
                     ("bid_prx_0", "bidprice"),
-                    ("ask_prx_0", "askprice")
+                    ("ask_prx_0", "askprice"),
+                    ("bid_shr_0", "bidqty"),
+                    ("ask_shr_0", "askqty")
                 ),
-                bidqty_int32, (("bid_shr_0", "bidqty"),),
-                askqty_int32, (("ask_shr_0", "askqty"),),
                 bbo_receive, (("time", "receive"),)
             )
             graph.callback(bbo_book_combined, functools.partial(book2db, market=mkt, imnt=ticker))
@@ -227,11 +221,12 @@ if __name__ == "__main__":
                     extractor.Char, 1), ('b', 'a', 'u')).side
 
             qty_decimal64 = op.round(trade.qty)
-            qty_int32 = op.convert(qty_decimal64, extractor.Int32)
 
             trade_combined = op.combine(
-                trade, (("trade_price", "price"),),
-                qty_int32, (("qty", "qty"),),
+                trade, (
+                    ("trade_price", "price"),
+                    ("qty", "qty")
+                ),
                 trade_receive, (("time", "receive"),),
                 side, (("side", "side"),)
             )
