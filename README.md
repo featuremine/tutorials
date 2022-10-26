@@ -27,9 +27,11 @@ docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5
 
 ### Run grafana docker container
 
+```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 3000:3000 grafana/grafana
+```
 
-##### Config with UI
+##### Configure with UI
 
 * Open http://localhost:3000 on a browser.
 * Use `admin` for username and password.
@@ -91,7 +93,7 @@ docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5
 docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 3000:3000 grafana/grafana
 ```
 
-##### Config with UI
+##### Configure with UI
 
 * Open http://localhost:3000 on a browser.
 * Use `admin` for username and password.
