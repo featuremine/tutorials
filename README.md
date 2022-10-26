@@ -31,7 +31,17 @@ docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 300
 
 ##### Config with UI
 
-Open http://localhost:3000 on a browser. Use `admin` for username and password. Then select skip if you are still seeing login message. Click on `Add your first data source`. Select `PostgreSQL` as the data source. Set `Host` to `host.docker.internal:5432`. Set `Database` field to the same name as the `POSTGRES_USER` (`myusername` in the example) and use username and password as you did when running the tutorial1 image (`myusername` and `mypassword` in the example). Set `TLS/SSL Mode` to disable. In the sidebar menu on the left, select `Dashboard/import` and upload a dashboard configuration file `dashboard_cfg.json` found in the repo.
+* Open http://localhost:3000 on a browser.
+* Use `admin` for username and password.
+* Select `skip` if you are still seeing login message.
+* Click on `Add your first data source`.
+* Select `PostgreSQL` as the data source and set the following parameters.
+  * `Host`: `host.docker.internal:5432`.
+  * `Database`: `POSTGRES_USER` (`myusername` in the example).
+  * `username`: `POSTGRES_USER` (`myusername` in the example).
+  * `password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
+  * `TLS/SSL Mode`: `disable`.
+* In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
 
 # Tutorial 2
 
@@ -83,4 +93,14 @@ docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 300
 
 ##### Config with UI
 
-Open http://localhost:3000 on a browser. Use `admin` for username and password. Then select skip if you are still seeing login message. Click on `Add your first data source`. Select `PostgreSQL` as the data source. Set `Host` to `host.docker.internal:5432`. Set `Database` field to the same name as the `POSTGRES_USER` (`myusername` in the example) and use username and password as you did when running the tutorial1 image (`myusername` and `mypassword` in the example). Set `TLS/SSL Mode` to disable. In the sidebar menu on the left, select `Dashboard/import` and upload a dashboard configuration file `dashboard_cfg.json` found in the repo.
+* Open http://localhost:3000 on a browser.
+* Use `admin` for username and password.
+* Select `skip` if you are still seeing login message.
+* Click on `Add your first data source`.
+* Select `PostgreSQL` as the data source and set the following parameters.
+  * `Host`: `host.docker.internal:5432`.
+  * `Database`: `POSTGRES_USER` (`myusername` in the example).
+  * `username`: `POSTGRES_USER` (`myusername` in the example).
+  * `password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
+  * `TLS/SSL Mode`: `disable`.
+* In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
