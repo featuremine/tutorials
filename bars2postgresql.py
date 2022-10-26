@@ -46,6 +46,8 @@ def extractor2psqlfield(name, t):
         return f'{name} VARCHAR(32)'
 
 def extractor2psqlvalue(val):
+    if isinstance(val, str):
+        f"'{val}'"
     if isinstance(val, timedelta):
         return f"'{val + datetime(1970, 1, 1)}'"
     elif math.isnan(val):
@@ -106,15 +108,14 @@ if __name__ == "__main__":
                 ("tw_bidsz", extractor.Float64),
                 ("vwap", extractor.Float64))
 
-    bbos_descr = sum([[(f"bid_prx_{i}", extractor.Decimal64),
-                       (f"bid_shr_{i}", extractor.Decimal64),
-                       (f"ask_prx_{i}", extractor.Decimal64),
-                       (f"ask_shr_{i}", extractor.Decimal64)] for i in range(0, args.levels)],
-                     [("close_time", extractor.Time64)])
-
+    # bbos_descr = sum([[(f"bid_prx_{i}", extractor.Decimal64),
+    #                    (f"bid_shr_{i}", extractor.Decimal64),
+    #                    (f"ask_prx_{i}", extractor.Decimal64),
+    #                    (f"ask_shr_{i}", extractor.Decimal64)] for i in range(0, args.levels)],
+    #                  [("close_time", extractor.Time64)])
     trade_descr = (("price", extractor.Decimal64),
                 ("qty", extractor.Decimal64),
-                ("side", extractor.Array(extractor.Char, 1)),
+                #("side", extractor.Array(extractor.Char, 1)),
                 ("receive", extractor.Time64))
 
     # Wait until the YTP file is created
@@ -145,13 +146,13 @@ if __name__ == "__main__":
     db_fields_create = db_fields_create[:-1]
     db_fields_str = ",".join(db_fields_array)
 
-    db_fields_array_bbos = []
-    db_fields_create_bbos = ''
-    for field in bbos_descr:
-        db_fields_array_bbos += [field[0]]
-        db_fields_create_bbos += extractor2psqlfield(field[0], field[1]) + ','
-    db_fields_create_bbos = db_fields_create_bbos[:-1]
-    db_fields_str_bbos = ",".join(db_fields_array_bbos)
+    # db_fields_array_bbos = []
+    # db_fields_create_bbos = ''
+    # for field in bbos_descr:
+    #     db_fields_array_bbos += [field[0]]
+    #     db_fields_create_bbos += extractor2psqlfield(field[0], field[1]) + ','
+    # db_fields_create_bbos = db_fields_create_bbos[:-1]
+    # db_fields_str_bbos = ",".join(db_fields_array_bbos)
 
     db_fields_array_trades = []
     db_fields_create_trades  = ''
@@ -175,17 +176,17 @@ if __name__ == "__main__":
     conn.commit()
 
     # Create database table to store book
-    cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS book
-    (
-        book_id SERIAL PRIMARY KEY NOT NULL,
-        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-        market VARCHAR(32),
-        imnt VARCHAR(32),
-        {db_fields_create_bbos}
-    )
-    """)
-    conn.commit()
+    # cur.execute(f"""
+    # CREATE TABLE IF NOT EXISTS book
+    # (
+    #     book_id SERIAL PRIMARY KEY NOT NULL,
+    #     timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
+    #     market VARCHAR(32),
+    #     imnt VARCHAR(32),
+    #     {db_fields_create_bbos}
+    # )
+    # """)
+    # conn.commit()
 
     # Create database table to store trades
     cur.execute(f"""
@@ -210,15 +211,15 @@ if __name__ == "__main__":
         """)
         conn.commit()
 
-    def book2db(x, market, imnt):
-        # Populate the market data parameters into the database
-        values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_bbos]
-        values_str = ",".join(values)
-        cur.execute(f"""
-        INSERT INTO book (market,imnt,{db_fields_str_bbos}) VALUES
-        ('{market}','{imnt}',{values_str})
-        """)
-        conn.commit()
+    # def book2db(x, market, imnt):
+    #     # Populate the market data parameters into the database
+    #     values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_bbos]
+    #     values_str = ",".join(values)
+    #     cur.execute(f"""
+    #     INSERT INTO book (market,imnt,{db_fields_str_bbos}) VALUES
+    #     ('{market}','{imnt}',{values_str})
+    #     """)
+    #     conn.commit()
         
     def trades2db(x, market, imnt):
         # Populate the market data parameters into the database
