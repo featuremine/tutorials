@@ -40,9 +40,10 @@ docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 300
 * Select `PostgreSQL` as the data source and set the following parameters.
   * `Host`: `host.docker.internal:5432`.
   * `Database`: `POSTGRES_USER` (`myusername` in the example).
-  * `username`: `POSTGRES_USER` (`myusername` in the example).
-  * `password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
+  * `User`: `POSTGRES_USER` (`myusername` in the example).
+  * `Password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
   * `TLS/SSL Mode`: `disable`.
+  * Click on `Save & test`.
 * In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
 
 # Tutorial 2
@@ -102,7 +103,8 @@ docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 300
 * Select `PostgreSQL` as the data source and set the following parameters.
   * `Host`: `host.docker.internal:5432`.
   * `Database`: `POSTGRES_USER` (`myusername` in the example).
-  * `username`: `POSTGRES_USER` (`myusername` in the example).
-  * `password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
+  * `User`: `POSTGRES_USER` (`myusername` in the example).
+  * `Password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
   * `TLS/SSL Mode`: `disable`.
+  * Click on `Save & test`.
 * In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
