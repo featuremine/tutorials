@@ -23,14 +23,13 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
+        "type": "postgres"
       },
       "description": "",
       "fieldConfig": {
@@ -83,7 +82,28 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "vwap"
+            },
+            "properties": [
+              {
+                "id": "custom.lineInterpolation",
+                "value": "smooth"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed",
+                  "seriesBy": "last"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -103,7 +123,8 @@
           "close": "close_px",
           "high": "high_px",
           "low": "low_px",
-          "open": "open_px"
+          "open": "open_px",
+          "volume": "notional"
         },
         "includeAllFields": true,
         "legend": {
@@ -117,14 +138,13 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
+            "type": "postgres"
           },
           "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "rawQuery": false,
-          "rawSql": "SELECT\n  close_time AS \"time\",\n  close_px,\n  open_px,\n  high_px,\n  low_px,\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
+          "rawSql": "SELECT\n  close_time AS \"time\",\n  close_px,\n  open_px,\n  high_px,\n  low_px,\n  vwap,\n  notional\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -166,6 +186,14 @@
                 ],
                 "type": "column"
               }
+            ],
+            [
+              {
+                "params": [
+                  "notional"
+                ],
+                "type": "column"
+              }
             ]
           ],
           "table": "market_data",
@@ -200,137 +228,7 @@
     },
     {
       "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
-          },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  vwap\nFROM market_data\nWHERE\n  market = '$market' AND\n  imnt = '$instrument'\nORDER BY 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "vwap"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "market_data",
-          "timeColumn": "\"timestamp\"",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "market",
-                "=",
-                "'$market'"
-              ],
-              "type": "expression"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "imnt",
-                "=",
-                "'$instrument'"
-              ],
-              "type": "expression"
-            }
-          ]
-        }
-      ],
-      "title": "VWAP",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "eUBoZEIVz"
+        "type": "postgres"
       },
       "fieldConfig": {
         "defaults": {
@@ -389,7 +287,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -407,8 +305,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
-            "uid": "eUBoZEIVz"
+            "type": "postgres"
           },
           "format": "time_series",
           "group": [],
@@ -449,8 +346,7 @@
           "value": "BTC-USD"
         },
         "datasource": {
-          "type": "postgres",
-          "uid": "eUBoZEIVz"
+          "type": "postgres"
         },
         "definition": "SELECT DISTINCT imnt FROM market_data;",
         "hide": 0,
@@ -468,13 +364,12 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "coinbase",
           "value": "coinbase"
         },
         "datasource": {
-          "type": "postgres",
-          "uid": "eUBoZEIVz"
+          "type": "postgres"
         },
         "definition": "SELECT DISTINCT market FROM market_data;",
         "hide": 0,
@@ -493,13 +388,13 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-2m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Bulldozer Rate",
+  "title": "Market data",
   "uid": "rD_20UI4k",
-  "version": 25,
+  "version": 2,
   "weekStart": ""
 }
