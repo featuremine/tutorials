@@ -41,6 +41,8 @@ if __name__ == "__main__":
     parser.add_argument("--database", help="postgreSQL database name", required=True)
     parser.add_argument("--user", help="postgreSQL user name", required=True)
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
+    parser.add_argument("--host", help="postgreSQL database host", required=False, default="127.0.0.1")
+    parser.add_argument("--port", help="postgreSQL database port", required=False, default="5432")
     parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
     args = parser.parse_args()
    
@@ -56,7 +58,8 @@ if __name__ == "__main__":
     tries = 10
     while True:
         try:
-            conn = psycopg2.connect(database = args.database, user = args.user, password = args.password, host = "127.0.0.1", port = "5432")
+            conn = psycopg2.connect(database=args.database, user=args.user, password=args.password,
+                                    host=args.host, port=args.port)
             break
         except psycopg2.OperationalError as e:
             if tries > 0:

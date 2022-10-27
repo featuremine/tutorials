@@ -60,17 +60,14 @@ if __name__ == "__main__":
     parser.add_argument("--database", help="postgreSQL database name", required=True)
     parser.add_argument("--user", help="postgreSQL user name", required=True)
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
+    parser.add_argument("--host", help="postgreSQL database host", required=False, default="127.0.0.1")
+    parser.add_argument("--port", help="postgreSQL database port", required=False, default="5432")
     parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
     parser.add_argument("--peer", help="YTP peer reader", required=False, default="feed_handler")
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
     parser.add_argument("--period", help="Bar period in seconds", required=False, default=10)
     parser.add_argument("--levels", help="Book levels to display", required=False, default=5)
-    parser.add_argument(
-        "--license",
-        help="Extractor license (defaults to 'test.lic' if not provided)",
-        required=False,
-        default="test.lic")
 
     args = parser.parse_args()
 
@@ -114,9 +111,9 @@ if __name__ == "__main__":
     #                    (f"ask_shr_{i}", extractor.Decimal64)] for i in range(0, args.levels)],
     #                  [("close_time", extractor.Time64)])
     trade_descr = (("price", extractor.Decimal64),
-                ("qty", extractor.Decimal64),
-                #("side", extractor.Array(extractor.Char, 1)),
-                ("receive", extractor.Time64))
+                   ("qty", extractor.Decimal64),
+                  #("side", extractor.Array(extractor.Char, 1)),
+                   ("receive", extractor.Time64))
 
     # Wait until the YTP file is created
     while not os.path.exists(args.ytp):
@@ -126,7 +123,9 @@ if __name__ == "__main__":
     tries = 10
     while True:
         try:
-            conn = psycopg2.connect(database = args.database, user = args.user, password = args.password, host = "127.0.0.1", port = "5432")
+            conn = psycopg2.connect(database=args.database,
+                                    user=args.user, password=args.password,
+                                    host=args.host, port=args.port)
             break
         except psycopg2.OperationalError as e:
             if tries > 0:
@@ -232,7 +231,6 @@ if __name__ == "__main__":
         conn.commit()
 
     # Set the extractor's license
-    extractor.set_license(args.license)
     graph = extractor.system.comp_graph()
     op = graph.features
 
@@ -248,18 +246,6 @@ if __name__ == "__main__":
     close = op.timer(timedelta(seconds=args.period))
 
     def compute_bar(op, bbo, trade):
-        def quote_side_float64(quote, name):
-            return op.cond(op.is_zero(op.field(quote, name)),
-                        op.nan(quote),
-                        op.convert(quote, extractor.Float64))
-
-        def quote_float64(quote):
-            bid_quote = op.fields(quote, ("bidprice", "bidqty"))
-            ask_quote = op.fields(quote, ("askprice", "askqty"))
-            return op.combine(quote_side_float64(bid_quote, "bidqty"), tuple(),
-                            quote_side_float64(ask_quote, "askqty"), tuple())
-
-
         quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
         quote_bid = op.field(bbo, "bidprice")
         quote_ask = op.field(bbo, "askprice")
@@ -268,24 +254,23 @@ if __name__ == "__main__":
         high_quote = op.left_lim(op.asof(quote, op.max(quote_ask, close)), close)
         low_quote = op.left_lim(op.asof(quote, op.min(quote_bid, close)), close)
 
-        tw_quote = op.average_tw(quote_float64(quote), close)
+        tw_quote = op.average_tw(quote, close)
         trade = op.fields(trade, ("price", "qty"))
-        trade_px = op.field(trade, "price")
+        trade_px = trade.price
+        trade_qty = trade.qty
         first_trade = op.first_after(trade, close)
         open_trade = op.last_asof(first_trade, close)
         close_trade = op.last_asof(trade, close)
         high_trade = op.last_asof(op.asof(trade, op.max(trade_px, first_trade)), close)
         low_trade = op.last_asof(op.asof(trade, op.min(trade_px, first_trade)), close)
 
-        ftrade_px = op.convert(trade_px, extractor.Float64)
-        ftrade_qty = op.convert(trade.qty, extractor.Float64)
-        total_notional = op.left_lim(op.cumulative(ftrade_px * ftrade_qty), close)
-        total_shares = op.left_lim(op.cumulative(ftrade_qty), close)
+        total_notional = op.left_lim(op.cumulative(trade_px * trade_qty), close)
+        total_shares = op.left_lim(op.cumulative(trade_qty), close)
         prev_total_notional = op.tick_lag(total_notional, 1)
         prev_total_shares = op.tick_lag(total_shares, 1)
         notional = total_notional - prev_total_notional
         shares = total_shares - prev_total_shares
-        vwap = op.cond(op.is_zero(shares), op.convert(open_trade.price, extractor.Float64), notional / shares)
+        vwap = op.cond(op.is_zero(shares), open_trade.price, notional / shares)
 
         combined = op.combine(
             open_trade, (("price", "open_px"),

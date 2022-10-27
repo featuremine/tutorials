@@ -15,5 +15,5 @@ if __name__ == "__main__":
 
     seq.data_callback(args.channel, seq_clbck)
 
-    while seq.poll():
-        pass
+    while True:
+        seq.poll()
