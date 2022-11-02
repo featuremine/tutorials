@@ -28,20 +28,42 @@ docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5
 ### Run grafana docker container
 
 ```bash
+docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 5432:5432 postgres
+```
+
+you can test connection to the database as follow
+```bash
+psql --dbname=testuser --host=localhost --port=5432 --username=testuser --password
+```
+
+```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 3000:3000 grafana/grafana
 ```
 
 ```bash
-python3 bars2postgresql.py --ytp ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-BTC,ADA-USD" --database testuser --user testuser --password testuser --host 172.17.0.1 --port 5432
+yamal-run -c bulldozer/installation/path/samples/coinbase_l2_ore_ytp.ini -s main
+```
+
+you can check whether data is being written by bulldozer
+```bash
+yamal-stats -f ore_coinbase_l2.ytp
+```
+
+to look at the actual order book updates use
+
+```bash
+python3 ytporedump.py --ytp ore_coinbase_l2.ytp --channel ore/imnts/coinbase/BTC-USD
 ```
 
 ```bash
-python3 bulldozer2postgresql.py --database testuser --user testuser --password testuser --ytp ore_coinbase_l2.ytp --host 172.17.0.1 --port 5432
+python3 bulldozer2postgresql.py --database testuser --user testuser --password testuser --ytp ore_coinbase_l2.ytp --host localhost --port 5432
 ```
 
 ```bash
-docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 5432:5432 postgres
+python3 bars2postgresql.py --ytp ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-BTC,ADA-USD" --database testuser --user testuser --password testuser --host localhost --port 5432
 ```
+
+
 
 ##### Configure with UI
 

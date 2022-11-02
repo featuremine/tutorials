@@ -38,7 +38,11 @@ prefix = "ore/imnts"
 def extractor2psqlfield(name, t):
     if t == extractor.Time64:
         return f'{name} TIMESTAMP WITHOUT TIME ZONE'
-    elif t == extractor.Decimal64 or t == extractor.Float64:
+    elif t == extractor.Decimal64:
+        return f'{name} NUMERIC NOT NULL'
+    elif t == extractor.Float64:
+        return f'{name} NUMERIC NOT NULL'
+    elif t == extractor.Decimal128:
         return f'{name} NUMERIC NOT NULL'
     elif t == extractor.Int32:
         return f'{name} INT NOT NULL'
@@ -50,8 +54,6 @@ def extractor2psqlvalue(val):
         f"'{val}'"
     if isinstance(val, timedelta):
         return f"'{val + datetime(1970, 1, 1)}'"
-    elif math.isnan(val):
-        return '0.0'
     else:
         return str(val)
 
@@ -105,11 +107,6 @@ if __name__ == "__main__":
                 ("tw_bidsz", extractor.Float64),
                 ("vwap", extractor.Float64))
 
-    # bbos_descr = sum([[(f"bid_prx_{i}", extractor.Decimal64),
-    #                    (f"bid_shr_{i}", extractor.Decimal64),
-    #                    (f"ask_prx_{i}", extractor.Decimal64),
-    #                    (f"ask_shr_{i}", extractor.Decimal64)] for i in range(0, args.levels)],
-    #                  [("close_time", extractor.Time64)])
     trade_descr = (("price", extractor.Decimal64),
                    ("qty", extractor.Decimal64),
                   #("side", extractor.Array(extractor.Char, 1)),
@@ -145,14 +142,6 @@ if __name__ == "__main__":
     db_fields_create = db_fields_create[:-1]
     db_fields_str = ",".join(db_fields_array)
 
-    # db_fields_array_bbos = []
-    # db_fields_create_bbos = ''
-    # for field in bbos_descr:
-    #     db_fields_array_bbos += [field[0]]
-    #     db_fields_create_bbos += extractor2psqlfield(field[0], field[1]) + ','
-    # db_fields_create_bbos = db_fields_create_bbos[:-1]
-    # db_fields_str_bbos = ",".join(db_fields_array_bbos)
-
     db_fields_array_trades = []
     db_fields_create_trades  = ''
     for field in trade_descr:
@@ -174,19 +163,6 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
-    # Create database table to store book
-    # cur.execute(f"""
-    # CREATE TABLE IF NOT EXISTS book
-    # (
-    #     book_id SERIAL PRIMARY KEY NOT NULL,
-    #     timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-    #     market VARCHAR(32),
-    #     imnt VARCHAR(32),
-    #     {db_fields_create_bbos}
-    # )
-    # """)
-    # conn.commit()
-
     # Create database table to store trades
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS trades
@@ -200,34 +176,28 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
-    def marketdata2db(x, market, imnt):
+    def bar2db(x, market, imnt):
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array]
         values_str = ",".join(values)
-        cur.execute(f"""
+        cmd = f"""
         INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
         ('{market}','{imnt}',{values_str})
-        """)
-        conn.commit()
+        """
+        print(cmd)
+        #cur.execute(cmd)
+        #conn.commit()
 
-    # def book2db(x, market, imnt):
-    #     # Populate the market data parameters into the database
-    #     values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_bbos]
-    #     values_str = ",".join(values)
-    #     cur.execute(f"""
-    #     INSERT INTO book (market,imnt,{db_fields_str_bbos}) VALUES
-    #     ('{market}','{imnt}',{values_str})
-    #     """)
-    #     conn.commit()
-        
     def trades2db(x, market, imnt):
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_trades]
         values_str = ",".join(values)
-        cur.execute(f"""
+        cmd = f"""
         INSERT INTO trades (market,imnt,{db_fields_str_trades}) VALUES
         ('{market}','{imnt}',{values_str})
-        """)
+        """
+        print(cmd)
+        cur.execute(cmd)
         conn.commit()
 
     # Set the extractor's license
@@ -334,8 +304,8 @@ if __name__ == "__main__":
 
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
-        graph.callback(bar, functools.partial(marketdata2db, market=mi[0], imnt=mi[1]))
-        graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
+        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
+       # graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
