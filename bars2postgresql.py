@@ -101,10 +101,10 @@ if __name__ == "__main__":
                 ("open_sz", extractor.Decimal64),
                 ("shares", extractor.Float64),
                 ("ticker", extractor.Array(extractor.Char, 16)),
-                ("tw_askpx", extractor.Float64),
-                ("tw_asksz", extractor.Float64),
-                ("tw_bidpx", extractor.Float64),
-                ("tw_bidsz", extractor.Float64),
+                # ("tw_askpx", extractor.Float64),
+                # ("tw_asksz", extractor.Float64),
+                # ("tw_bidpx", extractor.Float64),
+                # ("tw_bidsz", extractor.Float64),
                 ("vwap", extractor.Float64))
 
     trade_descr = (("price", extractor.Decimal64),
@@ -213,22 +213,23 @@ if __name__ == "__main__":
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
 
-    close = op.timer(timedelta(seconds=args.period))
+    close = op.data_bars(timedelta(seconds=args.period))
 
     def compute_bar(op, bbo, trade):
         quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
         quote_bid = op.field(bbo, "bidprice")
         quote_ask = op.field(bbo, "askprice")
-        open_quote = op.asof_prev(quote, close)
         close_quote = op.left_lim(quote, close)
+        open_quote = op.tick_lag(close_quote, 1) # this needs to be fixed to skip
+
         high_quote = op.left_lim(op.asof(quote, op.max(quote_ask, close)), close)
         low_quote = op.left_lim(op.asof(quote, op.min(quote_bid, close)), close)
 
-        tw_quote = op.average_tw(quote, close)
+        #tw_quote = op.average_tw(quote, close) # this one need to be fixed so as not to depend on system time
         trade = op.fields(trade, ("price", "qty"))
         trade_px = trade.price
         trade_qty = trade.qty
-        first_trade = op.first_after(trade, close)
+        first_trade = op.first_after(trade, close) #todo: make sure it accounts for first AT or after
         open_trade = op.last_asof(first_trade, close)
         close_trade = op.last_asof(trade, close)
         high_trade = op.last_asof(op.asof(trade, op.max(trade_px, first_trade)), close)
@@ -267,14 +268,14 @@ if __name__ == "__main__":
                         ("askprice", "low_askpx"),
                         ("bidqty", "low_bidsz"),
                         ("askqty", "low_asksz")),
-            tw_quote, (("bidprice", "tw_bidpx"),
-                    ("askprice", "tw_askpx"),
-                    ("bidqty", "tw_bidsz"),
-                    ("askqty", "tw_asksz")),
+            # tw_quote, (("bidprice", "tw_bidpx"),
+            #         ("askprice", "tw_askpx"),
+            #         ("bidqty", "tw_bidsz"),
+            #         ("askqty", "tw_asksz")),
             vwap, ("vwap",),
             notional, ("notional",),
             shares, ("shares",),
-            close, (("actual", "close_time"),))
+            close, (("start", "close_time"),))
         return combined
 
     def compute_bars(op, quotes, trades):
