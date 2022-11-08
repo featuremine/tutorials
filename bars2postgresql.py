@@ -213,9 +213,9 @@ if __name__ == "__main__":
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
 
-    close = op.data_bars(timedelta(seconds=args.period))
 
-    def compute_bar(op, bbo, trade):
+    def compute_bar(op, bbo, trade, vendor_time):
+        close = op.data_bar(vendor_time, timedelta(seconds=args.period))
         quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
         quote_bid = op.field(bbo, "bidprice")
         quote_ask = op.field(bbo, "askprice")
@@ -278,8 +278,8 @@ if __name__ == "__main__":
             close, (("start", "close_time"),))
         return combined
 
-    def compute_bars(op, quotes, trades):
-        return [compute_bar(op, quote, trd) for quote, trd in zip(quotes, trades)]
+    def compute_bars(op, quotes, trades, times):
+        return [compute_bar(op, quote, trd, ven) for quote, trd, ven, in zip(quotes, trades, times)]
 
     seq = ytp.sequence(args.ytp, readonly=True)
     op.ytp_sequence(seq, timedelta(milliseconds=1))
@@ -301,7 +301,8 @@ if __name__ == "__main__":
                          ("decoration", "side")))
                 for upd in upds]
 
-    bars = compute_bars(op, quotes, trades)
+    times = [op.book_vendor_time(upd) for upd in upds]
+    bars = compute_bars(op, quotes, trades, times)
 
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
