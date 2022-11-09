@@ -212,8 +212,6 @@ if __name__ == "__main__":
             channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
-
-
     def compute_bar(op, bbo, trade, vendor_time):
         close = op.data_bar(vendor_time, timedelta(seconds=args.period))
         quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
@@ -304,10 +302,16 @@ if __name__ == "__main__":
     times = [op.book_vendor_time(upd) for upd in upds]
     bars = compute_bars(op, quotes, trades, times)
 
+    #def timeclb(x, market, imnt):
+    #    print(x[0].vendor + datetime(1970, 1, 1))
+
+    #for tm, mi in zip(times, mktimnt):
+    #    graph.callback(tm, functools.partial(timeclb, market=mi[0], imnt=mi[1]))
+
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
         graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
-       # graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
+        #graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
