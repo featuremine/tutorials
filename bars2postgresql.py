@@ -57,6 +57,14 @@ def extractor2psqlvalue(val):
     else:
         return str(val)
 
+def extractor2csvvalue(val):
+    if isinstance(val, str):
+        f"{val}"
+    if isinstance(val, timedelta):
+        return f"{val + datetime(1970, 1, 1)}"
+    else:
+        return str(val)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--database", help="postgreSQL database name", required=True)
@@ -73,39 +81,26 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    bars_descr = (("close_time", extractor.Time64),
-                ("close_askpx", extractor.Decimal64),
-                ("close_asksz", extractor.Decimal64),
-                ("close_bidpx", extractor.Decimal64),
-                ("close_bidsz", extractor.Decimal64),
-                ("close_px", extractor.Decimal64),
-                ("close_sz", extractor.Decimal64),
-                ("high_askpx", extractor.Decimal64),
-                ("high_asksz", extractor.Decimal64),
-                ("high_bidpx", extractor.Decimal64),
-                ("high_bidsz", extractor.Decimal64),
-                ("high_px", extractor.Decimal64),
-                ("high_sz", extractor.Decimal64),
-                ("low_askpx", extractor.Decimal64),
-                ("low_asksz", extractor.Decimal64),
-                ("low_bidpx", extractor.Decimal64),
-                ("low_bidsz", extractor.Decimal64),
-                ("low_px", extractor.Decimal64),
-                ("low_sz", extractor.Decimal64),
-                ("notional", extractor.Decimal64),
-                ("open_askpx", extractor.Decimal64),
-                ("open_asksz", extractor.Decimal64),
-                ("open_bidpx", extractor.Decimal64),
-                ("open_bidsz", extractor.Decimal64),
-                ("open_px", extractor.Decimal64),
-                ("open_sz", extractor.Decimal64),
-                ("shares", extractor.Float64),
-                ("ticker", extractor.Array(extractor.Char, 16)),
-                # ("tw_askpx", extractor.Float64),
-                # ("tw_asksz", extractor.Float64),
-                # ("tw_bidpx", extractor.Float64),
-                # ("tw_bidsz", extractor.Float64),
-                ("vwap", extractor.Float64))
+    bars_descr = (("open_time", extractor.Time64),
+                  ("close_time", extractor.Time64),
+                  ("close_askpx", extractor.Decimal64),
+                  ("close_asksz", extractor.Decimal64),
+                  ("close_bidpx", extractor.Decimal64),
+                  ("close_bidsz", extractor.Decimal64),
+                  ("high_askpx", extractor.Decimal64),
+                  ("high_asksz", extractor.Decimal64),
+                  ("high_bidpx", extractor.Decimal64),
+                  ("high_bidsz", extractor.Decimal64),
+                  ("low_askpx", extractor.Decimal64),
+                  ("low_asksz", extractor.Decimal64),
+                  ("low_bidpx", extractor.Decimal64),
+                  ("low_bidsz", extractor.Decimal64),
+                  ("notional", extractor.Decimal64),
+                  ("open_askpx", extractor.Decimal64),
+                  ("open_asksz", extractor.Decimal64),
+                  ("open_bidpx", extractor.Decimal64),
+                  ("open_bidsz", extractor.Decimal64),
+                  ("vwap", extractor.Float64))
 
     trade_descr = (("price", extractor.Decimal64),
                    ("qty", extractor.Decimal64),
@@ -176,6 +171,13 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
+    #print(','.join(db_fields_array))
+
+    # def bar2db(x, market, imnt):
+    #     # Populate the market data parameters into the database
+    #     values = [extractor2csvvalue(getattr(x[0], f)) for f in db_fields_array]
+    #     print(",".join(values))
+
     def bar2db(x, market, imnt):
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array]
@@ -213,50 +215,33 @@ if __name__ == "__main__":
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
     def compute_bar(op, bbo, trade, vendor_time):
-        close = op.data_bar(vendor_time, timedelta(seconds=args.period))
+        close_time = op.data_bar(vendor_time, timedelta(seconds=args.period))
+        open_time = op.tick_lag(close_time, 1)
         quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
-        quote_bid = op.field(bbo, "bidprice")
-        quote_ask = op.field(bbo, "askprice")
-        close_quote = op.left_lim(quote, close)
-        open_quote = op.tick_lag(close_quote, 1) # this needs to be fixed to skip
+        close_quote = op.left_lim(quote, close_time)
+        open_quote = op.tick_lag(op.asof(quote, close_time), 1) # this needs to be fixed to skip
 
-        high_quote = op.left_lim(op.asof(quote, op.max(quote_ask, close)), close)
-        low_quote = op.left_lim(op.asof(quote, op.min(quote_bid, close)), close)
+        high_quote = op.left_lim(op.asof(quote, op.max(bbo.bidprice, close_time)), close_time)
+        low_quote = op.left_lim(op.asof(quote, op.min(bbo.askprice, close_time)), close_time)
 
-        #tw_quote = op.average_tw(quote, close) # this one need to be fixed so as not to depend on system time
-        trade = op.fields(trade, ("price", "qty"))
-        trade_px = trade.price
-        trade_qty = trade.qty
-        first_trade = op.first_after(trade, close) #todo: make sure it accounts for first AT or after
-        open_trade = op.last_asof(first_trade, close)
-        close_trade = op.last_asof(trade, close)
-        high_trade = op.last_asof(op.asof(trade, op.max(trade_px, first_trade)), close)
-        low_trade = op.last_asof(op.asof(trade, op.min(trade_px, first_trade)), close)
+        notional = op.left_lim(op.cumulative(trade.price * trade.qty), close_time)
+        shares = op.left_lim(op.cumulative(trade.qty), close_time)
+        prev_notional = op.tick_lag(notional, 1)
+        prev_shares = op.tick_lag(shares, 1)
+        notional = notional - prev_notional
+        shares = shares - prev_shares
 
-        total_notional = op.left_lim(op.cumulative(trade_px * trade_qty), close)
-        total_shares = op.left_lim(op.cumulative(trade_qty), close)
-        prev_total_notional = op.tick_lag(total_notional, 1)
-        prev_total_shares = op.tick_lag(total_shares, 1)
-        notional = total_notional - prev_total_notional
-        shares = total_shares - prev_total_shares
-        vwap = op.cond(op.is_zero(shares), open_trade.price, notional / shares)
+        # TODO: use mid price if no trade price exists yet
+        vwap = op.cond(op.is_zero(shares), op.asof(trade.price, close_time), notional / shares)
 
         combined = op.combine(
-            open_trade, (("price", "open_px"),
-                        ("qty", "open_sz")),
-            close_trade, (("price", "close_px"),
-                        ("qty", "close_sz")),
-            high_trade, (("price", "high_px"),
-                        ("qty", "high_sz")),
-            low_trade, (("price", "low_px"),
-                        ("qty", "low_sz")),
             open_quote, (("bidprice", "open_bidpx"),
                         ("askprice", "open_askpx"),
                         ("bidqty", "open_bidsz"),
                         ("askqty", "open_asksz")),
             close_quote, (("bidprice", "close_bidpx"),
                         ("askprice", "close_askpx"),
-                        ("bidqty", "close_bidsz"),
+                    ("bidqty", "close_bidsz"),
                         ("askqty", "close_asksz")),
             high_quote, (("bidprice", "high_bidpx"),
                         ("askprice", "high_askpx"),
@@ -266,15 +251,14 @@ if __name__ == "__main__":
                         ("askprice", "low_askpx"),
                         ("bidqty", "low_bidsz"),
                         ("askqty", "low_asksz")),
-            # tw_quote, (("bidprice", "tw_bidpx"),
-            #         ("askprice", "tw_askpx"),
-            #         ("bidqty", "tw_bidsz"),
-            #         ("askqty", "tw_asksz")),
             vwap, ("vwap",),
             notional, ("notional",),
-            shares, ("shares",),
-            close, (("start", "close_time"),))
-        return combined
+            open_time, (("start", "open_time"),),
+            close_time, (("start", "close_time"),),
+            )
+        
+        # TODO: need to skip bars that have missing data
+        return op.filter_unless(close_time.skipped, combined)
 
     def compute_bars(op, quotes, trades, times):
         return [compute_bar(op, quote, trd, ven) for quote, trd, ven, in zip(quotes, trades, times)]
@@ -285,12 +269,22 @@ if __name__ == "__main__":
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
 
     levels = [op.book_build(upd, 5) for upd in upds]
+    times = [op.book_vendor_time(upd) for upd in upds]
+
     quotes = [op.combine(level,
                     (("bid_prx_0", "bidprice"),
                      ("bid_shr_0", "bidqty"),
                      ("ask_prx_0", "askprice"),
-                     ("ask_shr_0", "askqty")))
-            for level in levels]
+                     ("ask_shr_0", "askqty")),
+                     op.asof(tm, level), (("vendor", "time"),))
+            for tm, level in zip(times, levels)]
+
+    quote_fields = ["time", "bidprice", "bidqty", "askprice", "askqty"]
+    # print(','.join(quote_fields))
+
+    def quote_clbck(x, market, imnt):
+        values = [extractor2csvvalue(getattr(x[0], f)) for f in quote_fields]
+        print(",".join(values))
 
     trades = [op.combine(op.book_trades(upd),
                         (("trade_price", "price"),
@@ -299,19 +293,21 @@ if __name__ == "__main__":
                          ("decoration", "side")))
                 for upd in upds]
 
-    times = [op.book_vendor_time(upd) for upd in upds]
     bars = compute_bars(op, quotes, trades, times)
 
-    #def timeclb(x, market, imnt):
-    #    print(x[0].vendor + datetime(1970, 1, 1))
+    def timeclb(x, market, imnt):
+        print(x[0].vendor + datetime(1970, 1, 1))
 
-    #for tm, mi in zip(times, mktimnt):
-    #    graph.callback(tm, functools.partial(timeclb, market=mi[0], imnt=mi[1]))
+    # for quote, mi in zip(quotes, mktimnt):
+    #     graph.callback(quote, functools.partial(quote_clbck, market=mi[0], imnt=mi[1]))
+
+    # for tm, mi in zip(times, mktimnt):
+    #     graph.callback(tm, functools.partial(timeclb, market=mi[0], imnt=mi[1]))
 
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
-        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
-        #graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
+       graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
+    #    graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
