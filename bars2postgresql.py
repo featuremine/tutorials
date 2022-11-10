@@ -37,7 +37,7 @@ prefix = "ore/imnts"
 
 def extractor2psqlfield(name, t):
     if t == extractor.Time64:
-        return f'{name} TIMESTAMP WITHOUT TIME ZONE'
+        return f'{name} TIMESTAMP WITHOUT TIME ZONE UNIQUE'
     elif t == extractor.Decimal64:
         return f'{name} NUMERIC NOT NULL'
     elif t == extractor.Float64:
@@ -190,9 +190,21 @@ if __name__ == "__main__":
         # Populate the market data parameters into the database
         values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array]
         values_str = ",".join(values)
+        # cmd = f"""
+        # INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
+        # ('{market}','{imnt}',{values_str})
+        # """
         cmd = f"""
         INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
         ('{market}','{imnt}',{values_str})
+        ON CONFLICT (close_time)
+        DO NOTHING;
+        """
+        cmd = f"""
+        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
+        ('{market}','{imnt}',{values_str})
+        ON CONFLICT (close_time)
+        DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values_str});
         """
         print(cmd)
         cur.execute(cmd)
