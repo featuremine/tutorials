@@ -83,27 +83,35 @@ if __name__ == "__main__":
 
     bars_descr = (("open_time", extractor.Time64),
                   ("close_time", extractor.Time64),
-                  ("close_askpx", extractor.Decimal64),
-                  ("close_asksz", extractor.Decimal64),
-                  ("close_bidpx", extractor.Decimal64),
-                  ("close_bidsz", extractor.Decimal64),
-                  ("high_askpx", extractor.Decimal64),
-                  ("high_asksz", extractor.Decimal64),
-                  ("high_bidpx", extractor.Decimal64),
-                  ("high_bidsz", extractor.Decimal64),
-                  ("low_askpx", extractor.Decimal64),
-                  ("low_asksz", extractor.Decimal64),
-                  ("low_bidpx", extractor.Decimal64),
-                  ("low_bidsz", extractor.Decimal64),
-                  ("notional", extractor.Decimal64),
-                  ("open_askpx", extractor.Decimal64),
-                  ("open_asksz", extractor.Decimal64),
-                  ("open_bidpx", extractor.Decimal64),
-                  ("open_bidsz", extractor.Decimal64),
+                  ("close_askpx", extractor.Decimal128),
+                  ("close_asksz", extractor.Decimal128),
+                  ("close_bidpx", extractor.Decimal128),
+                  ("close_bidsz", extractor.Decimal128),
+                  ("high_askpx", extractor.Decimal128),
+                  ("high_asksz", extractor.Decimal128),
+                  ("high_bidpx", extractor.Decimal128),
+                  ("high_bidsz", extractor.Decimal128),
+                  ("low_askpx", extractor.Decimal128),
+                  ("low_asksz", extractor.Decimal128),
+                  ("low_bidpx", extractor.Decimal128),
+                  ("low_bidsz", extractor.Decimal128),
+                  ("open_askpx", extractor.Decimal128),
+                  ("open_asksz", extractor.Decimal128),
+                  ("open_bidpx", extractor.Decimal128),
+                  ("open_bidsz", extractor.Decimal128),
+                  ("close_px", extractor.Decimal128),
+                  ("close_sz", extractor.Decimal128),
+                  ("high_px", extractor.Decimal128),
+                  ("high_sz", extractor.Decimal128),
+                  ("low_px", extractor.Decimal128),
+                  ("low_sz", extractor.Decimal128),
+                  ("open_px", extractor.Decimal128),
+                  ("open_sz", extractor.Decimal128),
+                  ("notional", extractor.Decimal128),
                   ("vwap", extractor.Float64))
 
-    trade_descr = (("price", extractor.Decimal64),
-                   ("qty", extractor.Decimal64),
+    trade_descr = (("price", extractor.Decimal128),
+                   ("qty", extractor.Decimal128),
                   #("side", extractor.Array(extractor.Char, 1)),
                    ("receive", extractor.Time64))
 
@@ -187,8 +195,8 @@ if __name__ == "__main__":
         ('{market}','{imnt}',{values_str})
         """
         print(cmd)
-        #cur.execute(cmd)
-        #conn.commit()
+        cur.execute(cmd)
+        conn.commit()
 
     def trades2db(x, market, imnt):
         # Populate the market data parameters into the database
@@ -231,10 +239,30 @@ if __name__ == "__main__":
         notional = notional - prev_notional
         shares = shares - prev_shares
 
+        first_trade = op.first_after(trade, close_time)
+        open_trade_there = op.asof(first_trade, close_time)
+        close_trade = op.asof(trade, close_time)
+        no_trades = op.is_zero(shares)
+        open_trade = op.cond(no_trades, close_trade, open_trade_there)
+
+        high_trade_there = op.asof(op.asof(trade, op.max(trade.price, first_trade)), close_time)
+        low_trade_there = op.asof(op.asof(trade, op.min(trade.price, first_trade)), close_time)
+
+        high_trade = op.cond(no_trades, close_trade, high_trade_there)
+        low_trade = op.cond(no_trades, close_trade, low_trade_there)
+
         # TODO: use mid price if no trade price exists yet
         vwap = op.cond(op.is_zero(shares), op.asof(trade.price, close_time), notional / shares)
 
         combined = op.combine(
+            open_trade, (("price", "open_px"),
+                        ("qty", "open_sz")),
+            close_trade, (("price", "close_px"),
+                        ("qty", "close_sz")),
+            high_trade, (("price", "high_px"),
+                        ("qty", "high_sz")),
+            low_trade, (("price", "low_px"),
+                        ("qty", "low_sz")),
             open_quote, (("bidprice", "open_bidpx"),
                         ("askprice", "open_askpx"),
                         ("bidqty", "open_bidsz"),
