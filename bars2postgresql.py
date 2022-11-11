@@ -37,7 +37,7 @@ prefix = "ore/imnts"
 
 def extractor2psqlfield(name, t):
     if t == extractor.Time64:
-        return f'{name} TIMESTAMP WITHOUT TIME ZONE UNIQUE'
+        return f'{name} TIMESTAMP WITHOUT TIME ZONE'
     elif t == extractor.Decimal64:
         return f'{name} NUMERIC NOT NULL'
     elif t == extractor.Float64:
@@ -57,14 +57,6 @@ def extractor2psqlvalue(val):
     else:
         return str(val)
 
-def extractor2csvvalue(val):
-    if isinstance(val, str):
-        f"{val}"
-    if isinstance(val, timedelta):
-        return f"{val + datetime(1970, 1, 1)}"
-    else:
-        return str(val)
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--database", help="postgreSQL database name", required=True)
@@ -77,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
     parser.add_argument("--period", help="Bar period in seconds", required=False, default=10)
-    parser.add_argument("--levels", help="Book levels to display", required=False, default=5)
+    parser.add_argument("--levels", help="Book levels to display", required=False, default=1)
 
     args = parser.parse_args()
 
@@ -108,7 +100,7 @@ if __name__ == "__main__":
                   ("open_px", extractor.Decimal128),
                   ("open_sz", extractor.Decimal128),
                   ("notional", extractor.Decimal128),
-                  ("vwap", extractor.Float64))
+                  ("vwap", extractor.Decimal128))
 
     trade_descr = (("price", extractor.Decimal128),
                    ("qty", extractor.Decimal128),
@@ -145,14 +137,6 @@ if __name__ == "__main__":
     db_fields_create = db_fields_create[:-1]
     db_fields_str = ",".join(db_fields_array)
 
-    db_fields_array_trades = []
-    db_fields_create_trades  = ''
-    for field in trade_descr:
-        db_fields_array_trades += [field[0]]
-        db_fields_create_trades += extractor2psqlfield(field[0], field[1]) + ','
-    db_fields_create_trades = db_fields_create_trades[:-1]
-    db_fields_str_trades = ",".join(db_fields_array_trades)
-
     # Create database table to store market data
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS market_data
@@ -161,62 +145,29 @@ if __name__ == "__main__":
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
         market VARCHAR(32),
         imnt VARCHAR(32),
-        {db_fields_create}
+        {db_fields_create},
+        UNIQUE (market, imnt, open_time, close_time)
     )
     """)
     conn.commit()
-
-    # Create database table to store trades
-    cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS trades
-    (
-        trade_id SERIAL PRIMARY KEY NOT NULL,
-        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-        market VARCHAR(32),
-        imnt VARCHAR(32),
-        {db_fields_create_trades}
-    )
-    """)
-    conn.commit()
-
-    #print(','.join(db_fields_array))
-
-    # def bar2db(x, market, imnt):
-    #     # Populate the market data parameters into the database
-    #     values = [extractor2csvvalue(getattr(x[0], f)) for f in db_fields_array]
-    #     print(",".join(values))
 
     def bar2db(x, market, imnt):
         # Populate the market data parameters into the database
-        values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array]
-        values_str = ",".join(values)
-        # cmd = f"""
-        # INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
-        # ('{market}','{imnt}',{values_str})
-        # """
+        values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array])
         cmd = f"""
         INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
-        ('{market}','{imnt}',{values_str})
-        ON CONFLICT (close_time)
+        ('{market}','{imnt}',{values})
+        ON CONFLICT  (market, imnt, open_time, close_time)
         DO NOTHING;
-        """
-        cmd = f"""
-        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
-        ('{market}','{imnt}',{values_str})
-        ON CONFLICT (close_time)
-        DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values_str});
         """
         print(cmd)
         cur.execute(cmd)
         conn.commit()
-
-    def trades2db(x, market, imnt):
-        # Populate the market data parameters into the database
-        values = [extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array_trades]
-        values_str = ",".join(values)
         cmd = f"""
-        INSERT INTO trades (market,imnt,{db_fields_str_trades}) VALUES
-        ('{market}','{imnt}',{values_str})
+        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
+        ('{market}','{imnt}',{values})
+        ON CONFLICT  (market, imnt, open_time, close_time)
+        DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values});
         """
         print(cmd)
         cur.execute(cmd)
@@ -234,15 +185,14 @@ if __name__ == "__main__":
             channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
-    def compute_bar(op, bbo, trade, vendor_time):
+    def compute_bar(op, quote, trade, vendor_time):
         close_time = op.data_bar(vendor_time, timedelta(seconds=args.period))
         open_time = op.tick_lag(close_time, 1)
-        quote = op.fields(bbo, ("bidprice", "askprice", "bidqty", "askqty"))
         close_quote = op.left_lim(quote, close_time)
-        open_quote = op.tick_lag(op.asof(quote, close_time), 1) # this needs to be fixed to skip
+        open_quote = op.tick_lag(op.asof(quote, close_time), 1)
 
-        high_quote = op.left_lim(op.asof(quote, op.max(bbo.bidprice, close_time)), close_time)
-        low_quote = op.left_lim(op.asof(quote, op.min(bbo.askprice, close_time)), close_time)
+        high_quote = op.left_lim(op.asof(quote, op.max(quote.bidprice, close_time)), close_time)
+        low_quote = op.left_lim(op.asof(quote, op.min(quote.askprice, close_time)), close_time)
 
         notional = op.left_lim(op.cumulative(trade.price * trade.qty), close_time)
         shares = op.left_lim(op.cumulative(trade.qty), close_time)
@@ -308,23 +258,15 @@ if __name__ == "__main__":
     peer = seq.peer(args.peer)
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
 
-    levels = [op.book_build(upd, 5) for upd in upds]
+    levels = [op.book_build(upd, args.levels) for upd in upds]
     times = [op.book_vendor_time(upd) for upd in upds]
 
     quotes = [op.combine(level,
                     (("bid_prx_0", "bidprice"),
                      ("bid_shr_0", "bidqty"),
                      ("ask_prx_0", "askprice"),
-                     ("ask_shr_0", "askqty")),
-                     op.asof(tm, level), (("vendor", "time"),))
-            for tm, level in zip(times, levels)]
-
-    quote_fields = ["time", "bidprice", "bidqty", "askprice", "askqty"]
-    # print(','.join(quote_fields))
-
-    def quote_clbck(x, market, imnt):
-        values = [extractor2csvvalue(getattr(x[0], f)) for f in quote_fields]
-        print(",".join(values))
+                     ("ask_shr_0", "askqty")))
+            for level in levels]
 
     trades = [op.combine(op.book_trades(upd),
                         (("trade_price", "price"),
@@ -338,16 +280,9 @@ if __name__ == "__main__":
     def timeclb(x, market, imnt):
         print(x[0].vendor + datetime(1970, 1, 1))
 
-    # for quote, mi in zip(quotes, mktimnt):
-    #     graph.callback(quote, functools.partial(quote_clbck, market=mi[0], imnt=mi[1]))
-
-    # for tm, mi in zip(times, mktimnt):
-    #     graph.callback(tm, functools.partial(timeclb, market=mi[0], imnt=mi[1]))
-
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
-    #    graph.callback(trade, functools.partial(trades2db, market=mi[0], imnt=mi[1]))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
