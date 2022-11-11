@@ -160,7 +160,6 @@ if __name__ == "__main__":
         ON CONFLICT  (market, imnt, open_time, close_time)
         DO NOTHING;
         """
-        print(cmd)
         cur.execute(cmd)
         conn.commit()
         cmd = f"""
@@ -169,7 +168,6 @@ if __name__ == "__main__":
         ON CONFLICT  (market, imnt, open_time, close_time)
         DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values});
         """
-        print(cmd)
         cur.execute(cmd)
         conn.commit()
 
