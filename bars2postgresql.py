@@ -277,9 +277,6 @@ if __name__ == "__main__":
 
     bars = compute_bars(op, quotes, trades, times)
 
-    def timeclb(x, market, imnt):
-        print(x[0].vendor + datetime(1970, 1, 1))
-
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
