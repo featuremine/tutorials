@@ -171,7 +171,6 @@ if __name__ == "__main__":
         cur.execute(cmd)
         conn.commit()
 
-    # Set the extractor's license
     graph = extractor.system.comp_graph()
     op = graph.features
 
