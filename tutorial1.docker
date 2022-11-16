@@ -1,27 +1,24 @@
-FROM --platform=amd64 postgres
+FROM ubuntu:20.04
 ENV container docker
 
 # dependencies
 RUN apt-get update -y && \
-    apt-get -y install wget python3 python3-pip libpq-dev
+    apt-get -y install wget curl python3 python3-pip libpq-dev
+
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 
 RUN pip3 install psycopg2 numpy==1.21.0 pytz pandas
 
 RUN cd /tmp && \
-    wget https://github.com/featuremine/yamal/releases/download/v7.2.21/yamal-7.2.21-Linux.tar.gz && \
-    tar xvzf yamal-7.2.21-Linux.tar.gz -C / && \
-    rm -f yamal-7.2.21-Linux.tar.gz
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-Linux-x86_64.tar.gz && \
+    tar xvzfk yamal-7.2.24-Linux-x86_64.tar.gz -C / && \
+    rm -f yamal-7.2.24-Linux-x86_64.tar.gz && \
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl && \
+    pip3 install yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl && \
+    rm -f yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl
 
-RUN cd /tmp && \
-    wget https://github.com/featuremine/yamal-python/releases/download/v7.2.20/yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && \
-    pip3 install yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && \
-    rm -f yamal-7.2.20-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY test.lic /opt/test.lic
 COPY bulldozer-*.sh /tmp/bulldozer.sh
 COPY extractor-*.whl /tmp/
-COPY libextractor.so /lib/x86_64-linux-gnu/libextractor.so
 
 RUN cd /tmp && \
     chmod +x bulldozer.sh && \
@@ -35,3 +32,5 @@ RUN cd /tmp && \
 COPY market-data1.sh /opt/market-data.sh
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
+
+CMD cd /opt && ./market-data.sh
