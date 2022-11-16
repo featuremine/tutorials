@@ -38,7 +38,7 @@ prefix = "ore/imnts"
 def extractor2psqlfield(name, t):
     if t == extractor.Time64:
         return f'{name} TIMESTAMP WITHOUT TIME ZONE'
-    elif t == extractor.Decimal64:
+    elif t == extractor.Rprice:
         return f'{name} NUMERIC NOT NULL'
     elif t == extractor.Float64:
         return f'{name} NUMERIC NOT NULL'
