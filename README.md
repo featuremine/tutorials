@@ -5,67 +5,47 @@ Guide to build a docker with our market data stack (bulldozer, extractor) and sh
 
 ## Steps
 
-### Copy bulldozer installer to this location
-
-Get the bulldozer installer (e.g. bulldozer-0.0.1.sh) and copy it to the root of the repo.
-
-### Copy other requirementes (This step will not be required in the future)
-
-Copy extractor wheel and library it to the root of the repo. Copy extractor license it to the root of the repo.
-
-### Build our postgreSQL docker container
-
-```bash
-docker build -t tutotial1-demo -f tutorial1.docker .
-```
-
-### Run our postgreSQL docker container 
-
-```bash
-docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 tutotial1-demo
-```
-
-### Run grafana docker container
+### Run postgreSQL docker container 
 
 ```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 5432:5432 postgres
 ```
 
-you can test connection to the database as follow
+#### Get postgreSQL
+
+PostgreSQL is a database that Grafana uses as a data source for the dashboards.
+
+```bash
+sudo apt-get install postgresql
+```
+
+#### Connect to the database
+
 ```bash
 psql --dbname=testuser --host=localhost --port=5432 --username=testuser --password
 ```
+
+#### Useful commands
+
+Get a list of tables:
+```bash
+\dt
+```
+
+Show a specific table:
+```bash
+SELECT * FROM table_name
+```
+
+For more information visit https://www.postgresql.org
+
+### Run Grafana docker container
 
 ```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 3000:3000 grafana/grafana
 ```
 
-```bash
-yamal-run -c bulldozer/installation/path/samples/coinbase_l2_ore_ytp.ini -s main
-```
-
-you can check whether data is being written by bulldozer
-```bash
-yamal-stats -f ore_coinbase_l2.ytp
-```
-
-to look at the actual order book updates use
-
-```bash
-python3 ytporedump.py --ytp ore_coinbase_l2.ytp --channel ore/imnts/coinbase/BTC-USD
-```
-
-```bash
-python3 bulldozer2postgresql.py --database testuser --user testuser --password testuser --ytp ore_coinbase_l2.ytp --host localhost --port 5432
-```
-
-```bash
-python3 bars2postgresql.py --ytp ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-BTC,ADA-USD" --database testuser --user testuser --password testuser --host localhost --port 5432
-```
-
-
-
-##### Configure with UI
+##### Configure Grafana with UI
 
 * Open http://localhost:3000 on a browser.
 * Use `admin` for username and password.
@@ -73,12 +53,94 @@ python3 bars2postgresql.py --ytp ore_coinbase_l2.ytp --markets "coinbase" --imnt
 * Click on `Add your first data source`.
 * Select `PostgreSQL` as the data source and set the following parameters.
   * `Host`: `host.docker.internal:5432`.
-  * `Database`: `POSTGRES_USER` (`myusername` in the example).
-  * `User`: `POSTGRES_USER` (`myusername` in the example).
-  * `Password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
+  * `Database`: `POSTGRES_USER` (`testuser` in the example).
+  * `User`: `POSTGRES_USER` (`testuser` in the example).
+  * `Password`: `POSTGRES_PASSWORD` (`testuser` in the example).
   * `TLS/SSL Mode`: `disable`.
   * Click on `Save & test`.
 * In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
+
+
+
+### Copy bulldozer installer to this location
+
+Get the bulldozer installer (e.g.  bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
+
+### Copy other requirementes (This step will not be required in the future)
+
+Copy extractor wheel to the root of the repo.
+
+### Build the tutorial 1 docker container
+
+```bash
+docker build -t tutotial1-demo -f tutorial1.docker .
+```
+
+### Run the tutorial 1 docker container 
+
+```bash
+docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser tutotial1-demo
+```
+
+#### Run our components yourself
+
+Yamal is our core library that handles YTP files and all of the components.
+To install it:
+```bash
+wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-Linux-x86_64.tar.gz
+tar xvzf yamal-7.2.24-Linux-x86_64.tar.gz -C /
+wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl 
+pip3 install yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl 
+```
+
+Bulldozer is a cryptocurrency feed handler that outputs the exchange feed data into a YTP file.
+Install the bulldozer component with the self-extracting installer:
+
+```bash
+./bulldozer-1.0.3-Linux-x86_64.sh
+```
+
+```bash
+yamal-run -c bulldozer/installation/path/samples/coinbase_l2_ore_ytp.ini -s main
+```
+
+You can check whether data is being written by bulldozer
+```bash
+yamal-stats -f ore_coinbase_l2.ytp
+```
+
+To look at the actual order book updates use:
+
+```bash
+python3 ytporedump.py --ytp ore_coinbase_l2.ytp --channel ore/imnts/coinbase/BTC-USD
+```
+
+bulldozer2postgresql.py runs yamal-stats on the ytp file and populates the postgreSQL database table bulldozer_rate with the data rate.
+To run it first install psycopg2, a PostgreSQL database adapter.
+```bash
+sudo apt-get install libpq-dev
+pip3 install psycopg2
+```
+Run bulldozer2postgresql.py with the ytp file generated by the bulldozer and the database credentials:
+```bash
+python3 bulldozer2postgresql.py --database ${POSTGRES_USER} --user ${POSTGRES_USER} --password ${POSTGRES_PASSWORD} --host localhost --ytp /opt/ore_coinbase_l2.ytp
+```
+
+bars2postgresql.py populates the postgreSQL database with the market data.
+It uses the extractor, a high-performance real-time capable alpha research platform with an easy interface for financial analytics that allows you to set up a computational graph that optimizes how your computations are executed.
+To install extractor:
+
+```bash
+wget https://github.com/featuremine/yamal/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+```
+
+Run bars2postgresql.py with the ytp file generated by the bulldozer, the market instruments and the database credentials:
+```bash
+python3 bars2postgresql.py --database ${POSTGRES_USER} --user ${POSTGRES_USER} --password ${POSTGRES_PASSWORD} --host localhost --ytp /opt/ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-BTC,ADA-USD"
+```
+
+
 
 # Tutorial 2
 
