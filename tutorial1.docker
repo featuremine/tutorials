@@ -33,4 +33,4 @@ COPY market-data1.sh /opt/market-data.sh
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
 
-CMD cd /opt && ./market-data.sh
+CMD /opt/market-data.sh
