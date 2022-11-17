@@ -15,7 +15,7 @@ docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e PO
 #### PostgreSQL
 
 PostgreSQL is a database that Grafana uses as a data source for the dashboards.
-If you want you can test or make some changes on the database following the next PostgreSQL steps.
+Optionally you can test or make some changes on the database following the next PostgreSQL steps.
 
 #### Get PostgreSQL
 
@@ -94,7 +94,7 @@ docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuse
 
 #### Run the components yourself
 
-If you want to run each program yourself instead of just running the docker containers you can follow these next steps.
+If you want to run each program yourself instead of just running the tutorial 1 docker container you can follow these next steps.
 
 Yamal is our core library that handles YTP files and all of the components.
 To install Yamal
@@ -212,10 +212,9 @@ docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuse
 
 #### Run the components yourself
 
-The syncer is a component that synchronizes a ytp into 2 different locations connected over TCP.
-It consists of two modes: 
-* The source will broadcast the specified local YTP file's contents over a TCP connection, or sink, which will listen to a TCP Host and Port for YTP messages coming from a source and sync them to the specified local YTP file.
-* The sink will listen to a TCP Host and Port for YTP messages coming from a source and sync them to the specified local YTP file.
+The syncer is a component that synchronizes a YTP file in 2 different locations connected over TCP. It consists of two modes: 
+* The source mode will broadcast the specified local YTP file's contents over a TCP connection.
+* The sink mode will listen to a TCP Host and Port for YTP messages coming from a source and sync them to the specified local YTP file.
 
 After you run the bulldozer component as described in the first tutorial you can synchronize the file into another location with the syncer.
 Run a syncer source instance with the provided configuration file `syncer-source.ini`. You may need to change the configuration, for example the location of the file, the TCP host or port.
@@ -224,7 +223,7 @@ Run a syncer source instance with the provided configuration file `syncer-source
 yamal-run -m syncer -o syncer --config syncer-source.ini --section main
 ```
 
-Run a syncer sink instance on the other end where you want to copy the file with the provided configuration file `syncer-sink.ini`. Again the configuration m may need to be changed.
+Run a syncer sink instance on the other end where you want to duplicate the file with the provided configuration file `syncer-sink.ini`. Again the configuration may need to be changed.
 
 ```bash
 yamal-run -m syncer -o syncer --config syncer-sink.ini --section main
