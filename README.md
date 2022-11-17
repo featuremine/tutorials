@@ -64,11 +64,11 @@ docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 300
 
 ### Copy bulldozer installer to this location
 
-Get the bulldozer installer (e.g.  bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
+Get the bulldozer installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
 
 ### Copy other requirementes (This step will not be required in the future)
 
-Copy extractor wheel to the root of the repo.
+Copy extractor wheel (e.g. extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl) to the root of the repo.
 
 ### Build the tutorial 1 docker container
 
@@ -148,17 +148,22 @@ Guide to build 2 docker containers with our market data stack (bulldozer, extrac
 
 ## Steps
 
+
+### Getting started
+
+Run the PostgreSQL and Grafana docker containers following the first steps of the tutorial 1.
+
 ### Copy bulldozer installer to this location
 
-Get the bulldozer installer (e.g. bulldozer-0.0.1.sh) and copy it to the root of the repo.
+Get the bulldozer installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
+
+### Copy other requirementes (This step will not be required in the future)
+
+Copy extractor wheel (e.g. extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl) to the root of the repo.
 
 ### Copy syncer installer to this location
 
 Get the syncer installer (e.g. syncer-2.1.1.sh) and copy it to the root of the repo.
-
-### Copy other requirementes (This step will not be required in the future)
-
-Copy extractor wheel and library it to the root of the repo. Copy extractor license it to the root of the repo.
 
 ### Build our market data generator docker container
 
@@ -166,7 +171,7 @@ Copy extractor wheel and library it to the root of the repo. Copy extractor lice
 docker build -t tutotial2_1-demo -f tutorial2_1.docker .
 ```
 
-### Build our postgreSQL docker container
+### Build our docker container that populates the PostgreSQL database
 
 ```bash
 docker build -t tutotial2_2-demo -f tutorial2_2.docker .
@@ -178,29 +183,8 @@ docker build -t tutotial2_2-demo -f tutorial2_2.docker .
 docker run --add-host host.docker.internal:host-gateway tutotial2_1-demo
 ```
 
-### Run our postgreSQL docker container 
+### Run our docker container that populates the PostgreSQL database
 
 ```bash
-docker run -e POSTGRES_USER=myusername -e POSTGRES_PASSWORD=mypassword -p 5432:5432 -p 3333:3333 tutotial2_2-demo
+docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 3333:3333 tutotial2_2-demo
 ```
-
-### Run grafana docker container
-
-```bash
-docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 3000:3000 grafana/grafana
-```
-
-##### Configure with UI
-
-* Open http://localhost:3000 on a browser.
-* Use `admin` for username and password.
-* Select `skip` if you are still seeing login message.
-* Click on `Add your first data source`.
-* Select `PostgreSQL` as the data source and set the following parameters.
-  * `Host`: `host.docker.internal:5432`.
-  * `Database`: `POSTGRES_USER` (`myusername` in the example).
-  * `User`: `POSTGRES_USER` (`myusername` in the example).
-  * `Password`: `POSTGRES_PASSWORD` (`mypassword` in the example).
-  * `TLS/SSL Mode`: `disable`.
-  * Click on `Save & test`.
-* In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
