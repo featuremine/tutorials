@@ -209,3 +209,25 @@ docker run --add-host host.docker.internal:host-gateway tutotial2_1-demo
 ```bash
 docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 3333:3333 tutotial2_2-demo
 ```
+
+#### Run the components yourself
+
+The syncer is a component that synchronizes a ytp into 2 different locations connected over TCP.
+It consists of two modes: 
+* The source will broadcast the specified local YTP file's contents over a TCP connection, or sink, which will listen to a TCP Host and Port for YTP messages coming from a source and sync them to the specified local YTP file.
+* The sink will listen to a TCP Host and Port for YTP messages coming from a source and sync them to the specified local YTP file.
+
+After you run the bulldozer component as described in the first tutorial you can synchronize the file into another location with the syncer.
+Run a syncer source instance with the provided configuration file `syncer-source.ini`. You may need to change the configuration, for example the location of the file, the TCP host or port.
+
+```bash
+yamal-run -m syncer -o syncer --config syncer-source.ini --section main
+```
+
+Run a syncer sink instance on the other end where you want to copy the file with the provided configuration file `syncer-sink.ini`. Again the configuration m may need to be changed.
+
+```bash
+yamal-run -m syncer -o syncer --config syncer-sink.ini --section main
+```
+
+Now you can run the scripts `bulldozer2postgresql.py` and `bars2postgresql.py` described in the first tutorial with the YTP file duplicated by the syncer.
