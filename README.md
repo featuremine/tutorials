@@ -15,7 +15,7 @@ docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e PO
 #### PostgreSQL
 
 PostgreSQL is a database that Grafana uses as a data source for the dashboards.
-If you want you can test or make some changes on the database.
+If you want you can test or make some changes on the database following the next PostgreSQL steps.
 
 #### Get PostgreSQL
 
@@ -68,6 +68,8 @@ docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 300
 
 Grafana is a multi-platform open source analytics and interactive visualization web application. It provides charts, graphs, and alerts for the web when connected to supported data sources.
 
+You will be able to see the graphs if you open http://localhost:3000 on a browser and open the uploaded `market-data` dashboard.
+
 For more information visit https://grafana.com/
 
 ### Copy bulldozer installer to this location
@@ -91,6 +93,8 @@ docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuse
 ```
 
 #### Run the components yourself
+
+If you want to run each program yourself instead of just running the docker containers you can follow these next steps.
 
 Yamal is our core library that handles YTP files and all of the components.
 To install Yamal
@@ -146,9 +150,10 @@ python3 bulldozer2postgresql.py --database ${POSTGRES_USER} --user ${POSTGRES_US
 
 `bars2postgresql.py` uses the extractor, a high-performance real-time capable alpha research platform with an easy interface for financial analytics that allows you to set up a computational graph that optimizes how your computations are executed.
 
-To install extractor
+To install extractor and its requirements
 
 ```bash
+pip3 install psycopg2 numpy==1.21.0 pytz pandas
 wget https://github.com/featuremine/yamal/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
 pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
 ```
