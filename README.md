@@ -90,10 +90,6 @@ For more information visit https://grafana.com/
 
 Get the bulldozer installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
 
-### Copy other requirementes (This step will not be required in the future)
-
-Copy extractor wheel (e.g. extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl) to the root of the repo.
-
 ### Build the tutorial 1 docker container
 
 ```bash
@@ -182,7 +178,7 @@ To install extractor and its requirements
 
 ```bash
 pip3 install psycopg2 numpy==1.21.0 pytz pandas
-wget https://github.com/featuremine/yamal/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+wget https://github.com/featuremine/extractor/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
 pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
 ```
 
@@ -209,10 +205,6 @@ Run the PostgreSQL and Grafana docker containers following the first steps of th
 ### Copy bulldozer installer to this location
 
 Get the bulldozer installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
-
-### Copy other requirementes (This step will not be required in the future)
-
-Copy extractor wheel (e.g. extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl) to the root of the repo.
 
 ### Copy syncer installer to this location
 

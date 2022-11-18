@@ -130,8 +130,6 @@ if __name__ == "__main__":
     db_fields_array = []
     db_fields_create = ''
     for field in bars_descr:
-        if field[0] == 'ticker':
-            continue
         db_fields_array += [field[0]]
         db_fields_create += extractor2psqlfield(field[0], field[1]) + ','
     db_fields_create = db_fields_create[:-1]
@@ -155,14 +153,6 @@ if __name__ == "__main__":
         # Populate the market data parameters into the database
         print("DATA RECEIVED", x, market, imnt)
         values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array])
-        cmd = f"""
-        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
-        ('{market}','{imnt}',{values})
-        ON CONFLICT  (market, imnt, open_time, close_time)
-        DO NOTHING;
-        """
-        cur.execute(cmd)
-        conn.commit()
         cmd = f"""
         INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
         ('{market}','{imnt}',{values})
