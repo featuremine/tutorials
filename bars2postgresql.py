@@ -153,6 +153,7 @@ if __name__ == "__main__":
 
     def bar2db(x, market, imnt):
         # Populate the market data parameters into the database
+        print("DATA RECEIVED", x, market, imnt)
         values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array])
         cmd = f"""
         INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
