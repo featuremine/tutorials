@@ -10,14 +10,18 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 RUN pip3 install psycopg2 numpy==1.21.0 pytz pandas
 
 RUN cd /tmp && \
-    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-Linux-x86_64.tar.gz && \
-    tar xvzfk yamal-7.2.24-Linux-x86_64.tar.gz -C / && \
-    rm -f yamal-7.2.24-Linux-x86_64.tar.gz && \
-    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl && \
-    pip3 install yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl && \
-    rm -f yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Linux-x86_64.tar.gz && \
+    tar xvzfk yamal-7.2.25-Linux-x86_64.tar.gz -C / && \
+    rm -f yamal-7.2.25-Linux-x86_64.tar.gz && \
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl && \
+    pip3 install yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl && \
+    rm -f yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl
 
-COPY extractor-*.whl /tmp/
+RUN cd /tmp && \
+    wget https://github.com/featuremine/extractor/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl && \
+    pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl  && \
+    rm -f extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+
 COPY syncer-*.sh /tmp/syncer.sh
 COPY syncer-sink.ini /opt/syncer-sink.ini
 
@@ -25,10 +29,6 @@ RUN cd /tmp && \
     chmod +x syncer.sh && \
     ./syncer.sh && \
     rm -f syncer.sh
-
-RUN cd /tmp && \
-    pip3 install extractor-*.whl && \
-    rm -f extractor-*.whl
 
 COPY market-data2_2.sh /opt/market-data.sh
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py

@@ -19,19 +19,19 @@ RUN cd /tmp && \
     pip3 install yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl && \
     rm -f yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl
 
+RUN cd /tmp && \
+    wget https://github.com/featuremine/extractor/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl && \
+    pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl  && \
+    rm -f extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+
 #What if the client has more than one sh and wheel in his directory, maybe we also want these version to be some kind of parameter
 
 COPY bulldozer-*.sh /tmp/bulldozer.sh
-COPY extractor-*.whl /tmp/
 
 RUN cd /tmp && \
     chmod +x bulldozer.sh && \
     ./bulldozer.sh && \
     rm -f bulldozer.sh
-
-RUN cd /tmp && \
-    pip3 install extractor-*.whl && \
-    rm -f extractor-*.whl
 
 COPY market-data1.sh /opt/market-data.sh
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
