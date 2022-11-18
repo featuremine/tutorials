@@ -8,7 +8,7 @@ if __name__ == "__main__":
     parser.add_argument("--channel", help="The channel or channel prefix", required=True)
     args = parser.parse_args()
 
-    seq = ytp.sequence(args.ytp, readonly=True)
+    seq = ytp.sequence(args.ytp)
 
     def seq_clbck(peer, channel, time, data):
         print(mp.unpackb(data))

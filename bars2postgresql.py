@@ -250,7 +250,7 @@ if __name__ == "__main__":
     def compute_bars(op, quotes, trades, times):
         return [compute_bar(op, quote, trd, ven) for quote, trd, ven, in zip(quotes, trades, times)]
 
-    seq = ytp.sequence(args.ytp, readonly=True)
+    seq = ytp.sequence(args.ytp)
     op.ytp_sequence(seq, timedelta(milliseconds=1))
     peer = seq.peer(args.peer)
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]

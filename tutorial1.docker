@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM --platform=linux/amd64 ubuntu:20.04
 ENV container docker
 
 # dependencies
@@ -9,13 +9,17 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 
 RUN pip3 install psycopg2 numpy==1.21.0 pytz pandas
 
+#Yamal version has to be some kind of parameter when building the container
+
 RUN cd /tmp && \
-    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-Linux-x86_64.tar.gz && \
-    tar xvzfk yamal-7.2.24-Linux-x86_64.tar.gz -C / && \
-    rm -f yamal-7.2.24-Linux-x86_64.tar.gz && \
-    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl && \
-    pip3 install yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl && \
-    rm -f yamal-7.2.24-py3-none-manylinux_2_17_x86_64.whl
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Linux-x86_64.tar.gz && \
+    tar xvzfk yamal-7.2.25-Linux-x86_64.tar.gz -C / && \
+    rm -f yamal-7.2.25-Linux-x86_64.tar.gz && \
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl && \
+    pip3 install yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl && \
+    rm -f yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl
+
+#What if the client has more than one sh and wheel in his directory, maybe we also want these version to be some kind of parameter
 
 COPY bulldozer-*.sh /tmp/bulldozer.sh
 COPY extractor-*.whl /tmp/
