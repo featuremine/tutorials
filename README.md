@@ -126,17 +126,18 @@ This didnt work well for me on mac, even with sudo i get error : `x lib/: Can't 
 also when installing even on linux paths it might be a better idea to install to usr local instead of the system bin
 
 ```bash
-wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Linux-x86_64.tar.gz
-tar xvzfk yamal-7.2.25-Linux-x86_64.tar.gz -C /usr/local
-wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl 
-pip3 install yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl 
+wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Darwin-arm64.tar.gz
+sudo tar xvzfk yamal-7.2.25-Darwin-arm64.tar.gz -C /usr/local
+wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-py3-none-macosx_13_0_arm64.whl 
+pip3 install yamal-7.2.25-py3-none-macosx_13_0_arm64.whl 
 ```
 
 Bulldozer is a cryptocurrency feed handler that outputs the exchange feed data into a YTP file.
 Install the bulldozer component with the self-extracting installer
 
+#Unless used with sudo, it will not unpack without user, so its either this or sudo and no --user
 ```bash
-./bulldozer-1.0.3-Linux-x86_64.sh
+./bulldozer-1.0.3-Linux-x86_64.sh --user
 ```
 
 Get coinbase data into a YTP file with the sample configuration
