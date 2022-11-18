@@ -213,25 +213,25 @@ Get the syncer installer (e.g. syncer-2.1.1.sh) and copy it to the root of the r
 ### Build our market data generator docker container
 
 ```bash
-docker build -t tutotial2_1-demo -f tutorial2_1.docker .
+docker build --platform linux/amd64 -t tutotial2_1-demo -f tutorial2_1.docker .
 ```
 
 ### Build our docker container that populates the PostgreSQL database
 
 ```bash
-docker build -t tutotial2_2-demo -f tutorial2_2.docker .
+docker build --platform linux/amd64 -t tutotial2_2-demo -f tutorial2_2.docker .
 ```
 
 ### Run our market data generator docker container 
 
 ```bash
-docker run --add-host host.docker.internal:host-gateway tutotial2_1-demo
+docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -d tutotial2_1-demo
 ```
 
 ### Run our docker container that populates the PostgreSQL database
 
 ```bash
-docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 3333:3333 tutotial2_2-demo
+docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 3333:3333 -d tutotial2_2-demo
 ```
 
 #### Run the components yourself
@@ -243,14 +243,21 @@ The syncer is a component that synchronizes a YTP file in 2 different locations 
 After you run the bulldozer component as described in the first tutorial you can synchronize the file into another location with the syncer.
 Run a syncer source instance with the provided configuration file `syncer-source.ini`. You may need to change the configuration, for example the location of the file, the TCP host or port.
 
+#Install steps were missing. Unless used with sudo, it will not unpack without user, so its either this or sudo and no --user
 ```bash
-yamal-run -m syncer -o syncer --config syncer-source.ini --section main
+./syncer-1.0.3-Linux-x86_64.sh --user
 ```
 
-Run a syncer sink instance on the other end where you want to duplicate the file with the provided configuration file `syncer-sink.ini`. Again the configuration may need to be changed.
+Run a syncer sink instance on the other end where you want to duplicate the file with the provided configuration file `syncer-sink.ini`. Again the configuration may need to be changed. how can it be changed, what should i look for?
 
 ```bash
 yamal-run -m syncer -o syncer --config syncer-sink.ini --section main
 ```
 
-Now you can run the scripts `bulldozer2postgresql.py` and `bars2postgresql.py` described in the first tutorial with the YTP file duplicated by the syncer.
+Run sink first, sink is server, source will crash if server is not ready, this is kind of confusing, source should be the server and sink should connect to it, it is currently the other way around
+
+```bash
+yamal-run -m syncer -o syncer --config syncer-source.ini --section main
+```
+
+Now you can run the scripts `bulldozer2postgresql.py` and `bars2postgresql.py` described in the first tutorial with the YTP file duplicated by the syncer. again, how can it be changed, what should i look for?
