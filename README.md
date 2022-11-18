@@ -97,7 +97,7 @@ Copy extractor wheel (e.g. extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl) t
 ### Build the tutorial 1 docker container
 
 ```bash
-docker build -t tutotial1-demo -f tutorial1.docker .
+docker build --platform linux/amd64 -t tutotial1-demo -f tutorial1.docker .
 ```
 
 ### Run the tutorial 1 docker container 
@@ -105,7 +105,7 @@ docker build -t tutotial1-demo -f tutorial1.docker .
 // Command is blocking, probably a good idea to make the clients run it as detached mode
 
 ```bash
-docker run --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser tutotial1-demo
+docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -d -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser tutotial1-demo
 ```
 
 #### Run the components yourself
