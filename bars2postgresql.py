@@ -144,7 +144,7 @@ if __name__ == "__main__":
         market VARCHAR(32),
         imnt VARCHAR(32),
         {db_fields_create},
-        UNIQUE (market, imnt, open_time, close_time)
+        UNIQUE (market, imnt, close_time)
     )
     """)
     conn.commit()
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         cmd = f"""
         INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
         ('{market}','{imnt}',{values})
-        ON CONFLICT  (market, imnt, open_time, close_time)
+        ON CONFLICT  (market, imnt, close_time)
         DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values});
         """
         cur.execute(cmd)
