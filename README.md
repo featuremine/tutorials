@@ -225,13 +225,13 @@ docker build --platform linux/amd64 -t tutotial2_2-demo -f tutorial2_2.docker .
 ### Run our market data generator docker container 
 
 ```bash
-docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -d tutotial2_1-demo
+docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -p 3333:3333 -d tutotial2_1-demo
 ```
 
 ### Run our docker container that populates the PostgreSQL database
 
 ```bash
-docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 3333:3333 -d tutotial2_2-demo
+docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -d tutotial2_2-demo
 ```
 
 #### Run the components yourself
