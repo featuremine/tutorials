@@ -208,7 +208,7 @@ Get the bulldozer installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it 
 
 ### Copy syncer installer to this location
 
-Get the syncer installer (e.g. syncer-2.1.1.sh) and copy it to the root of the repo.
+Get the syncer installer (e.g. syncer-2.1.3.sh) and copy it to the root of the repo.
 
 ### Build our market data generator docker container
 
@@ -245,7 +245,7 @@ Run a syncer source instance with the provided configuration file `syncer-source
 
 #Install steps were missing. Unless used with sudo, it will not unpack without user, so its either this or sudo and no --user
 ```bash
-./syncer-1.0.3-Linux-x86_64.sh --user
+./syncer-2.1.3-Linux-x86_64.sh --user
 ```
 
 Run a syncer sink instance on the other end where you want to duplicate the file with the provided configuration file `syncer-sink.ini`. Again the configuration may need to be changed. how can it be changed, what should i look for?
@@ -260,4 +260,4 @@ Run sink first, sink is server, source will crash if server is not ready, this i
 yamal-run -m syncer -o syncer --config syncer-source.ini --section main
 ```
 
-Now you can run the scripts `bulldozer2postgresql.py` and `bars2postgresql.py` described in the first tutorial with the YTP file duplicated by the syncer. again, how can it be changed, what should i look for?
+Now you can run the bulldozer component to generate the YTP file and the scripts `bulldozer2postgresql.py` and `bars2postgresql.py` described in the first tutorial with the YTP file duplicated by the syncer. again, how can it be changed, what should i look for?
