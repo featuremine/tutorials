@@ -76,6 +76,7 @@ For more information visit https://grafana.com/
 * Select `skip` if you are still seeing login message.
 * Click on `Add your first data source`.
 * Select `PostgreSQL` as the data source and set the following parameters.
+  * Enable as default
   * `Host`: `host.docker.internal:5432`.
   * `Database`: `POSTGRES_USER` (`testuser` in the example).
   * `User`: `POSTGRES_USER` (`testuser` in the example).

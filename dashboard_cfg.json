@@ -23,7 +23,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 10,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -345,9 +345,6 @@
           "text": "BTC-USD",
           "value": "BTC-USD"
         },
-        "datasource": {
-          "type": "postgres"
-        },
         "definition": "SELECT DISTINCT imnt FROM market_data;",
         "hide": 0,
         "includeAll": false,
@@ -367,9 +364,6 @@
           "selected": false,
           "text": "coinbase",
           "value": "coinbase"
-        },
-        "datasource": {
-          "type": "postgres"
         },
         "definition": "SELECT DISTINCT market FROM market_data;",
         "hide": 0,
