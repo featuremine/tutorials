@@ -1,24 +1,19 @@
 # Dashboard
+This tutorial demonstrates how easy it is to deploy Featuremine market data stack to analyse and display market statistics for major cryptocurrencies across multiple exchanges. This demostration utilizes several Featuremine products. First, our feed handler, `Bulldozer`, receives raw data from the exchanges and writes normalized data into our low-latency IPC (interprocess communication) bus called `Yamal`. If needed, this market data can be distributed remotely to other machines using our `Syncer` utility. From there, Featuremine time-series analytics library, `Extractor`, picks up the normalized data and computes trading statistics, such as openning, high, low and closing trade prices for every 10s period. Here we will be utilizing `Grafana` to display this information. Grafana needs a separate database as a backend for storing data. While it supports various databases, we chose to use `PostgreSQL` because of its wide use and simplicity.
 
-Featuremine stack provides an easy way to obtain and analyse market data feeds of major crypto exchanges. You can deploy our stack in minutes, quickly accessing the data you require for trading.
-
-These tutorials show you how easy it is to deploy a dashboard to track prices for major cryptocurrencies across multiple exchanges.
-
-## Tutorial 1
-The first tutorial demonstrates how to deploy the market data stack on a single machine. Our feed handler, `Bulldozer`, receives raw data from the exchanges and writes normalized data into our low-latency IPC (interprocess communication) bus, `Yamal`. From there, Featuremine time-series analytics library, `Extractor`, picks up the normalized data and computes trading statistics, such as openning, high, low and closing trade prices for every 10s period. In this tutorial we will be utilizing `Grafana` to display this information. In order to do that we need to store the trading statistics in a database. `Grafana` supports various databases. In this tutorial we chose to use `PostgreSQL` because of its wide use and simplicity.
-
-### Prerequisites
+## Prerequisites
 To run this tutorial, first of all, you will need to have docker installed. Please refer to [Get Docker](https://docs.docker.com/get-docker/) link for more information.
-You will also need to obtain the latest version of `Bulldozer` from our website [Featuremine.com](https://www.featuremine.com) or by wrting to us at <support@featuremine.com>.
 
-### PostgreSQL setup
-First set up the PostgreSQL database using the docker container. It is by far the simples way to get started. If you prefer, however, you can install PostgreSQL locally or use an existing installation.
+You will also need to obtain the latest version of `Bulldozer` and `Syncer` from our website [Featuremine.com](https://www.featuremine.com) or by wrting to us at <support@featuremine.com>.
+
+## PostgreSQL setup
+PostgreSQL is a free and open-source relational database management system. To set up the PostgreSQL database you can use the docker container. It is by far the simples way to get started. However, if you prefer you can install PostgreSQL locally or use an existing installation.
 
 ```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 5432:5432 postgres
 ```
 
-#### Useful SQL commands
+### Useful SQL commands
 To test your database connection you can run the following command:
 
 ```bash
@@ -38,7 +33,7 @@ SELECT * FROM table_name
 
 For more information visit https://www.postgresql.org
 
-### Grafana setup
+## Grafana setup
 Grafana is a multi-platform open source analytics and interactive visualization web application. It provides charts, graphs, and alerts for the web when connected to supported data sources. To deploy grafana using docker, run the following:
 
 ```bash
@@ -58,99 +53,68 @@ Finally, in the sidebar menu on the left, select `Dashboard/import` and upload t
 
 For more information visit https://grafana.com/
 
-### Featuremine stack
+## Market data stack (single docker setup)
+In this section we use a single docker container to deploy the Featuremine market data stack. 
 
-The first part of the tutorial uses docker containers to make deployment of the stack as simple as possible. The second part of the tutorial, to help you become more familiar with the stack, explains how to install and run various tools directly.
+First obtain the `Bulldozer` installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root directory of the repo.
 
-### Part I (docker)
-
-
-
-### Copy bulldozer installer to this location
-
-Get the bulldozer installer (e.g. bulldozer-1.0.3-Linux-x86_64.sh ) and copy it to the root of the repo.
-
-### Build the tutorial 1 docker container
-
+Then, build the docker container from the docker file
 ```bash
 docker build --platform linux/amd64 -t tutotial1-demo -f tutorial1.docker .
 ```
-
-### Run the tutorial 1 docker container 
-
-// Command is blocking, probably a good idea to make the clients run it as detached mode
-
+Finally run the container, which will deploy the stack.
 ```bash
 docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -d -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser tutotial1-demo
 ```
 
-#### Run the components yourself
+You should now be able to see the market data statistics and market data receive rate in the dashboard.
 
-If you want to run each program yourself instead of just running the tutorial 1 docker container you can follow these next steps.
+## Market data stack (local setup)
+In this section we help you familiarize yourself with our market data stack by walking you through installation and deployment of various tools directly on your local machine.
 
-Yamal is our core library that handles YTP files and all of the components.
-To install Yamal
-
+### Installation
+First install `Yamal` which is our low-latency interprocess communication bus.
 ```bash
-wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Linux-x86_64.tar.gz
-tar xvzfk yamal-7.2.25-Linux-x86_64.tar.gz -C /
-wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl 
-pip3 install yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl 
+pip3 install yamal==7.2.25 
 ```
 
-This didnt work well for me on mac, even with sudo i get error : `x lib/: Can't create 'lib'` i had to -C to /usr/local
-also when installing even on linux paths it might be a better idea to install to usr local instead of the system bin
-
+Then install `psycopg2` that is used by the tutorial scripts.
 ```bash
-wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Darwin-arm64.tar.gz
-sudo tar xvzfk yamal-7.2.25-Darwin-arm64.tar.gz -C /usr/local
-wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-py3-none-macosx_13_0_arm64.whl 
-pip3 install yamal-7.2.25-py3-none-macosx_13_0_arm64.whl 
+pip3 install psycopg2
 ```
+On Linux you might need to install `libpq` development package, which is a dependency of `psycopg2`.
 
-Bulldozer is a cryptocurrency feed handler that outputs the exchange feed data into a YTP file.
-Install the bulldozer component with the self-extracting installer
-
-#Unless used with sudo, it will not unpack without user, so its either this or sudo and no --user
+Finally, install the bulldozer component with the self-extracting installer. On Linux run:
 ```bash
 ./bulldozer-1.0.3-Linux-x86_64.sh --user
 ```
 
-Get coinbase data into a YTP file with the sample configuration
-
+On an M1 Mac run:
 ```bash
-yamal-run -c bulldozer/installation/path/samples/coinbase_l2_ore_ytp.ini -s main
+./bulldozer-1.0.3-Darwin-arm64.sh --user
 ```
 
-You can check whether the data is being written by bulldozer
+### Market data
+First run `Bulldozer` to receive market data. You can use the sample configuration provided with `Bulldozer`.
+```bash
+yamal-run -c ~/.local/lib/yamal/modules/bulldozer/samples/coinbase_l2_ore_ytp.ini -s main
+```
 
+You can check whether the data is being written by bulldozer by using our `yamal-stats` utility that reports statistics on the data written to yamal file.
 ```bash
 yamal-stats -f ore_coinbase_l2.ytp
 ```
 
-To look at the actual order book updates use:
-
+If you would like to look at the actual order book updates that are being written to yamal, use:
 ```bash
 python3 ytporedump.py --ytp ore_coinbase_l2.ytp --channel ore/imnts/coinbase/BTC-USD
 ```
 
-`bulldozer2postgresql.py` runs `yamal-stats` on the YTP file and populates the postgreSQL database table bulldozer_rate with the data rate.
-
-To run `bulldozer2postgresql.py` first install psycopg2(PostgreSQL database adapter)
-
-```bash
-sudo apt-get install libpq-dev // Why libpqdev? you dont need this on mac, do you need it on linux? is psycopg2 not independent of it?
-pip3 install psycopg2
-```
-
-Run `bulldozer2postgresql.py` with the generated YTP file and the database credentials
-
-// had to change env variables to testuser, not sure if its worth it to use env variables for this step on the wiki
+Next, run `bulldozer2postgresql.py` script which runs `yamal-stats` on the yamal file and writes data rate to the PostgreSQL database table bulldozer_rate. We can use it to monitor `Bulldozer` performance from the dashboard. Make sure to pass database credentials as command line arguments.
 ```bash
 python3 bulldozer2postgresql.py --database testuser --user testuser --password testuser --host localhost --ytp ore_coinbase_l2.ytp
 ```
 
-`bars2postgresql.py` populates the postgreSQL database with the market data.
 
 `bars2postgresql.py` uses the extractor, a high-performance real-time capable alpha research platform with an easy interface for financial analytics that allows you to set up a computational graph that optimizes how your computations are executed.
 
