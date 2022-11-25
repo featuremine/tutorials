@@ -18,9 +18,9 @@ RUN cd /tmp && \
     rm -f yamal-7.2.25-py3-none-manylinux_2_17_x86_64.whl
 
 RUN cd /tmp && \
-    wget https://github.com/featuremine/extractor/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl && \
-    pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl  && \
-    rm -f extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+    wget https://github.com/featuremine/extractor/releases/download/v6.7.2/extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl && \
+    pip3 install extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl  && \
+    rm -f extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
 
 COPY syncer-*.sh /tmp/syncer.sh
 COPY syncer-sink.ini /opt/syncer-sink.ini
