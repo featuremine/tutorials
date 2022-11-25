@@ -5,87 +5,66 @@ Featuremine stack provides an easy way to obtain and analyse market data feeds o
 These tutorials show you how easy it is to deploy a dashboard to track prices for major cryptocurrencies across multiple exchanges.
 
 ## Tutorial 1
-
-The first tutorial demonstrates how to deploy the market data stack on a single machine. Our feed handler, `Bulldozer`, receives raw data from the exchanges and writes normalized data into our low-latency IPC (interprocess communication) bus, `Yamal`. From there, Featuremine time-series analytics library, `Extractor`, picks up the normalized data and computes trading statistics, such as openning, high, low and closing trade prices for every 10s period. We are using `Grafana` to display this information. In order to do that we need to store the trading statistics in a database. `Grafana` supports various databases. In this tutorial we chose to use `PostgreSQL` because of its wide use and simplicity.
+The first tutorial demonstrates how to deploy the market data stack on a single machine. Our feed handler, `Bulldozer`, receives raw data from the exchanges and writes normalized data into our low-latency IPC (interprocess communication) bus, `Yamal`. From there, Featuremine time-series analytics library, `Extractor`, picks up the normalized data and computes trading statistics, such as openning, high, low and closing trade prices for every 10s period. In this tutorial we will be utilizing `Grafana` to display this information. In order to do that we need to store the trading statistics in a database. `Grafana` supports various databases. In this tutorial we chose to use `PostgreSQL` because of its wide use and simplicity.
 
 ### Prerequisites
 To run this tutorial, first of all, you will need to have docker installed. Please refer to [Get Docker](https://docs.docker.com/get-docker/) link for more information.
 You will also need to obtain the latest version of `Bulldozer` from our website [Featuremine.com](https://www.featuremine.com) or by wrting to us at <support@featuremine.com>.
 
-##### PostgreSQL
-
-PostgreSQL is a database that Grafana uses as a data source for the dashboards.
-Optionally you can test or make some changes on the database following the next PostgreSQL steps.
-
-#### Run postgreSQL docker container 
+### PostgreSQL setup
+First set up the PostgreSQL database using the docker container. It is by far the simples way to get started. If you prefer, however, you can install PostgreSQL locally or use an existing installation.
 
 ```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser -p 5432:5432 postgres
 ```
 
-#### Get PostgreSQL
-
-```bash
-sudo apt-get install postgresql
-```
-
-In mac:
-```bash
-brew install postgresql
-```
-
-#### Connect to the database
+#### Useful SQL commands
+To test your database connection you can run the following command:
 
 ```bash
 psql --dbname=testuser --host=localhost --port=5432 --username=testuser --password
 ```
 
-#### Useful commands
-
-Get a list of tables:
+Then you can run the following to get a list of tables:
 ```bash
 \dt
 ```
-maybe note, note populated until extractor is actually running, there are no tables until the scripts are running
+Note, the tables in the tutorial are created by the tutorial scripts, so you will not see anything there initally.
 
-Show a specific table:
+If you would like to display a specific table, run:
 ```bash
 SELECT * FROM table_name
 ```
 
 For more information visit https://www.postgresql.org
 
-### Run Grafana docker container
+### Grafana setup
+Grafana is a multi-platform open source analytics and interactive visualization web application. It provides charts, graphs, and alerts for the web when connected to supported data sources. To deploy grafana using docker, run the following:
 
 ```bash
 docker run --add-host host.docker.internal:host-gateway -d --name=grafana -p 3000:3000 grafana/grafana
 ```
 
-#### Grafana
-
-Grafana is a multi-platform open source analytics and interactive visualization web application. It provides charts, graphs, and alerts for the web when connected to supported data sources.
-
-You will be able to see the graphs if you open http://localhost:3000 on a browser and open the uploaded `market-data` dashboard.
-
-For more information visit https://grafana.com/
-
-#### Configure your PostgreSQL data source with Grafana
-
-* Open http://localhost:3000 on a browser.
-* Use `admin` for username and password.
-* Select `skip` if you are still seeing login message.
-* Click on `Add your first data source`.
-* Select `PostgreSQL` as the data source and set the following parameters.
+Now you should be able to access grafana from your browser by openning [http://localhost:3000](http://localhost:3000). On the initial login use `admin` for username and password. Select `skip` if you are still seeing login message after pressing the `login` button. Then click on `Add your first data source` link. Select `PostgreSQL` as the data source and set the following parameters.
   * Enable as default
   * `Host`: `host.docker.internal:5432`.
   * `Database`: `POSTGRES_USER` (`testuser` in the example).
   * `User`: `POSTGRES_USER` (`testuser` in the example).
   * `Password`: `POSTGRES_PASSWORD` (`testuser` in the example).
   * `TLS/SSL Mode`: `disable`.
-  * Click on `Save & test`.
+Then click on `Save & test`.
 
-#### Import your new dashboard to Grafana
-* In the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
+Finally, in the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
+
+For more information visit https://grafana.com/
+
+### Featuremine stack
+
+The first part of the tutorial uses docker containers to make deployment of the stack as simple as possible. The second part of the tutorial, to help you become more familiar with the stack, explains how to install and run various tools directly.
+
+### Part I (docker)
+
+
 
 ### Copy bulldozer installer to this location
 
@@ -179,8 +158,8 @@ To install extractor and its requirements
 
 ```bash
 pip3 install psycopg2 numpy==1.21.0 pytz pandas
-wget https://github.com/featuremine/extractor/releases/download/v6.7.2/extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
-pip3 install extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
+wget https://github.com/featuremine/extractor/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
 ```
 
 Run `bars2postgresql.py` with the ytp file generated by the bulldozer, the market instruments and the database credentials
