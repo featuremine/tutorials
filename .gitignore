@@ -1,8 +1,7 @@
 build/*
 .vscode/*
 *.ytp
-*.so
 *.whl
-*.lic
+*.tar.gz
 bulldozer-*.sh
 syncer-*.sh

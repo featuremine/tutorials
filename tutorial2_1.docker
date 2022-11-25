@@ -1,13 +1,13 @@
-FROM centos:7
+FROM --platform=linux/amd64 centos:7
 ENV container docker
 
 # dependencies
 RUN yum -y install wget
 
 RUN cd /tmp && \
-    wget https://github.com/featuremine/yamal/releases/download/v7.2.21/yamal-7.2.21-Linux.tar.gz && \
-    tar xvzfk yamal-7.2.21-Linux.tar.gz -C / && \
-    rm -f yamal-7.2.21-Linux.tar.gz
+    wget https://github.com/featuremine/yamal/releases/download/v7.2.24/yamal-7.2.24-Linux-x86_64.tar.gz && \
+    tar xvzfk yamal-7.2.24-Linux-x86_64.tar.gz -C / && \
+    rm -f yamal-7.2.24-Linux-x86_64.tar.gz
 
 COPY market-data2_1.sh /opt/market-data.sh
 COPY bulldozer-*.sh /tmp/bulldozer.sh
@@ -24,4 +24,4 @@ RUN cd /tmp && \
     ./syncer.sh && \
     rm -f syncer.sh
 
-CMD cd /opt && ./market-data.sh
+CMD /opt/market-data.sh
