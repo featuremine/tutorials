@@ -1,7 +1,7 @@
 # Dashboard
 This tutorial demonstrates how easy it is to deploy the Featuremine market data stack to analyze and display market statistics for major cryptocurrencies across multiple exchanges. This demonstration utilizes several Featuremine products. First, our feed handler, `Bulldozer`, receives raw data from the exchanges and writes normalized data into our low-latency IPC (interprocess communication) bus called `Yamal`. If needed, this market data can be distributed remotely to other machines using our `Syncer` utility. From there, Featuremine's high-performance event processing library, `Extractor`, picks up the normalized data and computes trading statistics, such as opening, high, low and closing trade prices for every 10s period. Here we will be utilizing `Grafana` to display this information. Grafana needs a separate database as a backend for storing data. While it supports various databases, we chose to use `PostgreSQL` because of its wide use and simplicity.
 
-![This is an image](/dashboard.png)
+![Market data statistics](/dashboard.png)
 
 ## Prerequisites
 To run this tutorial, first of all, you will need to have docker installed. Please refer to [Get Docker](https://docs.docker.com/get-docker/) link for more information.
@@ -16,11 +16,13 @@ docker run --add-host host.docker.internal:host-gateway -d --name=postgres -e PO
 ```
 
 ### Useful SQL commands
-To test your database connection you can run the following command:
+To test your database connection you can run psql command. This requires postgresql client package. Please refer to [PostgreSQL Downloads](https://www.postgresql.org/download/) link for more information.
 
 ```bash
 psql --dbname=testuser --host=localhost --port=5432 --username=testuser --password
 ```
+
+Here you'd enter the password (`testuser` in the example).
 
 Then you can run the following to get a list of tables:
 ```bash
@@ -51,7 +53,7 @@ Now you should be able to access grafana from your browser by opening [http://lo
  * `TLS/SSL Mode`: `disable`.
 Then click on `Save & test`.
 
-Finally, in the sidebar menu on the left, select `Dashboard/import` and upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
+Finally, in the sidebar menu on the left, select `Dashboard/import` and `Upload JSON file` to upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
 
 For more information visit https://grafana.com/
 
@@ -64,7 +66,7 @@ Then, build the docker container from the docker file
 ```bash
 docker build --platform linux/amd64 -t tutotial1-demo -f tutorial1.docker .
 ```
-Finally run the container, which will deploy the stack.
+Finally, run the container, which will deploy the stack.
 ```bash
 docker run --platform linux/amd64 --add-host host.docker.internal:host-gateway -d -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=testuser tutotial1-demo
 ```
@@ -99,15 +101,17 @@ On Linux you might need to install the `libpq` development package, which is a d
 
 Then, install the `Bulldozer` feed handler with the self-extracting installer. On Linux run:
 ```bash
+chmod +x ./bulldozer-1.0.3-Linux-x86_64.sh
 ./bulldozer-1.0.3-Linux-x86_64.sh --user
 ```
 
 On an M1 Mac run:
 ```bash
+chmod +x ./bulldozer-1.0.3-Darwin-arm64.sh
 ./bulldozer-1.0.3-Darwin-arm64.sh --user
 ```
 
-Finally install `Extractor`, which is our event processing library.
+Finally, install `Extractor`, which is our event processing library.
 ```bash
 pip3 install numpy==1.21.0 pytz pandas
 wget https://github.com/featuremine/extractor/releases/download/v6.7.2/extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
@@ -134,6 +138,7 @@ yamal-stats -f ore_coinbase_l2.ytp
 
 If you would like to look at the actual order book updates that are being written to yamal, use:
 ```bash
+pip3 install msgpack
 python3 ytporedump.py --ytp ore_coinbase_l2.ytp --channel ore/imnts/coinbase/BTC-USD
 ```
 
@@ -158,7 +163,7 @@ Then build one docker container with the feed handler and the syncer:
 ```bash
 docker build --platform linux/amd64 -t tutotial2_1-demo -f tutorial2_1.docker .
 ```
-and another with the the syncer and the market data statistics scripts.
+and another with the syncer and the market data statistics scripts.
 ```bash
 docker build --platform linux/amd64 -t tutotial2_2-demo -f tutorial2_2.docker .
 ```
