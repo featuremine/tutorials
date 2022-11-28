@@ -27,7 +27,7 @@ Then you can run the following to get a list of tables:
 Note, the tables in the tutorial are created by the tutorial scripts, so you will not see anything there initally.
 
 If you would like to display a specific table, run:
-```bash
+```sql
 SELECT * FROM table_name
 ```
 
