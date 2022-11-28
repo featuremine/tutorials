@@ -24,10 +24,10 @@ Then you can run the following to get a list of tables:
 ```bash
 \dt
 ```
-Note, the tables in the tutorial are created by the tutorial scripts, so you will not see anything there initally.
+Note, the tables in the tutorial are created by the tutorial scripts, so you will not see anything there initially.
 
 If you would like to display a specific table, run:
-```bash
+```sql
 SELECT * FROM table_name
 ```
 
@@ -73,8 +73,19 @@ You should now be able to see the market data statistics and market data receive
 In this section we help you familiarize yourself with our market data stack by walking you through installation and deployment of various tools directly on your local machine.
 
 ### Installation
-First, install `Yamal` which is our low-latency interprocess communication bus.
+First, install `Yamal` which is our low-latency interprocess communication bus. On Linux you can do this by running the following:
 ```bash
+wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Linux-x86_64.tar.gz
+tar xvzfk yamal-7.2.25-Linux-x86_64.tar.gz -C $HOME/.local/
+export PATH=$PATH:$HOME/.local/bin
+pip3 install yamal==7.2.25 
+```
+
+On an M1 Mac run:
+```bash
+wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Darwin-arm64.tar.gz
+tar xvzfk yamal-7.2.25-Darwin-arm64.tar.gz -C $HOME/.local/
+export PATH=$PATH:$HOME/.local/bin
 pip3 install yamal==7.2.25 
 ```
 
@@ -97,8 +108,8 @@ On an M1 Mac run:
 Finally install `Extractor`, which is our event processing library.
 ```bash
 pip3 install psycopg2 numpy==1.21.0 pytz pandas
-wget https://github.com/featuremine/extractor/releases/download/v6.7.1/extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
-pip3 install extractor-6.7.1-py3-none-manylinux_2_17_x86_64.whl
+wget https://github.com/featuremine/extractor/releases/download/v6.7.2/extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
+pip3 install extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
 ```
 
 ### Deployment
