@@ -109,9 +109,16 @@ On an M1 Mac run:
 
 Finally install `Extractor`, which is our event processing library.
 ```bash
-pip3 install psycopg2 numpy==1.21.0 pytz pandas
+pip3 install numpy==1.21.0 pytz pandas
 wget https://github.com/featuremine/extractor/releases/download/v6.7.2/extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
 pip3 install extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
+```
+
+On an M1 Mac run:
+```bash
+pip3 install numpy==1.21.0 pytz pandas
+wget https://github.com/featuremine/extractor/releases/download/v6.7.2/extractor-6.7.2-py3-none-macosx_13_0_arm64.whl
+pip3 install extractor-6.7.2-py3-none-macosx_13_0_arm64.whl
 ```
 
 ### Deployment
