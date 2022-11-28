@@ -84,7 +84,7 @@ pip3 install yamal==7.2.25
 On an M1 Mac run:
 ```bash
 wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Darwin-arm64.tar.gz
-tar xvzfk yamal-7.2.25-Darwin-arm64 -C $HOME/.local/
+tar xvzfk yamal-7.2.25-Darwin-arm64.tar.gz -C $HOME/.local/
 export PATH=$PATH:$HOME/.local/bin
 pip3 install yamal==7.2.25 
 ```
