@@ -85,7 +85,7 @@ if __name__ == "__main__":
     conn.commit()
    
     # Populate the byte rate each second into the database
-    discard = 4
+    discard = 5
     while run:
         time.sleep(1)
         line = proc_stats.stdout.readline()
