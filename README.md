@@ -24,7 +24,7 @@ Then you can run the following to get a list of tables:
 ```bash
 \dt
 ```
-Note, the tables in the tutorial are created by the tutorial scripts, so you will not see anything there initally.
+Note, the tables in the tutorial are created by the tutorial scripts, so you will not see anything there initially.
 
 If you would like to display a specific table, run:
 ```sql
