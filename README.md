@@ -75,6 +75,8 @@ In this section we help you familiarize yourself with our market data stack by w
 ### Installation
 First, install `Yamal` which is our low-latency interprocess communication bus.
 ```bash
+wget https://github.com/featuremine/yamal/releases/download/v7.2.25/yamal-7.2.25-Linux-x86_64.tar.gz && \
+tar xvzfk yamal-7.2.25-Linux-x86_64.tar.gz -C /usr/local/ && \
 pip3 install yamal==7.2.25 
 ```
 
