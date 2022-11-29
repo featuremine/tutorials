@@ -9,6 +9,7 @@ RUN cd /tmp && \
     tar xvzfk yamal-7.2.24-Linux-x86_64.tar.gz -C / && \
     rm -f yamal-7.2.24-Linux-x86_64.tar.gz
 
+COPY bulldozer_coinbase.ini /opt/bulldozer_coinbase.ini
 COPY market-data2_1.sh /opt/market-data.sh
 COPY bulldozer-*.sh /tmp/bulldozer.sh
 COPY syncer-*.sh /tmp/syncer.sh

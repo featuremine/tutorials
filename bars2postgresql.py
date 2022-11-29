@@ -150,6 +150,8 @@ if __name__ == "__main__":
     conn.commit()
 
     def bar2db(x, market, imnt):
+        if x[0].vwap == extractor.Decimal128(0):
+            return
         # Populate the market data parameters into the database
         values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array])
         cmd = f"""
@@ -173,7 +175,7 @@ if __name__ == "__main__":
             mktimnt += [(mkt,imnt)] # market/instrument pair
 
     def compute_bar(op, quote, trade, vendor_time):
-        close_time = op.data_bar(vendor_time, timedelta(seconds=args.period))
+        close_time = op.data_bar(vendor_time, timedelta(seconds=int(args.period)))
         open_time = op.tick_lag(close_time, 1)
         close_quote = op.left_lim(quote, close_time)
         open_quote = op.tick_lag(op.asof(quote, close_time), 1)
