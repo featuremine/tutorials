@@ -18,10 +18,16 @@
       "version": ""
     },
     {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.2.6"
+      "version": "9.2.2"
     },
     {
       "type": "datasource",
@@ -145,7 +151,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 10,
         "x": 0,
         "y": 0
       },
@@ -346,8 +352,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 10,
+        "x": 10,
         "y": 0
       },
       "id": 14,
@@ -471,6 +477,94 @@
         "type": "postgres",
         "uid": "${DS_POSTGRESQL}"
       },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "dark-red",
+                "value": 0
+              },
+              {
+                "color": "dark-orange",
+                "value": 5000
+              },
+              {
+                "color": "green",
+                "value": 10000
+              }
+            ]
+          },
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "id": 16,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_POSTGRESQL}"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  \"timestamp\" AS \"time\",\n  rate\nFROM bulldozer_rate\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "rate"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "bulldozer_rate",
+          "timeColumn": "\"timestamp\"",
+          "timeColumnType": "timestamp",
+          "where": []
+        }
+      ],
+      "title": "Bulldozer Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_POSTGRESQL}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -547,7 +641,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 10,
         "x": 0,
         "y": 8
       },
@@ -748,8 +842,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 10,
+        "x": 10,
         "y": 8
       },
       "id": 15,
@@ -876,7 +970,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "blue",
+            "mode": "thresholds"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -918,19 +1013,27 @@
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 0.0002
+              },
+              {
+                "color": "#EAB839",
+                "value": 5000
+              },
+              {
+                "color": "green",
+                "value": 10000
               }
             ]
           },
-          "unit": "bps"
+          "unit": "binBps"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 16
+        "w": 4,
+        "x": 20,
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -985,7 +1088,7 @@
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-20m",
     "to": "now"
   },
   "timepicker": {},
