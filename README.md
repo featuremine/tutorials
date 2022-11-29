@@ -121,7 +121,7 @@ pip3 install extractor-6.7.2-py3-none-manylinux_2_17_x86_64.whl
 ### Deployment
 First, run `Bulldozer` to receive market data. You can use the sample configuration provided with `Bulldozer`.
 ```bash
-yamal-run -c ~/.local/lib/yamal/modules/bulldozer/samples/coinbase_l2_ore_ytp.ini -s main
+yamal-run -c bulldozer_coinbase.ini -s main
 ```
 
 You can check whether the data is being written by bulldozer by using our `yamal-stats` utility that reports statistics on the data written to yamal files.
@@ -142,7 +142,7 @@ python3 bulldozer2postgresql.py --database testuser --user testuser --password t
 
 Finally, we need to compute opening, high, low and closing trade prices. In this tutorial `bars2postgresql.py` script uses `Extractor` to do that. Run `bars2postgresql.py` by passing the securities and the database credentials as arguments.
 ```bash
-python3 bars2postgresql.py --database testuser --user testuser --password testuser --host localhost --ytp ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-BTC,ADA-USD"
+python3 bars2postgresql.py --database testuser --user testuser --password testuser --host localhost --ytp ore_coinbase_l2.ytp --markets "coinbase" --imnts "BTC-USD,ETH-USD,DOGE-USD,USDT-USD"
 ```
 
 You should now be able to see the market data statistics and market data receive rate in the dashboard.

@@ -33,6 +33,7 @@ RUN cd /tmp && \
     ./bulldozer.sh && \
     rm -f bulldozer.sh
 
+COPY bulldozer_coinbase.ini /opt/bulldozer_coinbase.ini
 COPY market-data1.sh /opt/market-data.sh
 COPY bulldozer2postgresql.py /opt/bulldozer2postgresql.py
 COPY bars2postgresql.py /opt/bars2postgresql.py
