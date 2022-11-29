@@ -53,7 +53,7 @@ Now you should be able to access grafana from your browser by opening [http://lo
  * `TLS/SSL Mode`: `disable`.
 Then click on `Save & test`.
 
-Finally, in the sidebar menu on the left, select `Dashboard/import` and `Upload JSON file` to upload the dashboard configuration file `dashboard_cfg.json` found in the repository.
+Finally, in the sidebar menu on the left, select `Dashboard/import` and `Upload JSON file` to upload the dashboard configuration file `dashboard.json` found in the repository.
 
 For more information visit https://grafana.com/
 
