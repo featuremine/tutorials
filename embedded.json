@@ -27,7 +27,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.2.2"
+      "version": "9.2.1"
     },
     {
       "type": "datasource",
@@ -40,6 +40,12 @@
       "id": "timeseries",
       "name": "Time series",
       "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "yesoreyeram-boomtheme-panel",
+      "name": "Boom Theme",
+      "version": "0.2.1"
     }
   ],
   "annotations": {
@@ -150,7 +156,7 @@
         ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 10,
         "x": 0,
         "y": 0
@@ -351,7 +357,7 @@
         ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 10,
         "x": 10,
         "y": 0
@@ -510,7 +516,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 4,
         "x": 20,
         "y": 0
@@ -528,7 +534,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.2.1",
       "targets": [
         {
           "datasource": {
@@ -640,10 +646,10 @@
         ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 10,
         "x": 0,
-        "y": 8
+        "y": 9
       },
       "id": 13,
       "options": {
@@ -841,10 +847,10 @@
         ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 10,
         "x": 10,
-        "y": 8
+        "y": 9
       },
       "id": 15,
       "options": {
@@ -980,7 +986,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 33,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -988,7 +994,7 @@
               "viz": false
             },
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 0,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -1030,10 +1036,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 4,
         "x": 20,
-        "y": 8
+        "y": 9
       },
       "id": 4,
       "options": {
@@ -1078,6 +1084,64 @@
       ],
       "title": "Bulldozer Rate",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_POSTGRESQL}"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 1,
+        "w": 1,
+        "x": 0,
+        "y": 18
+      },
+      "id": 18,
+      "options": {
+        "activeTheme": "Web",
+        "disableThemePicker": true,
+        "themes": [
+          {
+            "name": "Web",
+            "styles": [
+              {
+                "props": {
+                  "theme": "default"
+                },
+                "type": "basetheme"
+              },
+              {
+                "props": {
+                  "url": ""
+                },
+                "type": "bgimage"
+              },
+              {
+                "props": {
+                  "url": ""
+                },
+                "type": "url"
+              },
+              {
+                "props": {
+                  "text": ".page-dashboard {\n  background-color: #151D28FF;\n}\n.css-1v1z2yd {\n  background-color: #151D28FF;\n}"
+                },
+                "type": "style"
+              },
+              {
+                "props": {
+                  "color": "#00000000"
+                },
+                "type": "panel-container-bg-color"
+              }
+            ]
+          }
+        ]
+      },
+      "pluginVersion": "0.2.1",
+      "transparent": true,
+      "type": "yesoreyeram-boomtheme-panel"
     }
   ],
   "refresh": "5s",
@@ -1095,6 +1159,7 @@
   "timezone": "",
   "title": "Market data",
   "uid": "rD_20UI4k",
-  "version": 2,
+  "version": 14,
   "weekStart": ""
 }
+
