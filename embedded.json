@@ -82,6 +82,64 @@
         "uid": "${DS_POSTGRESQL}"
       },
       "description": "",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 18,
+      "options": {
+        "activeTheme": "Web",
+        "disableThemePicker": true,
+        "themes": [
+          {
+            "name": "Web",
+            "styles": [
+              {
+                "props": {
+                  "theme": "default"
+                },
+                "type": "basetheme"
+              },
+              {
+                "props": {
+                  "url": ""
+                },
+                "type": "bgimage"
+              },
+              {
+                "props": {
+                  "url": ""
+                },
+                "type": "url"
+              },
+              {
+                "props": {
+                  "text": ".page-dashboard {\n  background-color: #151D28FF;\n}\n.css-1v1z2yd {\n  background-color: #151D28FF;\n}"
+                },
+                "type": "style"
+              },
+              {
+                "props": {
+                  "color": "#00000000"
+                },
+                "type": "panel-container-bg-color"
+              }
+            ]
+          }
+        ]
+      },
+      "pluginVersion": "0.2.1",
+      "transparent": true,
+      "type": "yesoreyeram-boomtheme-panel"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_POSTGRESQL}"
+      },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -159,7 +217,7 @@
         "h": 9,
         "w": 10,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "id": 12,
       "options": {
@@ -360,7 +418,7 @@
         "h": 9,
         "w": 10,
         "x": 10,
-        "y": 0
+        "y": 1
       },
       "id": 14,
       "options": {
@@ -519,7 +577,7 @@
         "h": 9,
         "w": 4,
         "x": 20,
-        "y": 0
+        "y": 1
       },
       "id": 16,
       "options": {
@@ -649,7 +707,7 @@
         "h": 9,
         "w": 10,
         "x": 0,
-        "y": 9
+        "y": 10
       },
       "id": 13,
       "options": {
@@ -850,7 +908,7 @@
         "h": 9,
         "w": 10,
         "x": 10,
-        "y": 9
+        "y": 10
       },
       "id": 15,
       "options": {
@@ -1039,7 +1097,7 @@
         "h": 9,
         "w": 4,
         "x": 20,
-        "y": 9
+        "y": 10
       },
       "id": 4,
       "options": {
@@ -1093,11 +1151,11 @@
       "description": "",
       "gridPos": {
         "h": 1,
-        "w": 1,
+        "w": 24,
         "x": 0,
-        "y": 18
+        "y": 19
       },
-      "id": 18,
+      "id": 19,
       "options": {
         "activeTheme": "Web",
         "disableThemePicker": true,
@@ -1159,7 +1217,6 @@
   "timezone": "",
   "title": "Market data",
   "uid": "rD_20UI4k",
-  "version": 14,
+  "version": 16,
   "weekStart": ""
 }
-
