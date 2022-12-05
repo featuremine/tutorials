@@ -11,11 +11,23 @@ import time
 from nicegui import ui
 
 ## Globals
+UNAVAILABLE = '-'
 manager = multiprocessing.Manager()
-gbidprice = manager.Value('d', 1.0)
-gaskprice = manager.Value('d', 1.0)
+gbidprice = manager.Value(c_char_p, UNAVAILABLE)
+gaskprice = manager.Value(c_char_p, UNAVAILABLE)
 gmarket = manager.Value(c_char_p, 'coinbase')
 gimnt = manager.Value(c_char_p, 'BTC-USD')
+
+def select_market(market):
+    gmarket.set(market)
+    gimnt.set('BTC-USD') # TODO: unkown?
+    gbidprice.set(UNAVAILABLE)
+    gaskprice.set(UNAVAILABLE)
+
+def select_imnt(imnt):
+    gimnt.set(imnt)
+    gbidprice.set(UNAVAILABLE)
+    gaskprice.set(UNAVAILABLE)
 
 ## Thread
 def extractor_thread():
@@ -27,8 +39,8 @@ def extractor_thread():
     def prices_update(x, market, imnt):
         global gmarket, gimnt, gbidprice, gaskprice
         if gmarket.get() == market and gimnt.get() == imnt:
-            gbidprice.set(float(x[0].bidprice))
-            gaskprice.set(float(x[0].askprice))
+            gbidprice.set(str(x[0].bidprice))
+            gaskprice.set(str(x[0].askprice))
 
     markets = 'coinbase'
     imnts = 'BTC-USD,ETH-USD,DOGE-USD,USDT-USD'
@@ -77,8 +89,8 @@ markets_imnts = {
 }
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    select_market = ui.select(list(markets_imnts.keys()), value=gmarket.get(), on_change=lambda s: gmarket.set(s.value)).style('width:10em;align-items:center;text-align:center;')
-    select_instrument = ui.select(markets_imnts['coinbase'], value=gimnt.get(), on_change=lambda s: gimnt.set(s.value)).style('width:10em;align-items:center;text-align:center;')
+    ui.select(list(markets_imnts.keys()), value=gmarket.get(), on_change=lambda s: select_market(s.value)).style('width:10em;align-items:center;text-align:center;')
+    ui.select(markets_imnts['coinbase'], value=gimnt.get(), on_change=lambda s: select_imnt(s.value)).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
@@ -89,12 +101,12 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     askbutton = ui.button(gaskprice.get(), on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
     ui.button('buy on ask', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     ui.button('buy on bid', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
     ui.button('sell on bid', on_click=lambda: ui.notify('sell on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
     ui.button('sell on ask', on_click=lambda: ui.notify('sell on ask was pressed')).style('width:9em;align-items:center;text-align:center;')
 
