@@ -33,6 +33,31 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     bidbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
     askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
+markets_imnts = {
+    'coinbase' : [
+        'BTC-USD',
+        'ETH-USD',
+        'DOGE-USD',
+        'USDT-USD'
+    ]
+}
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    select_market = ui.select(list(markets_imnts.keys())).style('width:10em;align-items:center;text-align:center;')
+    select_instrument = ui.select(markets_imnts['coinbase']).style('width:10em;align-items:center;text-align:center;')
+
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.button('buy on ask', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
+    ui.button('buy on bid', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
+    
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.button('sell on bid', on_click=lambda: ui.notify('sell on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
+    ui.button('sell on ask', on_click=lambda: ui.notify('sell on ask was pressed')).style('width:9em;align-items:center;text-align:center;')
+
+
 def update_elements():
     global r, thread_lock, bidbutton, askbutton
     thread_lock.acquire()
