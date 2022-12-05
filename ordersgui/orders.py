@@ -1,33 +1,86 @@
 #!/usr/bin/env python3
 
-import threading
-#import multiprocessing
+from yamal import ytp
+import extractor
+import functools
+from datetime import timedelta
+from time import time_ns
+import multiprocessing
+from ctypes import c_char_p
 import time
-import random
 from nicegui import ui
 
 ## Globals
-run = True
-r = 1
-thread_lock = threading.Lock()
+UNAVAILABLE = '-'
+manager = multiprocessing.Manager()
+gbidprice = manager.Value(c_char_p, UNAVAILABLE)
+gaskprice = manager.Value(c_char_p, UNAVAILABLE)
+gmarket = manager.Value(c_char_p, 'coinbase')
+gimnt = manager.Value(c_char_p, 'BTC-USD')
+
+def select_market(market):
+    gmarket.set(market)
+    gimnt.set('BTC-USD') # TODO: unkown?
+    gbidprice.set(UNAVAILABLE)
+    gaskprice.set(UNAVAILABLE)
+
+def select_imnt(imnt):
+    gimnt.set(imnt)
+    gbidprice.set(UNAVAILABLE)
+    gaskprice.set(UNAVAILABLE)
 
 ## Thread
-def parallel_function():
-    global r, run, thread_lock
-    while run:
-        thread_lock.acquire()
-        r = random.uniform(1.000001, 123456789.99999)
-        thread_lock.release()
-        print('debug')
-        print(r)        
-        time.sleep(1)
+def extractor_thread():
+    global gmarket, gimnt, gbidprice, gaskprice
+    prefix = "ore/imnts"
+    graph = extractor.system.comp_graph()
+    op = graph.features
 
-#uithread = multiprocessing.Process(target=parallel_function)
-uithread = threading.Thread(target=parallel_function)
+    def prices_update(x, market, imnt):
+        global gmarket, gimnt, gbidprice, gaskprice
+        if gmarket.get() == market and gimnt.get() == imnt and x[0].bidprice != extractor.Decimal128(0) and x[0].askprice != extractor.Decimal128(0):
+            gbidprice.set(str(x[0].bidprice))
+            gaskprice.set(str(x[0].askprice))
+
+    markets = 'coinbase'
+    imnts = 'BTC-USD,ETH-USD,DOGE-USD,USDT-USD'
+    # Parse markets and instruments
+    channels = []
+    mktimnt = []
+    for imnt in imnts.split(','):
+        for mkt in markets.split(','):
+            channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
+            mktimnt += [(mkt,imnt)] # market/instrument pair
+
+    seq = ytp.sequence('ore_coinbase_l2.ytp')
+    op.ytp_sequence(seq, timedelta(milliseconds=1))
+    peer = seq.peer('feed_handler')
+    upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
+
+    levels = [op.book_build(upd, 1) for upd in upds]
+    times = [op.book_vendor_time(upd) for upd in upds]
+
+    close = op.timer(timedelta(milliseconds=10))
+    
+    quotes = [op.asof(op.combine(level,
+                    (("bid_prx_0", "bidprice"),
+                     ("bid_shr_0", "bidqty"),
+                     ("ask_prx_0", "askprice"),
+                     ("ask_shr_0", "askqty"))), close)
+            for level in levels]
+
+    # Add a callback for each bar that corresponds to a market/instrument pair
+    for qt, mi in zip(quotes, mktimnt):
+       graph.callback(qt, functools.partial(prices_update, market=mi[0], imnt=mi[1]))
+
+    # Run the extractor blocking
+    graph.stream_ctx().run_live()
+
+uithread = multiprocessing.Process(target=extractor_thread)
 uithread.start()
 
-## UI
 
+## UI
 markets_imnts = {
     'coinbase' : [
         'BTC-USD',
@@ -38,41 +91,38 @@ markets_imnts = {
 }
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    select_market = ui.select(list(markets_imnts.keys())).style('width:10em;align-items:center;text-align:center;')
-    select_instrument = ui.select(markets_imnts['coinbase']).style('width:10em;align-items:center;text-align:center;')
-
+    ui.select(list(markets_imnts.keys()), value=gmarket.get(), on_change=lambda s: select_market(s.value)).style('width:10em;align-items:center;text-align:center;')
+    ui.select(markets_imnts['coinbase'], value=gimnt.get(), on_change=lambda s: select_imnt(s.value)).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
     ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    bidbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
-    askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
+    bidbutton = ui.button(gbidprice.get(), on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
+    askbutton = ui.button(gaskprice.get(), on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
     ui.button('buy on ask', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     ui.button('buy on bid', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
     ui.button('sell on bid', on_click=lambda: ui.notify('sell on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
     ui.button('sell on ask', on_click=lambda: ui.notify('sell on ask was pressed')).style('width:9em;align-items:center;text-align:center;')
 
 
 def update_elements():
-    global r, thread_lock, bidbutton, askbutton
-    thread_lock.acquire()
-    bidbutton.set_text(r)
-    askbutton.set_text(r)
+    global gmarket, gimnt, gbidprice, gaskprice, bidbutton, askbutton
+    bidbutton.set_text(gbidprice.get())
+    askbutton.set_text(gaskprice.get())
     print('update_elements')
-    print(r)
-    thread_lock.release()
+    print(gbidprice.get())
+    print(gaskprice.get())
 
 t = ui.timer(interval=1, callback=update_elements)
 
 ## Setup
 ui.run(title='Featuremine orders', reload=False, show=False)
-run = False
 uithread.join()
