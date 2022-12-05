@@ -24,14 +24,7 @@ def parallel_function():
 uithread = threading.Thread(target=parallel_function)
 uithread.start()
 
-## UI  
-with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
-    ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
-
-with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    bidbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
-    askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
+## UI
 
 markets_imnts = {
     'coinbase' : [
@@ -46,6 +39,14 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     select_market = ui.select(list(markets_imnts.keys())).style('width:10em;align-items:center;text-align:center;')
     select_instrument = ui.select(markets_imnts['coinbase']).style('width:10em;align-items:center;text-align:center;')
 
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
+    ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    bidbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
+    askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(+ e.value)).style('width:8em;align-items:center;text-align:center;')
