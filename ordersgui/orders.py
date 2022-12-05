@@ -37,6 +37,6 @@ def update_elements():
 t = ui.timer(interval=1, callback=update_elements)
 
 ## Setup
-ui.run(reload=False)
+ui.run(title='Featuremine orders', reload=False, show=False)
 run = False
 uithread.join()
