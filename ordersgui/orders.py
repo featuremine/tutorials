@@ -8,12 +8,15 @@ from nicegui import ui
 ## Globals
 run = True
 r = 1
+thread_lock = threading.Lock()
 
 ## Thread
 def parallel_function():
-    global r, run
+    global r, run, thread_lock
     while run:
+        thread_lock.acquire()
         r = random.uniform(1.000001, 123456789.99999)
+        thread_lock.release()
         print('debug')
         print(r)        
         time.sleep(1)
@@ -28,11 +31,13 @@ ui.label('ask price')
 askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed'))
 
 def update_elements():
-    global r, bidbutton, askbutton
+    global r, thread_lock, bidbutton, askbutton
+    thread_lock.acquire()
     bidbutton.set_text(r)
     askbutton.set_text(r)
     print('update_elements')
     print(r)
+    thread_lock.release()
 
 t = ui.timer(interval=1, callback=update_elements)
 
