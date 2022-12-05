@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import threading
+#import multiprocessing
 import time
 import random
 from nicegui import ui
@@ -21,6 +22,7 @@ def parallel_function():
         print(r)        
         time.sleep(1)
 
+#uithread = multiprocessing.Process(target=parallel_function)
 uithread = threading.Thread(target=parallel_function)
 uithread.start()
 
