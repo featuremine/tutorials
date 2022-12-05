@@ -25,10 +25,13 @@ uithread = threading.Thread(target=parallel_function)
 uithread.start()
 
 ## UI  
-ui.label('bid price')
-bidbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('bid price was pressed'))
-ui.label('ask price')
-askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed'))
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
+    ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    bidbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;background-color:#AAAAAA;')
+    askbutton = ui.button(123456789.123456, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;background-color:#AAAAAA;')
 
 def update_elements():
     global r, thread_lock, bidbutton, askbutton
