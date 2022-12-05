@@ -38,7 +38,7 @@ def extractor_thread():
 
     def prices_update(x, market, imnt):
         global gmarket, gimnt, gbidprice, gaskprice
-        if gmarket.get() == market and gimnt.get() == imnt:
+        if gmarket.get() == market and gimnt.get() == imnt and x[0].bidprice != extractor.Decimal128(0) and x[0].askprice != extractor.Decimal128(0):
             gbidprice.set(str(x[0].bidprice))
             gaskprice.set(str(x[0].askprice))
 
@@ -60,11 +60,13 @@ def extractor_thread():
     levels = [op.book_build(upd, 1) for upd in upds]
     times = [op.book_vendor_time(upd) for upd in upds]
 
-    quotes = [op.combine(level,
+    close = op.timer(timedelta(milliseconds=10))
+    
+    quotes = [op.asof(op.combine(level,
                     (("bid_prx_0", "bidprice"),
                      ("bid_shr_0", "bidqty"),
                      ("ask_prx_0", "askprice"),
-                     ("ask_shr_0", "askqty")))
+                     ("ask_shr_0", "askqty"))), close)
             for level in levels]
 
     # Add a callback for each bar that corresponds to a market/instrument pair
