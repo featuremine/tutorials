@@ -3,28 +3,34 @@ from conveyor.utils import schemas
 from collections import defaultdict
 
 
-venuesSecurities = defaultdict(set)
-venuesNames = defaultdict(dict)
-securities = defaultdict(dict)
-accounts = set()
+class ReferenceData(object):
+    def __init__(self, yamal: str, cfg: dict) -> None:
+        self.venuesSecurities = defaultdict(set)
+        self.venuesNames = defaultdict(dict)
+        self.securities = defaultdict(dict)
+        self.accounts = set()
+        self.callbacks = []
+        self.parser = {
+            cfg['venue_channel']: schemas.reference.VenueData,
+            cfg['symbology_channel']: schemas.reference.Symbology,
+            cfg['risk_channel']: schemas.reference.RiskData
+        }
 
-parser = {
-    'venu': schemas.reference.VenueData,
-    'symb': schemas.reference.Symbology,
-    'risk': schemas.reference.RiskData
-}
+        self.seq = ytp.sequence(yamal, readonly=True)
+        self.seq.data_callback('/', self._seq_clbck)
 
-if __name__ == '__main__':
+    def add_callback(self, clb):
+        self.callbacks.append(clb)
 
-    seq = ytp.sequence('symb.ytp', readonly=True)
-
-    def seq_clbck(peer, channel, time, data):
-        print(peer.name())
+    def _seq_clbck(self, peer, channel, time, data):
+        venuesSecurities = defaultdict(set)
+        venuesNames = defaultdict(dict)
+        securities = defaultdict(dict)
+        accounts = set()
         chname = channel.name()
-        print(chname)
-        if not chname in parser:
+        if not chname in self.parser:
             return
-        d = parser[chname].from_bytes_packed(data).to_dict()
+        d = self.parser[chname].from_bytes_packed(data).to_dict()
         print(d)
         if 'venue' in d['message']:
             v = d['message']['venue']
@@ -45,16 +51,35 @@ if __name__ == '__main__':
             }
         elif 'account' in d['message']:
             accounts.add(d['message']['account']['identifier'])
+        for c in self.callback:
+            c(venuesSecurities, venuesNames, securities, accounts)
+        for k, v in venuesSecurities.items():
+            self.venuesSecurities[k] += v
+        for k, v in  venuesNames.items():
+            self.venuesNames[k] = v
+        for k, v in  securities.items():
+            self.securities[k] = v
+        self.accounts += accounts
 
-    seq.data_callback('/', seq_clbck)
+    def poll(self, limit=None):
+        count = 0
+        while self.seq.poll() and (not limit or count <= limit):
+            count += 1
 
-    count = 100
-    while count > 0:
-        seq.poll()
-        count -= 1
 
-    print(venues)
-    print(venueSecurityAttribute)
-    print(securityDefinition)
-    print(venuesSecurities)
-    print(prices)
+if __name__ == '__main__':
+    def prt(venuesSecurities, venuesNames, securities, accounts):
+        print(venuesSecurities)
+        print(venuesNames)
+        print(securities)
+        print(accounts)
+
+    cfg = {
+        'venue_channel': 'venu',
+        'symbology_channel': 'symb',
+        'risk_channel': 'risk'
+    }
+
+    refdata = ReferenceData('symb.ytp', cfg=cfg)
+    refdata.add_callback(prt)
+    refdata.poll()
