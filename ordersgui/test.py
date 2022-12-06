@@ -113,4 +113,5 @@ if __name__ == '__main__':
 
     refdata.add_callback(mktSubscribe)
 
+    # you poll on a UI timer
     refdata.poll()
