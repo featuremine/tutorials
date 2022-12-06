@@ -109,7 +109,7 @@ if __name__ == '__main__':
             for secid in securities:
                 symbol = refdata.state.securities[secid].symbol
                 imnts[(venid, secid)] = (market, symbol)
-        mktSubscribe(imnts)
+        mrkdata.subscribe(imnts)
 
     refdata.add_callback(mktSubscribe)
 
