@@ -69,7 +69,7 @@ class ReferenceData(object):
         count = 0
         while self.seq.poll() and (not limit or count <= limit):
             count += 1
-        for c in self.delta.callbacks:
+        for c in self.callbacks:
             c(self.delta)
 
         self.state.update(self.delta)
