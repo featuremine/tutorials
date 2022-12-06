@@ -2,18 +2,17 @@ from yamal import ytp
 from conveyor.utils import schemas
 from collections import defaultdict
 
-venues = []
-venueSecurityAttribute = []
-securityDefinition = []
 
-venuesSecurities = defaultdict(list)
-#{} # { 1001 : [1001, ...], ...}
-venuesNames = {}
-# 'code': 'SOCGEN', 'exdest': 'NYSE'
+venuesSecurities = defaultdict(set)
+venuesNames = defaultdict(dict)
+securities = defaultdict(dict)
+accounts = set()
 
-prices = {} # { (1001,1001) : '-', ...}
-
-
+parser = {
+    'venu': schemas.reference.VenueData,
+    'symb': schemas.reference.Symbology,
+    'risk': schemas.reference.RiskData
+}
 
 if __name__ == '__main__':
 
@@ -21,29 +20,31 @@ if __name__ == '__main__':
 
     def seq_clbck(peer, channel, time, data):
         print(peer.name())
-        print(channel.name())
-        if channel.name() == 'venu':
-            d = schemas.reference.VenueData.from_bytes_packed(data).to_dict()
-        elif channel.name() == 'symb':
-            d = schemas.reference.Symbology.from_bytes_packed(data).to_dict()
-        else:
+        chname = channel.name()
+        print(chname)
+        if not chname in parser:
             return
+        d = parser[chname].from_bytes_packed(data).to_dict()
         print(d)
         if 'venue' in d['message']:
-            print('VENUE')
             v = d['message']['venue']
-            venues.append(v)
-            venuesNames[v['identifier']] = {'code' : v['code']}
-            venuesSecurities[v['identifier']] = []
+            item = venuesNames[v['identifier']]
+            item['code'] = v['code']
+            if 'exdest' in v:
+                item['exdest'] = v['exdest']
+                item['label'] = f"{v['code']}/{v['exdest']}"
+            else:
+                item['label'] = v['code']
         elif 'venueSecurityAttribute' in d['message']:
-            print('venueSecurityAttribute')
             vsa = d['message']['venueSecurityAttribute']
-            venueSecurityAttribute.append(vsa)
-            venuesSecurities[vsa['venueID']].append(vsa['securityId'])
-            prices[(vsa['venueID'], vsa['securityId'])] = '-'
+            venuesSecurities[vsa['venueID']].add(vsa['securityId'])
         elif 'securityDefinition' in d['message']:
-            print('securityDefinition')
-            securityDefinition.append(d['message']['securityDefinition'])
+            item = d['message']['securityDefinition']
+            securities[item['identifier']] = {
+                'symbol': item['symbol']
+            }
+        elif 'account' in d['message']:
+            accounts.add(d['message']['account']['identifier'])
 
     seq.data_callback('/', seq_clbck)
 
