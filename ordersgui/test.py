@@ -53,8 +53,11 @@ if __name__ == '__main__':
         seq.poll()
         count -= 1
 
-    print(venues)
-    print(venueSecurityAttribute)
-    print(securityDefinition)
+    print('venuesSecurities')
     print(venuesSecurities)
-    print(prices)
+    print('venuesNames')
+    print(venuesNames)
+    print('securities')
+    print(securities)
+    print('accounts')
+    print(accounts)
