@@ -93,13 +93,13 @@ if __name__ == '__main__':
     refdata = ReferenceData('symb.ytp', cfg=cfg)
     mrkdata = MarketData()
 
-    def prt(delta):
+    def updateUI(delta):
         print(delta.venuesSecurities)
         print(delta.venuesNames)
         print(delta.securities)
         print(delta.accounts)
 
-    refdata.add_callback(prt)
+    refdata.add_callback(updateUI)
 
     def mktSubscribe(delta):
         imnts = {}
