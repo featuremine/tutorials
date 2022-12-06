@@ -13,34 +13,42 @@ from nicegui import ui
 ## Globals
 UNAVAILABLE = '-'
 manager = multiprocessing.Manager()
-gbidprice = manager.Value(c_char_p, UNAVAILABLE)
-gaskprice = manager.Value(c_char_p, UNAVAILABLE)
 gmarket = manager.Value(c_char_p, 'coinbase')
 gimnt = manager.Value(c_char_p, 'BTC-USD')
+gmarketdata = manager.dict(
+    {
+        'coinbase' : {
+            'BTC-USD' : { 'bidprice' : UNAVAILABLE, 'askprice' : UNAVAILABLE },
+            'ETH-USD' : { 'bidprice' : UNAVAILABLE, 'askprice' : UNAVAILABLE },
+            'DOGE-USD' : { 'bidprice' : UNAVAILABLE, 'askprice' : UNAVAILABLE },
+            'USDT-USD' : { 'bidprice' : UNAVAILABLE, 'askprice' : UNAVAILABLE }
+        }
+    }
+)
 
 def select_market(market):
     gmarket.set(market)
     gimnt.set('BTC-USD') # TODO: unkown?
-    gbidprice.set(UNAVAILABLE)
-    gaskprice.set(UNAVAILABLE)
 
 def select_imnt(imnt):
     gimnt.set(imnt)
-    gbidprice.set(UNAVAILABLE)
-    gaskprice.set(UNAVAILABLE)
 
 ## Thread
 def extractor_thread():
-    global gmarket, gimnt, gbidprice, gaskprice
+    global gmarketdata
     prefix = "ore/imnts"
     graph = extractor.system.comp_graph()
     op = graph.features
 
     def prices_update(x, market, imnt):
-        global gmarket, gimnt, gbidprice, gaskprice
-        if gmarket.get() == market and gimnt.get() == imnt and x[0].bidprice != extractor.Decimal128(0) and x[0].askprice != extractor.Decimal128(0):
-            gbidprice.set(str(x[0].bidprice))
-            gaskprice.set(str(x[0].askprice))
+        global gmarketdata
+        if x[0].bidprice != extractor.Decimal128(0) and x[0].askprice != extractor.Decimal128(0):
+            m = gmarketdata[market]
+            i = m[imnt]
+            i['bidprice'] = str(x[0].bidprice)
+            i['askprice'] = str(x[0].askprice)
+            m[imnt] = i
+            gmarketdata[market] = m
 
     markets = 'coinbase'
     imnts = 'BTC-USD,ETH-USD,DOGE-USD,USDT-USD'
@@ -58,7 +66,6 @@ def extractor_thread():
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
 
     levels = [op.book_build(upd, 1) for upd in upds]
-    times = [op.book_vendor_time(upd) for upd in upds]
 
     close = op.timer(timedelta(milliseconds=10))
     
@@ -99,8 +106,8 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    bidbutton = ui.button(gbidprice.get(), on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
-    askbutton = ui.button(gaskprice.get(), on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
+    bidbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
+    askbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
@@ -114,12 +121,12 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 
 
 def update_elements():
-    global gmarket, gimnt, gbidprice, gaskprice, bidbutton, askbutton
-    bidbutton.set_text(gbidprice.get())
-    askbutton.set_text(gaskprice.get())
+    global gmarket, gimnt, gmarketdata, bidbutton, askbutton
+    bidbutton.set_text(gmarketdata[gmarket.get()][gimnt.get()]['bidprice'])
+    askbutton.set_text(gmarketdata[gmarket.get()][gimnt.get()]['askprice'])
     print('update_elements')
-    print(gbidprice.get())
-    print(gaskprice.get())
+    print(gmarketdata[gmarket.get()][gimnt.get()]['bidprice'])
+    print(gmarketdata[gmarket.get()][gimnt.get()]['askprice'])
 
 t = ui.timer(interval=1, callback=update_elements)
 
