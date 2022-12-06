@@ -51,15 +51,15 @@ class ReferenceData(object):
             }
         elif 'account' in d['message']:
             accounts.add(d['message']['account']['identifier'])
-        for c in self.callback:
+        for c in self.callbacks:
             c(venuesSecurities, venuesNames, securities, accounts)
         for k, v in venuesSecurities.items():
-            self.venuesSecurities[k] += v
+            self.venuesSecurities[k] &= v
         for k, v in  venuesNames.items():
             self.venuesNames[k] = v
         for k, v in  securities.items():
             self.securities[k] = v
-        self.accounts += accounts
+        self.accounts &= accounts
 
     def poll(self, limit=None):
         count = 0
