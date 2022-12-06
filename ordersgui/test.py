@@ -2,6 +2,13 @@ from yamal import ytp
 from conveyor.utils import schemas
 from collections import defaultdict, namedtuple
 
+class SymbologyBuilder(object):
+    def __init__(self) -> None:
+        pass
+
+    def write(self):
+        pass
+    
 class MarketData(object):
     State = namedtuple('State', ['bid', 'ask'])
     def __init__(self) -> None:
