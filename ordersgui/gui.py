@@ -34,12 +34,12 @@ class ReferenceData(object):
 
         def update(self, delta):
             for k, v in delta.venuesSecurities.items():
-                self.venuesSecurities[k] &= v
+                self.venuesSecurities[k].update(v)
             for k, v in delta.venuesNames.items():
                 self.venuesNames[k] = v
             for k, v in delta.securities.items():
                 self.securities[k] = v
-            self.accounts &= delta.accounts
+            self.accounts.update(delta.accounts)
 
     def __init__(self, yamal: str, cfg: dict) -> None:
         self.state = ReferenceData.State()
@@ -95,7 +95,14 @@ class ReferenceData(object):
 UNAVAILABLE = '-'
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    selectMarket = ui.select({}).style('width:10em;align-items:center;text-align:center;')
+    def update_select_securities(market):
+        selectSecurity.options = {}
+        for sid in refdata.state.venuesSecurities[market]:
+            print(sid)
+            selectSecurity.options[sid] = refdata.state.securities[sid].symbol
+        selectSecurity.update()
+
+    selectMarket = ui.select({}, on_change=lambda s: update_select_securities(s.value)).style('width:10em;align-items:center;text-align:center;')
     selectSecurity = ui.select({}).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
