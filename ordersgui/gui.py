@@ -122,7 +122,7 @@ class ReferenceData(object):
                 self.securities[k] = v
             self.accounts.update(delta.accounts)
 
-    def __init__(self, yamal: str, cfg: dict) -> None:
+    def __init__(self, cfg: dict) -> None:
         self.state = ReferenceData.State()
         self.delta = ReferenceData.State()
 
@@ -133,7 +133,7 @@ class ReferenceData(object):
             cfg['risk_channel']: schemas.reference.RiskData
         }
 
-        self.seq = ytp.sequence(yamal, readonly=True)
+        self.seq = ytp.sequence(cfg['yamal_file'], readonly=True)
         self.seq.data_callback('/', self._seq_clbck)
 
     def add_callback(self, clb):
@@ -238,7 +238,7 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 
 
 ## Market Data
-refdata = ReferenceData(cfg['yamal_file'], cfg=cfg)
+refdata = ReferenceData(cfg=cfg)
 mrkdata = MarketData(cfg)
 
 def updateUI(delta):
