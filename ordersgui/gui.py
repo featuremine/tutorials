@@ -4,8 +4,11 @@ from yamal import ytp
 from conveyor.utils import schemas
 from nicegui import ui
 import argparse
-import json
+import json, time
 
+def time_ns():
+    return int(time.time() * 1000000000)
+    
 class SymbologyBuilder(object):
     def __init__(self, cfg) -> None:
         self.cfg = cfg
@@ -13,36 +16,32 @@ class SymbologyBuilder(object):
     def write(self):
         seq = ytp.sequence(self.cfg['ytp'])
         peer = seq.peer(self.cfg['peer'])
-        channels = {
-            'venue' : peer.channel(0, self.cfg['venue_channel']),
-            'symb' : peer.channel(0, self.cfg['symbology_channel']),
-            'risk' : peer.channel(0, self.cfg['risk_channel'])
-        }
+        tm = time_ns()
         streams = {
-            'venue' : peer.stream(channels['venue']),
-            'symb' : peer.stream(channels['symb']),
-            'risk' : peer.stream(channels['risk'])
+            'venue' : peer.stream(peer.channel(tm, self.cfg['venue_channel'])),
+            'symb' : peer.stream(peer.channel(tm, self.cfg['symbology_channel'])),
+            'risk' : peer.stream(peer.channel(tm, self.cfg['risk_channel']))
         }
 
         for acc in self.cfg['accounts']:
             msg = schemas.reference.RiskData.new_message()
             msg.from_dict({'message': {'account': acc }})
-            streams['risk'].write(0, msg.to_bytes_packed())
+            streams['risk'].write(tm, msg.to_bytes_packed())
 
         for venue in cfg['venues']:
             msg = schemas.reference.VenueData.new_message()
             msg.from_dict({'message': {'venue': venue }})
-            streams['venue'].write(0, msg.to_bytes_packed())
+            streams['venue'].write(tm, msg.to_bytes_packed())
             
         for security in cfg['securityDefinitions']:
             msg = schemas.reference.Symbology.new_message()
             msg.from_dict({'message': {'securityDefinition': security }})
-            streams['symb'].write(0, msg.to_bytes_packed())
+            streams['symb'].write(tm, msg.to_bytes_packed())
             
         for venueSecurity in cfg['venueSecurityAttributes']:
             msg = schemas.reference.VenueData.new_message()
             msg.from_dict({'message': {'venueSecurityAttribute': venueSecurity }})
-            streams['venue'].write(0, msg.to_bytes_packed())
+            streams['venue'].write(tm, msg.to_bytes_packed())
 
 class MarketData(object):
     State = namedtuple('State', ['bid', 'ask'])
