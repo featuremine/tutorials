@@ -5,12 +5,43 @@ from conveyor.utils import schemas
 from nicegui import ui
 
 class SymbologyBuilder(object):
-    def __init__(self) -> None:
-        pass
+    def __init__(self, cfg) -> None:
+        self.cfg = cfg
 
     def write(self):
-        pass
-    
+        seq = ytp.sequence(self.cfg['ytp'])
+        peer = seq.peer(self.cfg['peer'])
+        channels = {
+            'venue' : peer.channel(0, self.cfg['venue_channel']),
+            'symb' : peer.channel(0, self.cfg['symbology_channel']),
+            'risk' : peer.channel(0, self.cfg['risk_channel'])
+        }
+        streams = {
+            'venue' : peer.stream(channels['venue']),
+            'symb' : peer.stream(channels['symb']),
+            'risk' : peer.stream(channels['risk'])
+        }
+
+        for acc in self.cfg['accounts']:
+            msg = schemas.reference.RiskData.new_message()
+            msg.from_dict({'message': {'account': acc }})
+            streams['risk'].write(0, msg.to_bytes_packed())
+
+        for venue in cfg['venues']:
+            msg = schemas.reference.VenueData.new_message()
+            msg.from_dict({'message': {'venue': venue }})
+            streams['venue'].write(0, msg.to_bytes_packed())
+            
+        for security in cfg['securityDefinitions']:
+            msg = schemas.reference.Symbology.new_message()
+            msg.from_dict({'message': {'securityDefinition': security }})
+            streams['symb'].write(0, msg.to_bytes_packed())
+            
+        for venueSecurity in cfg['venueSecurityAttributes']:
+            msg = schemas.reference.VenueData.new_message()
+            msg.from_dict({'message': {'venueSecurityAttribute': venueSecurity }})
+            streams['venue'].write(0, msg.to_bytes_packed())
+
 class MarketData(object):
     State = namedtuple('State', ['bid', 'ask'])
     def __init__(self) -> None:
@@ -63,6 +94,8 @@ class ReferenceData(object):
         if not chname in self.parser:
             return
         d = self.parser[chname].from_bytes_packed(data).to_dict()
+        print(peer.name())
+        print(chname)
         print(d)
         if 'venue' in d['message']:
             v = d['message']['venue']
@@ -89,6 +122,8 @@ class ReferenceData(object):
 
         for c in self.callbacks:
             c(self.delta)
+
+## TEST SymbologyBuilder
 
 
 ## UI
