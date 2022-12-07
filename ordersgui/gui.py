@@ -206,6 +206,14 @@ def update_prices():
     askbutton.set_text(p['ask'])
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.label('Account').style('width:10em;align-items:center;text-align:center;')
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    selectAccount = ui.select([]).style('width:10em;align-items:center;text-align:center;')
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.label('Market').style('width:10em;align-items:center;text-align:center;')
+    ui.label('Instrument').style('width:10em;align-items:center;text-align:center;')
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def update_select_securities(market):
         selectSecurity.value = None
         selectSecurity.options = {}
@@ -242,6 +250,10 @@ refdata = ReferenceData(cfg=cfg)
 mrkdata = MarketData(cfg)
 
 def updateUI(delta):
+    if delta.accounts:
+        selectAccount.options.extend(delta.accounts)
+        selectAccount.update()
+    
     for vid, v in delta.venuesNames.items():
         selectMarket.options[vid] = v.label
     if delta.venuesNames:
