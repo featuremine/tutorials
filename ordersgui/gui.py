@@ -142,9 +142,6 @@ class ReferenceData(object):
         if not chname in self.parser:
             return
         d = self.parser[chname].from_bytes_packed(data).to_dict()
-        print(peer.name())
-        print(chname)
-        print(d)
         if 'venue' in d['message']:
             v = d['message']['venue']
             if 'exdest' in v:
@@ -171,8 +168,7 @@ class ReferenceData(object):
         for c in self.callbacks:
             c(self.delta)
 
-## TEST SymbologyBuilder
-
+## Main
 parser = argparse.ArgumentParser()
 parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
 parser.add_argument("--init", help="initialize OMS from the configuration", action='store_true')
@@ -191,8 +187,14 @@ if args.no_gui:
 ## UI
 UNAVAILABLE = '-'
 
+def update_prices():
+    p = mrkdata.prices.get((selectMarket.value, selectSecurity.value), {'bid': '-', 'ask': '-'})
+    bidbutton.set_text(p['bid'])
+    askbutton.set_text(p['ask'])
+
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def update_select_securities(market):
+        selectSecurity.value = None
         selectSecurity.options = {}
         where = refdata.state.venuesSecurities.get(market, [])
         for sid in where:
@@ -201,7 +203,7 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
         selectSecurity.update()
 
     selectMarket = ui.select({}, on_change=lambda s: update_select_securities(s.value)).style('width:10em;align-items:center;text-align:center;')
-    selectSecurity = ui.select({}).style('width:10em;align-items:center;text-align:center;')
+    selectSecurity = ui.select({}, on_change=update_prices).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
@@ -237,13 +239,8 @@ def updateUI(delta):
         selectSecurity.options[sid] = delta.securities[sid].symbol
     if where:
         selectSecurity.update()
-        
-    print('mrkdata.prices')
-    print(mrkdata.prices)
-    print(delta.venuesSecurities)
-    print(delta.venuesNames)
-    print(delta.securities)
-    print(delta.accounts)
+
+    update_prices()
 
 refdata.add_callback(updateUI)
 
