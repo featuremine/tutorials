@@ -1,7 +1,8 @@
-from yamal import ytp
-from conveyor.utils import schemas
 from collections import defaultdict, namedtuple
 from typing import Dict, Tuple
+from yamal import ytp
+from conveyor.utils import schemas
+from nicegui import ui
 
 class SymbologyBuilder(object):
     def __init__(self) -> None:
@@ -89,36 +90,83 @@ class ReferenceData(object):
         for c in self.callbacks:
             c(self.delta)
 
-if __name__ == '__main__':
 
-    cfg = {
-        'venue_channel': 'venu',
-        'symbology_channel': 'symb',
-        'risk_channel': 'risk'
-    }
+## UI
+UNAVAILABLE = '-'
 
-    refdata = ReferenceData('symb.ytp', cfg=cfg)
-    mrkdata = MarketData()
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    selectMarket = ui.select({}).style('width:10em;align-items:center;text-align:center;')
+    selectSecurity = ui.select({}).style('width:10em;align-items:center;text-align:center;')
 
-    def updateUI(delta):
-        print(delta.venuesSecurities)
-        print(delta.venuesNames)
-        print(delta.securities)
-        print(delta.accounts)
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
+    ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
 
-    refdata.add_callback(updateUI)
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    bidbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
+    askbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
-    def mktSubscribe(delta):
-        imnts = {}
-        for venid, securities in delta.venuesSecurities.items():
-            venue = refdata.state.venuesNames[venid]
-            market = venue.exdest if venue.exdest else venue.code
-            for secid in securities:
-                symbol = refdata.state.securities[secid].symbol
-                imnts[(venid, secid)] = (market, symbol)
-        mrkdata.subscribe(imnts)
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.button('buy on ask', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
+    ui.button('buy on bid', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
+    
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
+    ui.button('sell on bid', on_click=lambda: ui.notify('sell on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
+    ui.button('sell on ask', on_click=lambda: ui.notify('sell on ask was pressed')).style('width:9em;align-items:center;text-align:center;')
 
-    refdata.add_callback(mktSubscribe)
 
-    # you poll on a UI timer
+## Market Data
+cfg = {
+    'venue_channel': 'venu',
+    'symbology_channel': 'symb',
+    'risk_channel': 'risk'
+}
+
+refdata = ReferenceData('symb.ytp', cfg=cfg)
+mrkdata = MarketData()
+
+def updateUI(delta):
+    updateMarket = False
+    for vid, v in delta.venuesNames.items():
+        selectMarket.options[vid] = v.label
+        updateMarket = True
+    if updateMarket:
+        selectMarket.update()
+        
+    updateSecurities = False
+    if selectMarket.value in delta.venuesSecurities:
+        for sid in delta.venuesSecurities[selectMarket.value]:
+            selectSecurity.options[sid] = delta.securities[sid].symbol
+            updateSecurities = True
+    if updateSecurities:
+        selectSecurity.update()
+        
+    print(delta.venuesSecurities)
+    print(delta.venuesNames)
+    print(delta.securities)
+    print(delta.accounts)
+
+refdata.add_callback(updateUI)
+
+def mktSubscribe(delta):
+    imnts = {}
+    for venid, securities in delta.venuesSecurities.items():
+        venue = refdata.state.venuesNames[venid]
+        market = venue.exdest if venue.exdest else venue.code
+        for secid in securities:
+            symbol = refdata.state.securities[secid].symbol
+            imnts[(venid, secid)] = (market, symbol)
+    mrkdata.subscribe(imnts)
+
+refdata.add_callback(mktSubscribe)
+
+## Update UI
+def update_elements():
     refdata.poll()
+
+t = ui.timer(interval=1, callback=update_elements)
+
+## Run
+ui.run(title='Featuremine orders', reload=False, show=False)
