@@ -9,6 +9,7 @@ import json, time
 from datetime import timedelta
 import multiprocessing
 import functools
+import os
 
 def time_ns():
     return int(time.time() * 1000000000)
@@ -175,11 +176,18 @@ parser.add_argument("--init", help="initialize OMS from the configuration", acti
 parser.add_argument("--no-gui", help="initialize OMS from the configuration", action='store_true')
 args = parser.parse_args()
 
+if not os.path.isfile(args.cfg):
+    print(f"configuration file {args.cfg} does not exist. Please provide a valid JSON configuration file.")
+    exit(1)
+
 cfg = json.load(open(args.cfg))
 
 if args.init:
     builder = SymbologyBuilder(cfg)
     builder.write()
+elif not os.path.isfile(cfg['yamal_file']):
+    print(f"yamal file {cfg['yamal_file']} does not exist. Please provide a valid yamal file for the market symbology.")
+    exit(1)
 
 if args.no_gui:
     exit()
