@@ -1,6 +1,7 @@
 from yamal import ytp
 from conveyor.utils import schemas
 from collections import defaultdict, namedtuple
+from typing import Dict, Tuple
 
 class SymbologyBuilder(object):
     def __init__(self) -> None:
@@ -14,17 +15,20 @@ class MarketData(object):
     def __init__(self) -> None:
         self.prices = defaultdict(MarketData.State)
     
-    def subscribe(self, imnts: dict[tuple[int, int], tuple[str,str]]) -> None:
+    def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         if self.prices:
             return
         # call extractor here on another thread
 
 class ReferenceData(object):
+    Venue = namedtuple('Venue', ['label', 'code', 'exdest'])
+    Security = namedtuple('Security', ['symbol'])
+    
     class State(object):
         def __init__(self) -> None:
             self.venuesSecurities = defaultdict(set)
-            self.venuesNames = defaultdict(namedtuple('Venue', ['label', 'code', 'exdest']))
-            self.securities = defaultdict(namedtuple('Security', ['symbol']))
+            self.venuesNames = defaultdict(ReferenceData.Venue)
+            self.securities = defaultdict(ReferenceData.Security)
             self.accounts = set()   
 
         def update(self, delta):
@@ -61,20 +65,16 @@ class ReferenceData(object):
         print(d)
         if 'venue' in d['message']:
             v = d['message']['venue']
-            item = self.delta.venuesNames[v['identifier']]
-            item.code = v['code']
             if 'exdest' in v:
-                item.exdest = v['exdest']
-                item.label = f"{v['code']}/{v['exdest']}"
+                self.delta.venuesNames[v['identifier']] = ReferenceData.Venue(f"{v['code']}/{v['exdest']}", v['code'], v['exdest'])
             else:
-                item.exdest = None
-                item.label = v['code']
+                self.delta.venuesNames[v['identifier']] = ReferenceData.Venue(v['code'], v['code'], None)
         elif 'venueSecurityAttribute' in d['message']:
             vsa = d['message']['venueSecurityAttribute']
             self.delta.venuesSecurities[vsa['venueID']].add(vsa['securityId'])
         elif 'securityDefinition' in d['message']:
-            item = d['message']['securityDefinition']
-            self.delta.securities[item['identifier']].symbol = item['symbol']
+            sd = d['message']['securityDefinition']
+            self.delta.securities[sd['identifier']] = ReferenceData.Security(sd['symbol'])
         elif 'account' in d['message']:
             self.delta.accounts.add(d['message']['account']['identifier'])
 
@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
     def mktSubscribe(delta):
         imnts = {}
-        for venid, securities in delta.venueSecurities.items():
+        for venid, securities in delta.venuesSecurities.items():
             venue = refdata.state.venuesNames[venid]
             market = venue.exdest if venue.exdest else venue.code
             for secid in securities:
