@@ -8,12 +8,18 @@
         {"identifier": 64999, "aggUnit": 64999, "managerAggUnit": 64999}
     ],
     "venues": [
-        {"identifier": 1001, "code": "SOCGEN", "exdest": "NYSE", "swapIndicator": false}
+        {"identifier": 1001, "code": "coinbase", "swapIndicator": false}
     ],
     "securityDefinitions": [
-        {"identifier": 2001, "symbol": "USD", "instrumentType": "equity", "currencyId": 64999, "assetClass": {"equity": {}}}
+        {"identifier": 2001, "symbol": "BTC-USD", "instrumentType": "equity", "currencyId": 64999, "assetClass": {"equity": {}}},
+        {"identifier": 2002, "symbol": "ETH-USD", "instrumentType": "equity", "currencyId": 64999, "assetClass": {"equity": {}}},
+        {"identifier": 2003, "symbol": "DOGE-USD", "instrumentType": "equity", "currencyId": 64999, "assetClass": {"equity": {}}},
+        {"identifier": 2004, "symbol": "USDT-USD", "instrumentType": "equity", "currencyId": 64999, "assetClass": {"equity": {}}}
     ],
     "venueSecurityAttributes": [
-        {"venueID": 1001, "securityId": 2001, "scalingFactor": 1.0, "symbol": "GEM2", "symbolSfx": "GEM2.SFX", "cfiCode": "GEM2.CFI", "idSource": "1001", "securityID": "GEM2.ID", "securityExch": "1001"}
+        {"venueID": 1001, "securityId": 2001, "scalingFactor": 1.0, "symbol": "BTC-USD", "idSource": "1001", "securityID": "BTC-USD.ID", "securityExch": "1001"},
+        {"venueID": 1001, "securityId": 2002, "scalingFactor": 1.0, "symbol": "ETH-USD", "idSource": "1001", "securityID": "ETH-USD.ID", "securityExch": "1001"},
+        {"venueID": 1001, "securityId": 2003, "scalingFactor": 1.0, "symbol": "DOGE-USD", "idSource": "1001", "securityID": "DOGE-USD.ID", "securityExch": "1001"},
+        {"venueID": 1001, "securityId": 2004, "scalingFactor": 1.0, "symbol": "USDT-USD", "idSource": "1001", "securityID": "USDT-USD.ID", "securityExch": "1001"}
     ]
 }
