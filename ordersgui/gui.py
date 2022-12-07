@@ -14,7 +14,7 @@ class SymbologyBuilder(object):
         self.cfg = cfg
 
     def write(self):
-        seq = ytp.sequence(self.cfg['ytp'])
+        seq = ytp.sequence(self.cfg['yamal_file'])
         peer = seq.peer(self.cfg['peer'])
         tm = time_ns()
         streams = {
@@ -176,12 +176,6 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 
 
 ## Market Data
-cfg = {
-    'venue_channel': 'venu',
-    'symbology_channel': 'symb',
-    'risk_channel': 'risk'
-}
-
 refdata = ReferenceData(cfg['yamal_file'], cfg=cfg)
 mrkdata = MarketData()
 
