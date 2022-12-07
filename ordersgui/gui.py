@@ -1,10 +1,14 @@
 from collections import defaultdict, namedtuple
 from typing import Dict, Tuple
 from yamal import ytp
+import extractor
 from conveyor.utils import schemas
 from nicegui import ui
 import argparse
 import json, time
+from datetime import timedelta
+import multiprocessing
+import functools
 
 def time_ns():
     return int(time.time() * 1000000000)
@@ -44,14 +48,57 @@ class SymbologyBuilder(object):
             streams['venue'].write(tm, msg.to_bytes_packed())
 
 class MarketData(object):
-    State = namedtuple('State', ['bid', 'ask'])
     def __init__(self) -> None:
-        self.prices = defaultdict(MarketData.State)
+        self.prices = multiprocessing.Manager().dict()
+        
+    def process(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
+        for imnt in imnts:
+            self.prices[imnt] = { 'bid' : '-', 'ask' : '-'}
+        graph = extractor.system.comp_graph()
+        op = graph.features
+
+        def prices_update(x, market, imnt):
+            if x[0].bidprice != extractor.Decimal128(0) and x[0].askprice != extractor.Decimal128(0):
+                self.prices[(market,imnt)] =  { 'bid' : str(x[0].bidprice), 'ask' : str(x[0].askprice)}
+
+        # Parse markets and instruments
+        channels = []
+        for mkt, imnt in imnts.values():
+            channels += [f"ore/imnts/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
+        
+        mktimnt = []
+        for mktid, imntid in imnts:
+            mktimnt += [(mktid,imntid)] # market/instrument pair
+
+        seq = ytp.sequence('ore_coinbase_l2.ytp')
+        op.ytp_sequence(seq, timedelta(milliseconds=1))
+        peer = seq.peer('feed_handler')
+        upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
+
+        levels = [op.book_build(upd, 1) for upd in upds]
+
+        close = op.timer(timedelta(milliseconds=10))
+        
+        quotes = [op.asof(op.combine(level,
+                        (("bid_prx_0", "bidprice"),
+                        ("bid_shr_0", "bidqty"),
+                        ("ask_prx_0", "askprice"),
+                        ("ask_shr_0", "askqty"))), close)
+                for level in levels]
+
+        # Add a callback for each bar that corresponds to a market/instrument pair
+        for qt, mi in zip(quotes, mktimnt):
+            graph.callback(qt, functools.partial(prices_update, market=mi[0], imnt=mi[1]))
+
+        # Run the extractor blocking
+        graph.stream_ctx().run_live()
     
     def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         if self.prices:
             return
         # call extractor here on another thread
+        self.proc = multiprocessing.Process(target=self.process, args=(imnts,))
+        self.proc.start()
 
 class ReferenceData(object):
     Venue = namedtuple('Venue', ['label', 'code', 'exdest'])
@@ -191,6 +238,8 @@ def updateUI(delta):
     if where:
         selectSecurity.update()
         
+    print('mrkdata.prices')
+    print(mrkdata.prices)
     print(delta.venuesSecurities)
     print(delta.venuesNames)
     print(delta.securities)
@@ -218,3 +267,4 @@ t = ui.timer(interval=1, callback=update_elements)
 
 ## Run
 ui.run(title='Featuremine orders', reload=False, show=False)
+mrkdata.proc.join()
