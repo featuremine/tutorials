@@ -49,8 +49,9 @@ class SymbologyBuilder(object):
             streams['venue'].write(tm, msg.to_bytes_packed())
 
 class MarketData(object):
-    def __init__(self) -> None:
+    def __init__(self, cfg: dict) -> None:
         self.prices = multiprocessing.Manager().dict()
+        self.cfg = cfg
         
     def process(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         for imnt in imnts:
@@ -71,9 +72,9 @@ class MarketData(object):
         for mktid, imntid in imnts:
             mktimnt += [(mktid,imntid)] # market/instrument pair
 
-        seq = ytp.sequence('ore_coinbase_l2.ytp')
+        seq = ytp.sequence(self.cfg['yamal_file_market_data'])
         op.ytp_sequence(seq, timedelta(milliseconds=1))
-        peer = seq.peer('feed_handler')
+        peer = seq.peer(self.cfg['peer_market_data'])
         upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
 
         levels = [op.book_build(upd, 1) for upd in upds]
@@ -189,6 +190,10 @@ elif not os.path.isfile(cfg['yamal_file']):
     print(f"yamal file {cfg['yamal_file']} does not exist. Please provide a valid yamal file for the market symbology.")
     exit(1)
 
+if not os.path.isfile(cfg['yamal_file_market_data']):
+    print(f"yamal file {cfg['yamal_file_market_data']} does not exist. Please provide a valid yamal file for the market data.")
+    exit(1)
+
 if args.no_gui:
     exit()
 
@@ -234,7 +239,7 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 
 ## Market Data
 refdata = ReferenceData(cfg['yamal_file'], cfg=cfg)
-mrkdata = MarketData()
+mrkdata = MarketData(cfg)
 
 def updateUI(delta):
     for vid, v in delta.venuesNames.items():
