@@ -3,6 +3,8 @@ from typing import Dict, Tuple
 from yamal import ytp
 from conveyor.utils import schemas
 from nicegui import ui
+import argparse
+import json
 
 class SymbologyBuilder(object):
     def __init__(self, cfg) -> None:
@@ -125,6 +127,20 @@ class ReferenceData(object):
 
 ## TEST SymbologyBuilder
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
+parser.add_argument("--init", help="initialize OMS from the configuration", action='store_true')
+parser.add_argument("--no-gui", help="initialize OMS from the configuration", action='store_true')
+args = parser.parse_args()
+
+cfg = json.load(open(args.cfg))
+
+if args.init:
+    builder = SymbologyBuilder(cfg)
+    builder.write()
+
+if args.no_gui:
+    exit()
 
 ## UI
 UNAVAILABLE = '-'
@@ -167,7 +183,7 @@ cfg = {
     'risk_channel': 'risk'
 }
 
-refdata = ReferenceData('symb.ytp', cfg=cfg)
+refdata = ReferenceData(cfg['yamal_file'], cfg=cfg)
 mrkdata = MarketData()
 
 def updateUI(delta):

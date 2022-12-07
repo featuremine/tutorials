@@ -1,0 +1,18 @@
+{
+    "yamal_file": "symb.ytp",
+    "venue_channel": "venu",
+    "symbology_channel": "symb",
+    "risk_channel": "risk",
+    "accounts": [
+        {"identifier": 64999, "aggUnit": 64999, "managerAggUnit": 64999}
+    ],
+    "venues": [
+        {"identifier": 1001, "code": "SOCGEN", "exdest": "NYSE", "swapIndicator": false}
+    ],
+    "securityDefinitions": [
+        {"identifier": 64999, "symbol": "TEST", "instrumentType": "equity", "currencyId": 64999, "assetClass": {"equity": {}}}
+    ],
+    "venueSecurityAttributes": [
+        {"venueID": 1001, "securityId": 1005, "scalingFactor": 1.0, "symbol": "GEM2", "symbolSfx": "GEM2.SFX", "cfiCode": "GEM2.CFI", "idSource": "1001", "securityID": "GEM2.ID", "securityExch": "1001"}
+    ]
+}
