@@ -132,7 +132,8 @@ UNAVAILABLE = '-'
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def update_select_securities(market):
         selectSecurity.options = {}
-        for sid in refdata.state.venuesSecurities[market]:
+        where = refdata.state.venuesSecurities.get(market, [])
+        for sid in where:
             print(sid)
             selectSecurity.options[sid] = refdata.state.securities[sid].symbol
         selectSecurity.update()
@@ -170,19 +171,15 @@ refdata = ReferenceData('symb.ytp', cfg=cfg)
 mrkdata = MarketData()
 
 def updateUI(delta):
-    updateMarket = False
     for vid, v in delta.venuesNames.items():
         selectMarket.options[vid] = v.label
-        updateMarket = True
-    if updateMarket:
+    if delta.venuesNames:
         selectMarket.update()
-        
-    updateSecurities = False
-    if selectMarket.value in delta.venuesSecurities:
-        for sid in delta.venuesSecurities[selectMarket.value]:
-            selectSecurity.options[sid] = delta.securities[sid].symbol
-            updateSecurities = True
-    if updateSecurities:
+    
+    where = delta.venuesSecurities.get(selectMarket.value, [])
+    for sid in where:
+        selectSecurity.options[sid] = delta.securities[sid].symbol
+    if where:
         selectSecurity.update()
         
     print(delta.venuesSecurities)
