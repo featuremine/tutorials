@@ -13,6 +13,14 @@ import os
 
 def time_ns():
     return int(time.time() * 1000000000)
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
     
 class SymbologyBuilder(object):
     def __init__(self, cfg) -> None:
@@ -235,12 +243,33 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     askbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
+    pricein = ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    def switch_qty(notional):
+        if notional:
+            qtyin.view.label = 'Notional'
+            if is_number(qtyin.value) and is_number(pricein.value):
+                qtyout.set_text(f"Quantity: {float(qtyin.value)/float(pricein.value)}")
+            else:
+                qtyout.set_text(f"Quantity: -")
+        else:
+            qtyin.view.label = 'Quantity'
+            if is_number(qtyin.value) and is_number(pricein.value):
+                qtyout.set_text(f"Notional: {float(qtyin.value)*float(pricein.value)}")
+            else:
+                qtyout.set_text(f"Notional: -")
+        qtyin.update()
+        qtyout.update()
+            
+    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
+    switch = ui.switch('Use notional', on_change=lambda e: switch_qty(e.value)).style('width:8em;align-items:center;text-align:center;')
+    qtyout = ui.label('').style('width:10em;align-items:center;text-align:center;')
+    
+
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.button('buy on ask', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     ui.button('buy on bid', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
-    
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.input(label='Quantity', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
     ui.button('sell on bid', on_click=lambda: ui.notify('sell on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
     ui.button('sell on ask', on_click=lambda: ui.notify('sell on ask was pressed')).style('width:9em;align-items:center;text-align:center;')
 
@@ -285,7 +314,7 @@ refdata.add_callback(mktSubscribe)
 def update_elements():
     refdata.poll()
 
-t = ui.timer(interval=1, callback=update_elements)
+t = ui.timer(interval=0.01, callback=update_elements)
 
 ## Run
 ui.run(title='Featuremine orders', reload=False, show=False)
