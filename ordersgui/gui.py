@@ -281,12 +281,8 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.button('buy on ask', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
-    ui.button('buy on bid', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
-with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.button('sell on bid', on_click=lambda: ui.notify('sell on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
-    ui.button('sell on ask', on_click=lambda: ui.notify('sell on ask was pressed')).style('width:9em;align-items:center;text-align:center;')
-
+    ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
+    ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
 
 ## Market Data
 refdata = ReferenceData(cfg=cfg)
