@@ -279,12 +279,16 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
             
     qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:8em;align-items:center;text-align:center;')
     switch = ui.switch('Use notional', on_change=lambda e: switch_qty(e.value)).style('width:8em;align-items:center;text-align:center;')
-    qtyout = ui.label('').style('width:10em;align-items:center;text-align:center;')
+    qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
     
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
+
+with ui.expansion('orders', icon='work').classes('w-full'):
+    log = ui.log(max_lines=10).classes('w-full h-16')
+    ui.button('Log time', on_click=lambda: log.push('new order'))
 
 ## Market Data
 refdata = ReferenceData(cfg=cfg)
