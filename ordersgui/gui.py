@@ -245,7 +245,6 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 def update_qty():
     if notionalcheckbox.value:
         if is_number(qtyin.value) and is_number(pricein.value):
-            print(float(qtyin.value)/float(pricein.value))
             qtyout.set_text("Quantity: {:.6f}".format(float(qtyin.value)/float(pricein.value)))
         else:
             qtyout.set_text(f"Quantity: -")
@@ -278,9 +277,10 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
         update_qty()
             
     qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:8em;align-items:center;text-align:center;')
-    notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:4em;height:1em;align-items:center;text-align:center;')
-    qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
+    notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:5em;height:1em;align-items:center;text-align:center;')
     
+with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+    qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
