@@ -189,17 +189,28 @@ class Orders(object):
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_send)
 
     def send(self, order: dict):
+        print('send')
+        print(order)
         msg = schemas.strategy.ManagerMessage.new_message()
         msg.from_dict(order)
         self.streamsnd.write(time_ns(), msg.to_bytes_packed())
 
     def _seq_clbck_rcv(self, peer, channel, time, data):
+        print('_seq_clbck_rcv')
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        print(d)
         # Parse order message received
 
     def _seq_clbck_send(self, peer, channel, time, data):
+        print('_seq_clbck_send')
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        print(d)
         # Parse order message sent
+        
+    def poll(self, limit=None):
+        count = 0
+        while self.seq.poll() and (not limit or count <= limit):
+            count += 1
 
     def limit(self, accid, secid, venid, side, ordpx, qty):
         ordid = 1
@@ -221,7 +232,8 @@ class Orders(object):
                             'tag': f"order{ordid}"
                         }
                     }
-                }
+                },
+                'seqnum': 0
             }
 ## Main
 parser = argparse.ArgumentParser()
@@ -404,6 +416,7 @@ refdata.add_callback(mktSubscribe)
 ## Update UI
 def update_elements():
     refdata.poll()
+    orders.poll()
 
 t = ui.timer(interval=0.01, callback=update_elements)
 
