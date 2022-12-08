@@ -210,8 +210,8 @@ UNAVAILABLE = '-'
 
 def update_prices():
     p = mrkdata.prices.get((selectMarket.value, selectSecurity.value), {'bid': '-', 'ask': '-'})
-    bidbutton.set_text(p['bid'])
-    askbutton.set_text(p['ask'])
+    bidlabel.set_text(p['bid'])
+    asklabel.set_text(p['ask'])
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('Account').style('width:10em;align-items:center;text-align:center;')
@@ -239,8 +239,8 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    bidbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('bid price was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
-    askbutton = ui.button(UNAVAILABLE, on_click=lambda: ui.notify('ask price was pressed')).style('width:10em;align-items:center;text-align:center;')
+    bidlabel = ui.label(UNAVAILABLE).style('width:10em;align-items:center;text-align:center;')
+    asklabel = ui.label(UNAVAILABLE).style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     pricein = ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
