@@ -26,20 +26,9 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     bidlabel = ui.label(UNAVAILABLE).style('width:10em;align-items:center;text-align:center;')
     asklabel = ui.label(UNAVAILABLE).style('width:10em;align-items:center;text-align:center;')
 
-def update_qty():
-    if notionalcheckbox.value:
-        if is_number(qtyin.value) and is_number(pricein.value):
-            qtyout.set_text("Quantity: {:.6f}".format(float(qtyin.value)/float(pricein.value)))
-        else:
-            qtyout.set_text(f"Quantity: -")
-    else:
-        if is_number(qtyin.value) and is_number(pricein.value):
-            qtyout.set_text("Notional: {:.6f}".format(float(qtyin.value)*float(pricein.value)))
-        else:
-            qtyout.set_text(f"Notional: -")
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:8em;align-items:center;text-align:center;')
+    pricein = ui.input(label='Price', placeholder='0.00').style('width:8em;align-items:center;text-align:center;')
     with ui.column().style('margin-start:auto;margin-end:auto;align-items:center;'):
         def update_askbid_checkbox(check):
             if check.sender == bidcheckbox and check.value:
@@ -58,9 +47,8 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def switch_qty(notional):
         qtyin.view.label = 'Notional' if notional else 'Quantity'
         qtyin.update()
-        update_qty()
             
-    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:8em;align-items:center;text-align:center;')
+    qtyin = ui.input(label='Quantity', placeholder='0.00').style('width:8em;align-items:center;text-align:center;')
     notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:5em;height:1em;align-items:center;text-align:center;')
     
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
