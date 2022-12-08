@@ -187,6 +187,14 @@ class Orders(object):
         self.streamsnd = self.peer.stream(self.chsnd)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['client_name']}/{self.cfg['oms_name']}", self._seq_clbck_rcv)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_send)
+        self.orderssend = []
+        self.deltaorderssend = []
+        self.ordersrecv = []
+        self.deltaordersrecv = []
+        self.callbacks = []
+
+    def add_callback(self, clb):
+        self.callbacks.append(clb)
 
     def send(self, order: dict):
         print('send')
@@ -199,21 +207,31 @@ class Orders(object):
         print('_seq_clbck_rcv')
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
+        self.deltaordersrecv.append(d)
         # Parse order message received
 
     def _seq_clbck_send(self, peer, channel, time, data):
         print('_seq_clbck_send')
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
+        self.deltaorderssend.append(d)
         # Parse order message sent
         
     def poll(self, limit=None):
+        self.deltaorderssend = []
+        self.deltaordersrecv = []
         count = 0
         while self.seq.poll() and (not limit or count <= limit):
             count += 1
+        
+        if self.deltaorderssend or self.ordersrecv:
+            self.orderssend.extend(self.deltaorderssend)
+            self.ordersrecv.extend(self.deltaordersrecv)
+            for c in self.callbacks:
+                c(self.deltaorderssend, self.deltaordersrecv)
 
     def limit(self, accid, secid, venid, side, ordpx, qty):
-        ordid = 1
+        ordid = len(self.orderssend)
         return {
                 'message': {
                     'strg': {
@@ -367,8 +385,7 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.button('sell', on_click=lambda: parse_order('sell')).style('width:9em;align-items:center;text-align:center;')
 
 with ui.expansion('orders', icon='work').classes('w-full'):
-    log = ui.log(max_lines=10).classes('w-full h-16')
-    ui.button('Log time', on_click=lambda: log.push('new order'))
+    orderslog = ui.log(max_lines=100).classes('w-full h-16')
 
 ## Market Data
 refdata = ReferenceData(cfg=cfg)
@@ -395,7 +412,6 @@ def updateUI(delta):
         pricein.set_value(bidlabel.text)
     elif askcheckbox.value:
         pricein.set_value(asklabel.text)
-        
 
     update_prices()
 
@@ -412,6 +428,12 @@ def mktSubscribe(delta):
     mrkdata.subscribe(imnts)
 
 refdata.add_callback(mktSubscribe)
+
+def update_orders_ui(deltasend, deltarecv):
+    for snd in deltasend:
+        orderslog.push(f"order id {snd['message']['strg']['new']['strgOrdID']}")
+
+orders.add_callback(update_orders_ui)
 
 ## Update UI
 def update_elements():
