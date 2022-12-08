@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 from yamal import ytp
 import extractor
 from conveyor.utils import schemas
-from nicegui import ui
+from nicegui import ui, binding
 import argparse
 import json, time
 from datetime import timedelta
@@ -244,6 +244,16 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     pricein = ui.input(label='Price', placeholder='0.00', on_change=lambda e: print(e.value)).style('width:8em;align-items:center;text-align:center;')
+    with ui.column().style('margin-start:auto;margin-end:auto;align-items:center;'):
+        def update_askbid_checkbox(check):
+            if check.sender == bidcheckbox and check.value:
+                askcheckbox.set_value(False)
+            elif check.sender == askcheckbox and check.value:
+                bidcheckbox.set_value(False)
+        
+        bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;')
+        askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;')
+
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def switch_qty(notional):
         if notional:
@@ -293,6 +303,12 @@ def updateUI(delta):
         selectSecurity.options[sid] = delta.securities[sid].symbol
     if where:
         selectSecurity.update()
+    
+    if bidcheckbox.value:
+        pricein.set_value(bidlabel.text)
+    elif askcheckbox.value:
+        pricein.set_value(asklabel.text)
+        
 
     update_prices()
 
