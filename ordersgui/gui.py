@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 from yamal import ytp
 import extractor
 from conveyor.utils import schemas
-from nicegui import ui, binding
+from nicegui import ui
 import argparse
 import json, time
 from datetime import timedelta
