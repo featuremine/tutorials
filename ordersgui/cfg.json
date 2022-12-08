@@ -1,5 +1,5 @@
 {
-    "yamal_file": "symb.ytp",
+    "state_ytp": "symb.ytp",
     "peer": "setup-peer",
     "venue_channel": "venu",
     "symbology_channel": "symb",
@@ -22,6 +22,9 @@
         {"venueID": 1001, "securityId": 2003, "scalingFactor": 1.0, "symbol": "DOGE-USD", "idSource": "1001", "securityID": "DOGE-USD.ID", "securityExch": "1001"},
         {"venueID": 1001, "securityId": 2004, "scalingFactor": 1.0, "symbol": "USDT-USD", "idSource": "1001", "securityID": "USDT-USD.ID", "securityExch": "1001"}
     ],
-    "yamal_file_market_data": "ore_coinbase_l2.ytp",
-    "peer_market_data": "feed_handler"
+    "price_ytp": "ore_coinbase_l2.ytp",
+    "strategy_ytp": "orders.ytp",
+    "strategy_prefix": "strgs/",
+    "oms_name":"oms1",
+    "client_name":"client1"
 }

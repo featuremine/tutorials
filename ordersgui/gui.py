@@ -27,7 +27,7 @@ class SymbologyBuilder(object):
         self.cfg = cfg
 
     def write(self):
-        seq = ytp.sequence(self.cfg['yamal_file'])
+        seq = ytp.sequence(self.cfg['state_ytp'])
         peer = seq.peer(self.cfg['peer'])
         tm = time_ns()
         streams = {
@@ -80,9 +80,9 @@ class MarketData(object):
         for mktid, imntid in imnts:
             mktimnt += [(mktid,imntid)] # market/instrument pair
 
-        seq = ytp.sequence(self.cfg['yamal_file_market_data'])
+        seq = ytp.sequence(self.cfg['price_ytp'])
         op.ytp_sequence(seq, timedelta(milliseconds=1))
-        peer = seq.peer(self.cfg['peer_market_data'])
+        peer = seq.peer(self.cfg['peer'])
         upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
 
         levels = [op.book_build(upd, 1) for upd in upds]
@@ -141,7 +141,7 @@ class ReferenceData(object):
             cfg['risk_channel']: schemas.reference.RiskData
         }
 
-        self.seq = ytp.sequence(cfg['yamal_file'], readonly=True)
+        self.seq = ytp.sequence(cfg['state_ytp'], readonly=True)
         self.seq.data_callback('/', self._seq_clbck)
 
     def add_callback(self, clb):
@@ -178,6 +178,29 @@ class ReferenceData(object):
         for c in self.callbacks:
             c(self.delta)
 
+class Orders(object):
+    def __init__(self, cfg) -> None:
+        self.cfg = cfg
+        self.seq = ytp.sequence(self.cfg['strategy_ytp'])
+        self.peer = self.seq.peer(self.cfg['peer'])
+        self.chwrite = self.peer.channel(time_ns(), f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}")
+        self.streamwrite = self.peer.stream(self.chwrite)
+        self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['client_name']}/{self.cfg['oms_name']}", self._seq_clbck_rcv)
+        self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_rcv)
+
+    def write(self, order: dict):
+        msg = schemas.strategy.ManagerMessage.new_message()
+        msg.from_dict(order)
+        self.streamwrite.write(time_ns(), msg.to_bytes_packed())
+
+    def _seq_clbck_rcv(self, peer, channel, time, data):
+        d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        # Parse order message received
+
+    def _seq_clbck_send(self, peer, channel, time, data):
+        d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        # Parse order message sent
+
 ## Main
 parser = argparse.ArgumentParser()
 parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -194,12 +217,12 @@ cfg = json.load(open(args.cfg))
 if args.init:
     builder = SymbologyBuilder(cfg)
     builder.write()
-elif not os.path.isfile(cfg['yamal_file']):
-    print(f"yamal file {cfg['yamal_file']} does not exist. Please provide a valid yamal file for the market symbology.")
+elif not os.path.isfile(cfg['state_ytp']):
+    print(f"yamal file {cfg['state_ytp']} does not exist. Please provide a valid yamal file for the market symbology.")
     exit(1)
 
-if not os.path.isfile(cfg['yamal_file_market_data']):
-    print(f"yamal file {cfg['yamal_file_market_data']} does not exist. Please provide a valid yamal file for the market data.")
+if not os.path.isfile(cfg['price_ytp']):
+    print(f"yamal file {cfg['price_ytp']} does not exist. Please provide a valid yamal file for the market data.")
     exit(1)
 
 if args.no_gui:
