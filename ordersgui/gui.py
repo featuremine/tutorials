@@ -183,15 +183,15 @@ class Orders(object):
         self.cfg = cfg
         self.seq = ytp.sequence(self.cfg['strategy_ytp'])
         self.peer = self.seq.peer(self.cfg['peer'])
-        self.chwrite = self.peer.channel(time_ns(), f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}")
-        self.streamwrite = self.peer.stream(self.chwrite)
+        self.chsnd = self.peer.channel(time_ns(), f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}")
+        self.streamsnd = self.peer.stream(self.chsnd)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['client_name']}/{self.cfg['oms_name']}", self._seq_clbck_rcv)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_send)
 
     def write(self, order: dict):
         msg = schemas.strategy.ManagerMessage.new_message()
         msg.from_dict(order)
-        self.streamwrite.write(time_ns(), msg.to_bytes_packed())
+        self.streamsnd.write(time_ns(), msg.to_bytes_packed())
 
     def _seq_clbck_rcv(self, peer, channel, time, data):
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
