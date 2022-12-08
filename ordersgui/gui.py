@@ -213,10 +213,11 @@ def update_prices():
     bidlabel.set_text(p['bid'])
     asklabel.set_text(p['ask'])
 
-with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.label('Account').style('width:10em;align-items:center;text-align:center;')
-with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    selectAccount = ui.select([]).style('width:10em;align-items:center;text-align:center;')
+with ui.header().style('background-color: #3874c8').props('elevated'):
+    ui.icon('monetization_on')
+    ui.label('Featuremine Trading GUI').style('width:15em;align-items:left;text-align:left;')
+    with ui.row().style('margin-start:auto;margin-end:auto;align-items:right;'):
+        selectAccount = ui.select([]).style('width:10em;height:1em;align-items:right;text-align:right;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('Market').style('width:10em;align-items:center;text-align:center;')
