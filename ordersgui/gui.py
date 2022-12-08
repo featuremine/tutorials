@@ -179,7 +179,7 @@ class ReferenceData(object):
             c(self.delta)
 
 class Orders(object):
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg: dict) -> None:
         self.cfg = cfg
         self.seq = ytp.sequence(self.cfg['strategy_ytp'])
         self.peer = self.seq.peer(self.cfg['peer'])
@@ -201,6 +201,28 @@ class Orders(object):
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         # Parse order message sent
 
+    def limit(self, accid, secid, venid, side, ordpx, qty):
+        ordid = 1
+        return {
+                'message': {
+                    'strg': {
+                        'new': {
+                            'strgOrdID': ordid,
+                            'accountID': accid,
+                            'securityId': secid,
+                            'venueID': venid,
+                            'orderSide': side,
+                            'orderType': {'limit': ordpx},
+                            'quantity': qty,
+                            'maxFloor': {'none': None},
+                            'minQty': {'none': None},
+                            'timeInForce': 'day',
+                            'algorithm': { 'dma': None },
+                            'tag': f"order{ordid}"
+                        }
+                    }
+                }
+            }
 ## Main
 parser = argparse.ArgumentParser()
 parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -308,10 +330,27 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def parse_order(side):
-        if side == 'buy':
-            ui.notify('buy was pressed')
-        if side == 'sell':
-            ui.notify('sell was pressed')
+        if not selectAccount.value:
+            ui.notify('please select an account')
+            return
+        elif not selectMarket.value:
+            ui.notify('please select a market')
+            return
+        elif not selectSecurity.value:
+            ui.notify('please select a security')
+            return
+        elif not is_number(qtyin.value):
+            ui.notify('please select a valid quantity')
+            return
+        elif not is_number(pricein.value):
+            ui.notify('please select a valid price')
+            return
+            
+        orders.send(orders.limit(
+            accid=int(selectAccount.value), secid=int(selectSecurity.value),
+            venid=int(selectMarket.value), side=side, ordpx=float(pricein.value),
+            qty=float(qtyin.value)))
+        ui.notify('An order was sent')
     ui.button('buy', on_click=lambda: parse_order('buy')).style('width:9em;align-items:center;text-align:center;').props('color=green')
     ui.button('sell', on_click=lambda: parse_order('sell')).style('width:9em;align-items:center;text-align:center;')
 
@@ -321,7 +360,8 @@ with ui.expansion('orders', icon='work').classes('w-full'):
 
 ## Market Data
 refdata = ReferenceData(cfg=cfg)
-mrkdata = MarketData(cfg)
+mrkdata = MarketData(cfg=cfg)
+orders = Orders(cfg=cfg)
 
 def updateUI(delta):
     if delta.accounts:
