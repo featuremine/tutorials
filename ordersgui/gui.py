@@ -188,7 +188,7 @@ class Orders(object):
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['client_name']}/{self.cfg['oms_name']}", self._seq_clbck_rcv)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_send)
 
-    def write(self, order: dict):
+    def send(self, order: dict):
         msg = schemas.strategy.ManagerMessage.new_message()
         msg.from_dict(order)
         self.streamsnd.write(time_ns(), msg.to_bytes_packed())
@@ -307,8 +307,13 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-    ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
-    ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
+    def parse_order(side):
+        if side == 'buy':
+            ui.notify('buy was pressed')
+        if side == 'sell':
+            ui.notify('sell was pressed')
+    ui.button('buy', on_click=lambda: parse_order('buy')).style('width:9em;align-items:center;text-align:center;').props('color=green')
+    ui.button('sell', on_click=lambda: parse_order('sell')).style('width:9em;align-items:center;text-align:center;')
 
 with ui.expansion('orders', icon='work').classes('w-full'):
     log = ui.log(max_lines=10).classes('w-full h-16')
