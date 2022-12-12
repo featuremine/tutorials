@@ -5,7 +5,7 @@ from nicegui import ui
 UNAVAILABLE = '-'
 
 with ui.header().style('background-color: #3874c8').props('elevated'):
-    ui.icon('monetization_on')
+    ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
     ui.label('Featuremine Trading GUI').style('width:15em;align-items:left;text-align:left;')
     with ui.row().style('margin-start:auto;margin-end:right;align-items:right;'):
         selectAccount = ui.select(['1234']).style('width:10em;height:1em;align-items:right;text-align:right;')
