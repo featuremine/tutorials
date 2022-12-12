@@ -7,7 +7,7 @@ UNAVAILABLE = '-'
 with ui.header().style('background-color: #3874c8').props('elevated'):
     ui.icon('monetization_on')
     ui.label('Featuremine Trading GUI').style('width:15em;align-items:left;text-align:left;')
-    with ui.row().style('margin-start:auto;margin-end:auto;align-items:right;'):
+    with ui.row().style('margin-start:auto;margin-end:right;align-items:right;'):
         selectAccount = ui.select(['1234']).style('width:10em;height:1em;align-items:right;text-align:right;')
 
 
@@ -47,6 +47,7 @@ with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     def switch_qty(notional):
         qtyin.view.label = 'Notional' if notional else 'Quantity'
         qtyin.update()
+        qtyout.set_text('Quantity: -' if notional else 'Notional: -')
             
     qtyin = ui.input(label='Quantity', placeholder='0.00').style('width:8em;align-items:center;text-align:center;')
     notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:5em;height:1em;align-items:center;text-align:center;')
