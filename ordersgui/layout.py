@@ -10,8 +10,7 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
             ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
             ui.label('Featuremine Trading GUI')
     with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
-        selectAccount = ui.select(['1234']).style('width:10em;height:1em;')
-
+        selectAccount = ui.select(['1234']).style('width:10em;height:1em;').props(add='borderless')
 
 with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
     ui.label('Market').style('width:10em;align-items:center;text-align:center;')
