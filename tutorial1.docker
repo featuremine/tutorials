@@ -36,6 +36,6 @@ RUN cd /tmp && \
 COPY bulldozer_coinbase.ini /opt/bulldozer_coinbase.ini
 COPY market-data1.sh /opt/market-data.sh
 COPY bulldozer2elasticsearch.py /opt/bulldozer2elasticsearch.py
-COPY bars2postgresql.py /opt/bars2postgresql.py
+COPY bars2elasticsearch.py /opt/bars2elasticsearch.py
 
 CMD /opt/market-data.sh

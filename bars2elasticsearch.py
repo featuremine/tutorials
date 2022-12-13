@@ -16,9 +16,9 @@
 """
 
 """
- * @file bars2postgresql.py
+ * @file bars2elasticsearch.py
  * @date 20 Oct 2022
- * @brief Populate a PostgreSQL database with bars data from extractor
+ * @brief Populate a elasticsearch database with bars data from extractor
  */
 """
 import argparse
