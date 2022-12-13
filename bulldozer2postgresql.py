@@ -53,7 +53,7 @@ if __name__ == "__main__":
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Connect to Elasticsearch database
-    es = Elasticsearch(['http://localhost:9200'])
+    es = Elasticsearch([f"http://{args.host}:{args.port}"])
    
     # Populate the byte rate each second into the database
     id = 1
@@ -70,10 +70,10 @@ if __name__ == "__main__":
             discard -= 1
             continue
         doc = {
-            'rate': id,
+            'rate': rate,
             'timestamp': datetime.now(),
         }
-        res = es.index(index="time_series", id=id, document=doc)
+        res = es.index(index="bulldozer_rate", id=id, document=doc)
         id += 1
 
     proc_stats.send_signal(subprocess.signal.SIGINT)
