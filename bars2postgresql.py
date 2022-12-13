@@ -27,7 +27,7 @@ import functools
 import extractor
 from yamal import ytp
 from datetime import timedelta, date, datetime
-import psycopg2
+from elasticsearch import Elasticsearch
 import time
 import math
 from time import time_ns
@@ -35,35 +35,18 @@ from time import time_ns
 # YTP channels prefix
 prefix = "ore/imnts"
 
-def extractor2psqlfield(name, t):
-    if t == extractor.Time64:
-        return f'{name} TIMESTAMP WITHOUT TIME ZONE'
-    elif t == extractor.Rprice:
-        return f'{name} NUMERIC NOT NULL'
-    elif t == extractor.Float64:
-        return f'{name} NUMERIC NOT NULL'
-    elif t == extractor.Decimal128:
-        return f'{name} NUMERIC NOT NULL'
-    elif t == extractor.Int32:
-        return f'{name} INT NOT NULL'
-    else:
-        return f'{name} VARCHAR(32)'
-
 def extractor2psqlvalue(val):
     if isinstance(val, str):
         f"'{val}'"
     if isinstance(val, timedelta):
-        return f"'{val + datetime(1970, 1, 1)}'"
+        return val + datetime(1970, 1, 1)
     else:
-        return str(val)
+        return float(val)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--database", help="postgreSQL database name", required=True)
-    parser.add_argument("--user", help="postgreSQL user name", required=True)
-    parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
-    parser.add_argument("--host", help="postgreSQL database host", required=False, default="127.0.0.1")
-    parser.add_argument("--port", help="postgreSQL database port", required=False, default="5432")
+    parser.add_argument("--host", help="Elasticsearch database host", required=False, default="127.0.0.1")
+    parser.add_argument("--port", help="Elasticsearch database port", required=False, default="9200")
     parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
     parser.add_argument("--peer", help="YTP peer reader", required=False, default="feed_handler")
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
@@ -111,57 +94,25 @@ if __name__ == "__main__":
     while not os.path.exists(args.ytp):
         time.sleep(0.1)
 
-    # Connect to PostgreSQL database
-    tries = 10
-    while True:
-        try:
-            conn = psycopg2.connect(database=args.database,
-                                    user=args.user, password=args.password,
-                                    host=args.host, port=args.port)
-            break
-        except psycopg2.OperationalError as e:
-            if tries > 0:
-                tries -= 1
-            else:
-                raise
-        time.sleep(1)
-    cur = conn.cursor()
+    # Connect to Elasticsearch database
+    es = Elasticsearch([f"http://{args.host}:{args.port}"])
 
-    db_fields_array = []
-    db_fields_create = ''
-    for field in bars_descr:
-        db_fields_array += [field[0]]
-        db_fields_create += extractor2psqlfield(field[0], field[1]) + ','
-    db_fields_create = db_fields_create[:-1]
-    db_fields_str = ",".join(db_fields_array)
-
-    # Create database table to store market data
-    cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS market_data
-    (
-        bars_id SERIAL PRIMARY KEY NOT NULL,
-        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-        market VARCHAR(32),
-        imnt VARCHAR(32),
-        {db_fields_create},
-        UNIQUE (market, imnt, close_time)
-    )
-    """)
-    conn.commit()
+    db_fields_array = [field[0] for field in bars_descr]
 
     def bar2db(x, market, imnt):
+        print(x)
         if x[0].vwap == extractor.Decimal128(0):
             return
         # Populate the market data parameters into the database
-        values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array])
-        cmd = f"""
-        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
-        ('{market}','{imnt}',{values})
-        ON CONFLICT  (market, imnt, close_time)
-        DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values});
-        """
-        cur.execute(cmd)
-        conn.commit()
+        doc = {
+            'timestamp': datetime.utcnow(),
+            'market': f"'{market}'",
+            'imnt': f"'{imnt}'",
+        }
+        for f in db_fields_array:
+            doc[f] = extractor2psqlvalue(getattr(x[0], f))
+        res = es.index(index="market_data", document=doc)
+        # TODO: UPSERT (ON CONFLICT)
 
     graph = extractor.system.comp_graph()
     op = graph.features
@@ -272,5 +223,3 @@ if __name__ == "__main__":
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
-
-    conn.close()
