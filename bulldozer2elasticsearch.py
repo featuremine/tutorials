@@ -70,7 +70,7 @@ if __name__ == "__main__":
             discard -= 1
             continue
         doc = {
-            'rate': rate,
+            'rate': int(rate),
             'timestamp': datetime.now(),
         }
         res = es.index(index="bulldozer_rate", id=id, document=doc)
