@@ -56,7 +56,6 @@ if __name__ == "__main__":
     es = Elasticsearch([f"http://{args.host}:{args.port}"])
    
     # Populate the byte rate each second into the database
-    id = 1
     discard = 5
     while run:
         time.sleep(1)
@@ -74,7 +73,6 @@ if __name__ == "__main__":
             'timestamp': datetime.now(),
         }
         res = es.index(index="bulldozer_rate", document=doc)
-        id += 1
 
     proc_stats.send_signal(subprocess.signal.SIGINT)
     proc_stats.wait()
