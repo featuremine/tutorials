@@ -16,9 +16,9 @@
 """
 
 """
- * @file bulldozer2postgresql.py
+ * @file bulldozer2elasticsearch.py
  * @date 20 Oct 2022
- * @brief Populate a PostgreSQL database with bulldozer data rate
+ * @brief Populate an elasticsearch database with bulldozer data rate
  */
 """
 from elasticsearch import Elasticsearch
