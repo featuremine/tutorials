@@ -73,7 +73,7 @@ if __name__ == "__main__":
             'rate': int(rate),
             'timestamp': datetime.now(),
         }
-        res = es.index(index="bulldozer_rate", id=id, document=doc)
+        res = es.index(index="bulldozer_rate", document=doc)
         id += 1
 
     proc_stats.send_signal(subprocess.signal.SIGINT)
