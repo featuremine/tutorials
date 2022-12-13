@@ -35,7 +35,7 @@ from time import time_ns
 # YTP channels prefix
 prefix = "ore/imnts"
 
-def extractor2psqlvalue(val):
+def extractor2elasticsvalue(val):
     if isinstance(val, str):
         f"'{val}'"
     if isinstance(val, timedelta):
@@ -110,7 +110,7 @@ if __name__ == "__main__":
             'imnt': f"'{imnt}'",
         }
         for f in db_fields_array:
-            doc[f] = extractor2psqlvalue(getattr(x[0], f))
+            doc[f] = extractor2elasticsvalue(getattr(x[0], f))
         res = es.index(index="market_data", document=doc)
         # TODO: UPSERT (ON CONFLICT)
 
