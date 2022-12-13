@@ -40,7 +40,7 @@ if __name__ == "__main__":
    
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", help="Elasticsearch database host", required=False, default="127.0.0.1")
-    parser.add_argument("--port", help="Elasticsearch database port", required=False, default="5432")
+    parser.add_argument("--port", help="Elasticsearch database port", required=False, default="9200")
     parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
     args = parser.parse_args()
    
@@ -70,7 +70,7 @@ if __name__ == "__main__":
             continue
         doc = {
             'rate': int(rate),
-            'timestamp': datetime.now(),
+            'timestamp': datetime.utcnow(),
         }
         res = es.index(index="bulldozer_rate", document=doc)
 
