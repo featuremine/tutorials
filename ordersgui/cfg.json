@@ -10,6 +10,9 @@
     "venues": [
         {"identifier": 1001, "code": "coinbase", "swapIndicator": false}
     ],
+    "venueAccountMappings": [
+        {"identifier": 1001, "venueID": 1001, "venueAccount": "account-1001-1001"}
+    ],
     "securityDefinitions": [
         {"identifier": 2001, "symbol": "BTC-USD", "instrumentType": "equity", "currencyId": 1001, "assetClass": {"equity": {}}},
         {"identifier": 2002, "symbol": "ETH-USD", "instrumentType": "equity", "currencyId": 1001, "assetClass": {"equity": {}}},

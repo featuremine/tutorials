@@ -46,6 +46,11 @@ class SymbologyBuilder(object):
             msg.from_dict({'message': {'venue': venue }})
             streams['venue'].write(tm, msg.to_bytes_packed())
             
+        for venueacc in cfg['venueAccountMappings']:
+            msg = schemas.reference.VenueData.new_message()
+            msg.from_dict({'message': {'venueAccountMapping': venueacc }})
+            streams['venue'].write(tm, msg.to_bytes_packed())
+            
         for security in cfg['securityDefinitions']:
             msg = schemas.reference.Symbology.new_message()
             msg.from_dict({'message': {'securityDefinition': security }})
