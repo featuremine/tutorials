@@ -136,20 +136,19 @@ class MarketData(object):
         self.graph = graph
         self.prefix = prefix
         self.period = period
-        self.prices = defaultdict(MarketData.State)
+        self.prices = {}
         
     def process(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         op = self.graph.features
-        def prices_update(x, state):
-            state.bidpx = x[0].bidprice
-            state.askpx = x[0].askprice
-            state.bidqt = x[0].bidqty
-            state.askqt = x[0].askqty
 
         if self.period:
             close = op.timer(timedelta(milliseconds=self.period))
 
         for ids, syms in imnts.items():
+
+            if ids in self.prices:
+                continue
+
             channel = self.peer.channel(time_ns(), f"{self.prefix}{syms[0]}/{syms[1]}")
             upd = op.decode_data(op.ore_ytp_decode(channel))
             level = op.combine(op.book_build(upd, 1),
@@ -161,7 +160,8 @@ class MarketData(object):
                 quote = op.asof(level, close)
             else:
                 quote = level
-            self.graph.callback(quote, functools.partial(prices_update, state=self.prices[ids]))
+
+            self.prices[ids] = quote
     
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         raise NotImplementedError("function is not implemented")
