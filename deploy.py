@@ -8,9 +8,9 @@ if __name__ == '__main__':
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
     args = parser.parse_args()
 
-
     cfg = json.load(open(args.cfg))
     seq = ytp.sequence(cfg['state_ytp'])
     peer = seq.peer(cfg['peer'])
 
-    ReferenceBuilder(peer, cfg)
+    ref = ReferenceBuilder(peer, cfg)
+    ref.write()
