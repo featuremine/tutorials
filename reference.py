@@ -124,12 +124,12 @@ class MarketData(object):
         askpx: extractor.Decimal128
         askqt: extractor.Decimal128
 
-        def __init__(self):
-            super()
-            self.bidpx = extractor.Decimal128(-inf)
-            self.askpx = extractor.Decimal128(inf)
-            self.bidqt = extractor.Decimal128(0)
-            self.askqt = extractor.Decimal128(0)
+        # def __init__(self):
+        #     super()
+        #     self.bidpx = extractor.Decimal128(-inf)
+        #     self.askpx = extractor.Decimal128(inf)
+        #     self.bidqt = extractor.Decimal128(0)
+        #     self.askqt = extractor.Decimal128(0)
 
     def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
         self.peer = peer
