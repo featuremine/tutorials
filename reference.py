@@ -11,7 +11,7 @@ import functools
 def time_ns():
     return int(time.time() * 1000000000)
    
-class SymbologyBuilder(object):
+class ReferenceBuilder(object):
     def __init__(self, peer, cfg) -> None:
         self.cfg = cfg
         self.peer = peer
