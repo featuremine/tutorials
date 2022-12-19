@@ -69,7 +69,7 @@ class ReferenceData(object):
                 self.securities[k] = v
             self.accounts.update(delta.accounts)
 
-    def __init__(self, cfg: dict) -> None:
+    def __init__(self, seq, cfg: dict) -> None:
         self.state = ReferenceData.State()
         self.delta = ReferenceData.State()
 
@@ -80,7 +80,7 @@ class ReferenceData(object):
             cfg['risk_channel']: schemas.reference.RiskData
         }
 
-        self.seq = ytp.sequence(cfg['state_ytp'], readonly=True)
+        self.seq = seq
         self.seq.data_callback('/', self._seq_clbck)
 
     def add_callback(self, clb):
