@@ -124,12 +124,12 @@ class MarketData(object):
         askpx: extractor.Decimal128
         askqt: extractor.Decimal128
 
-        def __init__(self):
-            super()
-            self.bidpx = extractor.Decimal128(-inf)
-            self.askpx = extractor.Decimal128(inf)
-            self.bidqt = extractor.Decimal128(0)
-            self.askqt = extractor.Decimal128(0)
+        # def __init__(self):
+        #     super()
+        #     self.bidpx = extractor.Decimal128(-inf)
+        #     self.bidqt = extractor.Decimal128(0)
+        #     self.askpx = extractor.Decimal128(inf)
+        #     self.askqt = extractor.Decimal128(0)
 
     def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
         self.peer = peer
@@ -142,12 +142,12 @@ class MarketData(object):
         op = self.graph.features
         def prices_update(x, state):
             state.bidpx = x[0].bidprice
-            state.askpx = x[0].askprice
             state.bidqt = x[0].bidqty
+            state.askpx = x[0].askprice
             state.askqt = x[0].askqty
 
         if self.period:
-            close = op.timer(timedelta(milliseconds=self.period))
+            close = op.timer(self.period)
 
         for ids, syms in imnts.items():
             channel = self.peer.channel(time_ns(), f"{self.prefix}{syms[0]}/{syms[1]}")
@@ -161,6 +161,7 @@ class MarketData(object):
                 quote = op.asof(level, close)
             else:
                 quote = level
+            self.prices[ids] = MarketData.State(extractor.Decimal128(-inf), extractor.Decimal128(0), extractor.Decimal128(-inf), extractor.Decimal128(0))
             self.graph.callback(quote, functools.partial(prices_update, state=self.prices[ids]))
     
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
