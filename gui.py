@@ -1,5 +1,5 @@
 from collections import defaultdict, namedtuple
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from yamal import ytp
 import extractor
 from conveyor.utils import schemas
@@ -23,12 +23,27 @@ def is_number(s):
     except ValueError:
         return False
 
-class MarketDataGui(reference.MarketData):    
+class MarketDataGui(reference.MarketData):
+    def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+        super().__init__(peer, graph, prefix, period)
+        self.prices = multiprocessing.Manager().dict()
+                
     def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         if self.prices:
             return
         
+        def prices_update(x, ids):
+            self.prices[ids] = {
+                'bidqty': str(x[0].bidqty),
+                'bidpx': str(x[0].bidprice),
+                'askqty': str(x[0].askqty),
+                'askpx': str(x[0].askprice),
+            }
+        
         super().process(imnts)
+        
+        for ids, quote in self.priceops.items():
+            self.graph.callback(quote, functools.partial(prices_update, ids=ids))
 
 class Orders(object):
     def __init__(self, cfg: dict) -> None:
@@ -138,10 +153,10 @@ if args.no_gui:
 UNAVAILABLE = '-'
 
 def update_prices():
-    p = mrkdata.prices.get((selectMarket.value, selectSecurity.value))
-    if p:
-        bidlabel.set_text(p.bidpx)
-        asklabel.set_text(p.askpx)
+    p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
+                           {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
+    bidlabel.set_text(p['bidpx'])
+    asklabel.set_text(p['askpx'])
 
 with ui.header().style('background-color: #3874c8').props('elevated'):
     ui.icon('monetization_on')
@@ -303,6 +318,7 @@ def update_elements():
 t = ui.timer(interval=0.01, callback=update_elements)
 
 ## Run UI and extractor process
+refdata.poll() # Remove after changes to be able to modify graphs on the fly
 proc = multiprocessing.Process(target=graph.stream_ctx().run_live)
 proc.start()
 
