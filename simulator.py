@@ -4,7 +4,7 @@ from yamal import ytp
 import json
 import extractor
 import time as pytime
-from typing import Dict, Tuple
+from typing import Dict, Tuple, NamedTuple
 from conveyor.utils import schemas
 capnp_spec = schemas.strategy.ManagerMessage
 
@@ -94,6 +94,11 @@ class MarketDataFV(MarketData):
         self.process(imnts)
         # Set up necessary callbacks
 
+class Order(NamedTuple):
+    price: float
+    origqty: float
+    outstandingqty: float
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -136,7 +141,7 @@ if __name__ == "__main__":
     execid = 1
 
     # Create stream for responses on control channel
-    publishing_stream = peer.stream(peer.channel(time_ns(), cfg["fv_prefix"][:-1]))
+    publishing_stream = peer.stream(peer.channel(time_ns(), cfg["strategy_prefix"][:-1]))
 
     def send_message(msg_builder, *args, **kwargs):
         response = capnp_spec.new_message()
@@ -159,39 +164,53 @@ if __name__ == "__main__":
 
             orderid = neworder.strgOrdID
 
+            if orderid in orders:
+                send_message(strg_fail, orderid, "place", "duplicated order identifier", time)
+                return
+
             mktdata_key = (venueid, securityid)
             if mktdata_key not in mktdata.prices:
                 send_message(strg_fail, orderid, "place", "price not available for security in provided venue", time)
                 return
 
-            #Validate order price/type, and time in force and act accordingly
             ordertif = neworder.timeInForce.which()
-
-            price_ref = graph.get_ref(mktdata.prices[mktdata_key])
-
-            orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
             orderqty = neworder.orderQty
             orderside = "buy" if neworder.side.which() == "buy" else "sell"
 
-            execid += 1
-            send_message(strg_placed, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "FakeVenueFM")
+            price_ref = graph.get_ref(mktdata.prices[mktdata_key])
 
-            fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
+            if ordertif == 'ioc':
 
-            execid += 1
-            send_message(strg_filled, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
+                #Should we ack IOC orders?
 
-        else if message.message.strg.which() == "cancel":
+                fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
+
+                execid += 1
+                send_message(strg_filled, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
+
+            elif ordertif == 'day':
+
+                orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
+
+                if orderpx is None:
+                    send_message(strg_fail, orderid, "place", "invalid time in force for marketable order, please use ioc", time)
+                    return
+
+                execid += 1
+                send_message(strg_placed, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "FakeVenueFM")
+                
+                orders[orderid] = Order(price=orderpx, origqty=orderqty, outstandingqty=orderqty)
+
+        elif message.message.strg.which() == "cancel":
             # handle order cancel
             pass
 
         else:
-            replacement = message.message.strg.replace
-            orderid = replacement.strgOrdID
-            send_message(strg_fail, orderid, "replace", "order replacement is not supported", time_ns())
+            # handle order replace
+            pass
 
     # Remove last character to keep configs compliant with oms config which expects "/" at the end
-    seq.data_callback(cfg["fv_prefix"][:-1], response_callback)
+    seq.data_callback(cfg["strategy_prefix"][:-1], response_callback)
 
     # Run context for graph
     graph.stream_ctx().run_live()
