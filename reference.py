@@ -129,14 +129,19 @@ class MarketData(object):
         self.prefix = prefix
         self.period = period
         self.quotes = {}
-        
+
+        op = self.graph.features
+        if self.period:
+            self.close = op.timer(self.period)
+
     def process(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         op = self.graph.features
 
-        if self.period:
-            close = op.timer(self.period)
-
         for ids, syms in imnts.items():
+            # NOTE: maybe we will need to address symbology changes
+            if ids in self.quotes:
+                continue
+
             channel = self.peer.channel(time_ns(), f"{self.prefix}{syms[0]}/{syms[1]}")
             upd = op.decode_data(op.ore_ytp_decode(channel))
             level = op.combine(op.book_build(upd, 1),
@@ -145,7 +150,7 @@ class MarketData(object):
                             ("ask_prx_0", "askprice"),
                             ("ask_shr_0", "askqty")))
             if self.period:
-                quote = op.asof(level, close)
+                quote = op.asof(level, self.close)
             else:
                 quote = level
             self.quotes[ids] = quote

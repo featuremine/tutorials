@@ -24,14 +24,17 @@ def is_number(s):
         return False
 
 class MarketDataGui(reference.MarketData):
-    def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+    def __init__(self, seq, peer, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+        graph = extractor.system.comp_graph()
+        graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
         super().__init__(peer, graph, prefix, period)
         self.prices = multiprocessing.Manager().dict()
+        self.proc = None
                 
-    def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
-        if self.prices:
-            return
-        
+    def __del__(self):
+        self.proc.join()
+
+    def _process(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         def prices_update(x, ids):
             self.prices[ids] = {
                 'bidqty': str(x[0].bidqty),
@@ -44,6 +47,15 @@ class MarketDataGui(reference.MarketData):
         
         for ids, quote in self.quotes.items():
             self.graph.callback(quote, functools.partial(prices_update, ids=ids))
+
+        self.graph.stream_ctx().run_live()
+
+    def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
+        if self.proc:
+            return
+
+        self.proc = multiprocessing.Process(target=self._process, args=(imnts,))
+        self.proc.start()
 
 class Orders(object):
     def __init__(self, cfg: dict) -> None:
@@ -258,13 +270,10 @@ with ui.expansion('orders', icon='work').classes('w-full'):
     orderslog = ui.log(max_lines=100).classes('w-full h-16')
 
 ## Market Data
-refdata = reference.ReferenceData(cfg=cfg)
-graph = extractor.system.comp_graph()
-op = graph.features
+refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
 seqmkt = ytp.sequence(cfg['price_ytp'])
-op.ytp_sequence(seqmkt, timedelta(milliseconds=1))
 peermkt = seqmkt.peer(cfg['peer'])
-mrkdata = MarketDataGui(peer=peermkt, graph=graph, period=timedelta(milliseconds=10))
+mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt,  period=timedelta(milliseconds=10))
 orders = Orders(cfg=cfg)
 
 def updateUI(delta):
@@ -317,11 +326,5 @@ def update_elements():
 
 t = ui.timer(interval=0.01, callback=update_elements)
 
-## Run UI and extractor process
-refdata.poll() # Remove after changes to be able to modify graphs on the fly
-proc = multiprocessing.Process(target=graph.stream_ctx().run_live)
-proc.start()
-
 ui.run(title='Featuremine orders', reload=False, show=False)
 
-proc.join()
