@@ -91,8 +91,8 @@ with ui.expansion('orders', icon='work').classes('w-full'):
     #.style('height:200px;width:300px;margin:0.25em')
     #table.options['rowData'][0]['age'] += 1
     for col_def in table.view.options.columnDefs:
-        col_def.cellClass = ['text-2xl','text-red-500']
-    table.view.options.columnDefs[7].cellClass = ['text-2xl','text-red-500', 'hover:bg-blue-500', 'hover:text-green-500']
+        col_def.cellClass = ['text-2xl','text-white-500']
+    table.view.options.columnDefs[7].cellClass = ['text-2xl','text-white-500', 'bg-blue-500', 'hover:bg-red-500', 'hover:text-yellow-500']
     def handle_click(sender, msg):
         print(msg)
         if msg['event_type'] == 'cellClicked' and msg['colId'] == 'cancel':
