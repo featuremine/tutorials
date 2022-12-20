@@ -52,12 +52,15 @@ class ReferenceBuilder(object):
 class ReferenceData(object):
     Venue = namedtuple('Venue', ['label', 'code', 'exdest'])
     Security = namedtuple('Security', ['symbol'])
+    Identifier = namedtuple('Identifier', ['id'])
     
     class State(object):
         def __init__(self) -> None:
             self.venuesSecurities = defaultdict(set)
             self.venuesNames = defaultdict(ReferenceData.Venue)
+            self.revVenuesNames = defaultdict(ReferenceData.Identifier)
             self.securities = defaultdict(ReferenceData.Security)
+            self.revSecurities = defaultdict(ReferenceData.Identifier)
             self.accounts = set()   
 
         def update(self, delta):
@@ -65,11 +68,13 @@ class ReferenceData(object):
                 self.venuesSecurities[k].update(v)
             for k, v in delta.venuesNames.items():
                 self.venuesNames[k] = v
+                self.revVenuesNames[v] = k
             for k, v in delta.securities.items():
                 self.securities[k] = v
+                self.revSecurities[v] = k
             self.accounts.update(delta.accounts)
 
-    def __init__(self, cfg: dict) -> None:
+    def __init__(self, seq, cfg: dict) -> None:
         self.state = ReferenceData.State()
         self.delta = ReferenceData.State()
 
@@ -80,7 +85,7 @@ class ReferenceData(object):
             cfg['risk_channel']: schemas.reference.RiskData
         }
 
-        self.seq = ytp.sequence(cfg['state_ytp'], readonly=True)
+        self.seq = seq
         self.seq.data_callback('/', self._seq_clbck)
 
     def add_callback(self, clb):
