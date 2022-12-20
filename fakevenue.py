@@ -3,6 +3,13 @@ from reference import ReferenceBuilder, ReferenceData, MarketData
 from yamal import ytp
 import json
 import extractor
+from typing import Dict, Tuple
+
+class MarketDataFV(MarketData):
+
+    def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
+        self.process(imnts)
+        # Set up necessary callbacks
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -23,9 +30,9 @@ if __name__ == '__main__':
 
     graph = extractor.system.comp_graph()
     # Use appropriate derived class instead of MarketData directly
-    mktdata = MarketData(peer, graph)
+    mktdata = MarketDataFV(peer, graph)
 
-    def refdata_cb(*args, *kwargs):
+    def refdata_cb(delta):
         # Subscribe to market data
         # make sure we dont subscribe more than once per pair
         imnts = {}
@@ -35,10 +42,18 @@ if __name__ == '__main__':
             for secid in securities:
                 symbol = refdata.state.securities[secid].symbol
                 imnts[(venid, secid)] = (market, symbol)
-        mktdata.subscribe(imnt)
+        mktdata.subscribe(imnts)
 
     refdata.add_callback(refdata_cb)
 
     refdata.poll()
+
+    # Set up callbacks for market data updates
+
+    def response_callback():
+        #TODO:IMPLEMENT
+        pass
+
+    seq.data_callback(cfg['fv_prefix'], response_callback)
 
     graph.stream_ctx().run_live()
