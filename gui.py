@@ -42,7 +42,7 @@ class MarketDataGui(reference.MarketData):
         
         super().process(imnts)
         
-        for ids, quote in self.priceops.items():
+        for ids, quote in self.quotes.items():
             self.graph.callback(quote, functools.partial(prices_update, ids=ids))
 
 class Orders(object):

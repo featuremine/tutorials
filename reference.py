@@ -123,7 +123,7 @@ class MarketData(object):
         self.graph = graph
         self.prefix = prefix
         self.period = period
-        self.priceops = {}
+        self.quotes = {}
         
     def process(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         op = self.graph.features
@@ -143,7 +143,7 @@ class MarketData(object):
                 quote = op.asof(level, close)
             else:
                 quote = level
-            self.priceops[ids] = quote
+            self.quotes[ids] = quote
     
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         raise NotImplementedError("function is not implemented")
