@@ -307,9 +307,9 @@ def mktSubscribe(delta):
 
 refdata.add_callback(mktSubscribe)
 
-def update_orders_ui(deltasend, deltarecv):
-    for snd in deltasend:
-        orderslog.push(f"order id {snd['message']['strg']['new']['strgOrdID']}")
+def update_orders_ui(requests, responses):
+    for r in requests:
+        orderslog.push(f"order id {r['message']['strg']['new']['strgOrdID']}")
 
 orders.add_callback(update_orders_ui)
 
