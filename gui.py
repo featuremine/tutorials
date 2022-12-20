@@ -24,7 +24,7 @@ def is_number(s):
         return False
 
 class MarketDataGui(reference.MarketData):
-    def __init__(self, seq, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+    def __init__(self, seq, peer, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
         graph = extractor.system.comp_graph()
         graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
         super().__init__(peer, graph, prefix, period)
@@ -270,7 +270,7 @@ with ui.expansion('orders', icon='work').classes('w-full'):
     orderslog = ui.log(max_lines=100).classes('w-full h-16')
 
 ## Market Data
-refdata = reference.ReferenceData(cfg=cfg)
+refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
 seqmkt = ytp.sequence(cfg['price_ytp'])
 peermkt = seqmkt.peer(cfg['peer'])
 mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt,  period=timedelta(milliseconds=10))
