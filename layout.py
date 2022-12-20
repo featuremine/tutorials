@@ -64,6 +64,39 @@ with ui.expansion('orders', icon='work').classes('w-full'):
     log = ui.log(max_lines=10).classes('w-full h-16')
     ui.button('Log time', on_click=lambda: log.push('new order'))
 
+with ui.expansion('orders', icon='work').classes('w-full'):
+    table = ui.table(options={
+        'defaultColDef': {
+            'filter': True,
+            'sortable': True,
+            'resizable': True,
+            'cellStyle': {'textAlign': 'center'},
+            'headerClass': 'font-bold'
+        }, 
+        'columnDefs': [
+            {'headerName': 'Order', 'field': 'order'},
+            {'headerName': 'Account', 'field': 'account'},
+            {'headerName': 'Security', 'field': 'security'},
+            {'headerName': 'Venue', 'field': 'venue'},
+            {'headerName': 'Side', 'field': 'side'},
+            {'headerName': 'Price', 'field': 'price'},
+            {'headerName': 'Quantity', 'field': 'quantity'},
+        ],
+        'rowData': [
+            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+        ],
+    })
+    #.style('height:200px;width:300px;margin:0.25em')
+    #table.options['rowData'][0]['age'] += 1
+    for col_def in table.view.options.columnDefs:
+        col_def.cellClass = ['text-2xl','text-red-500','hover:bg-blue-500']
+    def handle_click(sender, msg):
+        print(sender)
+        print(msg)
+
+    table.view.on('cellClicked', handle_click)
+    table.view.theme = 'ag-theme-balham-dark'
 
 ## Update UI
 # def update_elements():
