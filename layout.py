@@ -67,9 +67,9 @@ with ui.expansion('orders', icon='work').classes('w-full'):
 with ui.expansion('orders', icon='work').classes('w-full'):
     table = ui.table(options={
         'defaultColDef': {
+            'minWidth': 100,
             'filter': True,
             'sortable': True,
-            'resizable': True,
             'cellStyle': {'textAlign': 'center'},
             'headerClass': 'font-bold'
         }, 
