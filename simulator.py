@@ -4,7 +4,10 @@ from yamal import ytp
 import json
 import extractor
 import time as pytime
-from typing import Dict, Tuple, NamedTuple
+from typing import Dict, Tuple, NamedTuple, Optional
+from datetime import timedelta
+from collections import deque, defaultdict
+import functools
 from conveyor.utils import schemas
 capnp_spec = schemas.strategy.ManagerMessage
 
@@ -90,14 +93,30 @@ def strg_filled(orderid, accid, securityid, venueid, side, execid, price, quanti
 
 class MarketDataFV(MarketData):
 
+    def __init__(self, orders, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+        super().__init__(peer, graph, prefix, period)
+        self.orders = orders
+
+    def prices_update(self, ids, frame):
+        # Fill orders if the price crosses
+        pass
+
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         self.process(imnts)
-        # Set up necessary callbacks
+
+        for ids, quote in self.quotes.items():
+            self.graph.callback(quote, functools.partial(self.prices_update, ids=ids))
 
 class Order(NamedTuple):
+    identifier: int
     price: float
     origqty: float
     outstandingqty: float
+
+class Orders:
+    def __init__(self):
+        self.bids = defaultdict(deque())
+        self.asks = defaultdict(deque())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -117,8 +136,10 @@ if __name__ == "__main__":
     refdata = ReferenceData(state_seq, cfg)
 
     graph = extractor.system.comp_graph()
-    # Use appropriate derived class instead of MarketData directly
-    mktdata = MarketDataFV(peer, graph)
+
+    orders = defaultdict(Orders)
+
+    mktdata = MarketDataFV(orders, peer, graph)
 
     def refdata_cb(delta):
         # Subscribe to market data
@@ -140,10 +161,12 @@ if __name__ == "__main__":
 
     execid = 1
 
-    # Create stream for responses on control channel
-    publishing_stream = peer.stream(peer.channel(time_ns(), cfg["strategy_prefix"][:-1]))
+    def send_message(msg_builder, channel, *args, **kwargs):
+        requestch = channel.name()
+        responsesplit = requestch.split("/")
+        responsech = requestsplit[-3].join("/") + "/" + requestsplit[-1] + "/" + requestsplit[-2]
 
-    def send_message(msg_builder, *args, **kwargs):
+        publishing_stream = peer.stream(peer.channel(time_ns(), responsech))
         response = capnp_spec.new_message()
         msg_dict = msg_builder(*args, **kwargs)
         response.from_dict(msg_dict)
@@ -164,13 +187,16 @@ if __name__ == "__main__":
 
             orderid = neworder.strgOrdID
 
-            if orderid in orders:
-                send_message(strg_fail, orderid, "place", "duplicated order identifier", time)
+            mktdata_key = (venueid, securityid)
+
+            ords = orders[mktdata_key]
+
+            if ords.count(orderid) > 0:
+                send_message(strg_fail, channel, orderid, "place", "duplicated order identifier", time)
                 return
 
-            mktdata_key = (venueid, securityid)
             if mktdata_key not in mktdata.prices:
-                send_message(strg_fail, orderid, "place", "price not available for security in provided venue", time)
+                send_message(strg_fail, channel, orderid, "place", "price not available for security in provided venue", time)
                 return
 
             ordertif = neworder.timeInForce.which()
@@ -186,20 +212,20 @@ if __name__ == "__main__":
                 fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
 
                 execid += 1
-                send_message(strg_filled, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
+                send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
 
             elif ordertif == 'day':
 
                 orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
 
                 if orderpx is None:
-                    send_message(strg_fail, orderid, "place", "invalid time in force for marketable order, please use ioc", time)
+                    send_message(strg_fail, channel, orderid, "place", "invalid time in force for marketable order, please use ioc", time)
                     return
 
                 execid += 1
-                send_message(strg_placed, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "FakeVenueFM")
+                send_message(strg_placed, channel, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "FakeVenueFM")
                 
-                orders[orderid] = Order(price=orderpx, origqty=orderqty, outstandingqty=orderqty)
+                getattr(ords[orderpx], orderside).append(Order(identifier=orderid, price=orderpx, origqty=orderqty, outstandingqty=orderqty, side=orderside))
 
         elif message.message.strg.which() == "cancel":
             # handle order cancel
@@ -210,7 +236,7 @@ if __name__ == "__main__":
             pass
 
     # Remove last character to keep configs compliant with oms config which expects "/" at the end
-    seq.data_callback(cfg["strategy_prefix"][:-1], response_callback)
+    seq.data_callback(cfg["strategy_prefix"], response_callback)
 
     # Run context for graph
     graph.stream_ctx().run_live()
