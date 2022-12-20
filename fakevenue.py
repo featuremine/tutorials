@@ -3,7 +3,13 @@ from reference import ReferenceBuilder, ReferenceData, MarketData
 from yamal import ytp
 import json
 import extractor
+import time
 from typing import Dict, Tuple
+from conveyor.utils import schemas
+capnp_spec = schemas.session.SessionMessage
+
+def time_ns():
+    return int(time.time() * 1000000000)
 
 class MarketDataFV(MarketData):
 
@@ -11,20 +17,20 @@ class MarketDataFV(MarketData):
         self.process(imnts)
         # Set up necessary callbacks
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
     args = parser.parse_args()
 
     cfg = json.load(open(args.cfg))
-    seq = ytp.sequence(cfg['state_ytp'])
-    peer = seq.peer(cfg['peer'])
+    seq = ytp.sequence(cfg["state_ytp"])
+    peer = seq.peer(cfg["peer"])
 
     #Would deploy.py be invoked before running the fake venue?
     refbuilder = ReferenceBuilder(peer, cfg)
     refbuilder.write()
 
-    state_seq = ytp.sequence(cfg['state_ytp'], readonly=True)
+    state_seq = ytp.sequence(cfg["state_ytp"], readonly=True)
 
     refdata = ReferenceData(state_seq, cfg)
 
@@ -50,10 +56,99 @@ if __name__ == '__main__':
 
     # Set up callbacks for market data updates
 
-    def response_callback():
-        #TODO:IMPLEMENT
-        pass
+    execid = 1
 
-    seq.data_callback(cfg['fv_prefix'], response_callback)
+    # Create stream for responses on control channel
+    publishing_stream = peer.stream(peer.channel(time_ns(), cfg["fv_prefix"][:-1]))
 
+    def response_callback(peer, channel, time, data):
+        message = capnp_spec.from_bytes_packed(data)
+        if message.message.which() != "data":
+            return
+        if message.message.data.which() != "new":
+            return
+        neworder = message.message.data.new
+        response = capnp_spec.new_message()
+        execid += 1
+
+        #Validate order price/type, and time in force and act accordingly
+
+        #Not all venues have exdest, the code is only available in the channel prefix on the order placement side
+        #venue_id = refdata.state.revVenuesNames[???]
+        security_id = refdata.staate.revSecurities[neworder.symbol]
+
+        mktdata_key = (venue_id, security_id)
+        if mktdata_key not in mktdata.prices:
+            # reject order, no market data
+            pass
+
+        price_ref = graph.get_ref(mktdata.prices[mktdata_key])
+
+        response.from_dict({
+            "message" : {
+                "data" : {
+                    "exec": {
+                        "sessOrdID": neworder.sessOrdID,
+                        "execID": str(execid),
+                        "side": "buy",
+                        "transactTime": 0,
+                        "executingBroker": "FakeVenueFM",
+                        "account": neworder.account,
+                        "symbol": neworder.symbol,
+                        "data" : {
+                            "placed" : {
+                                "brokerID": neworder.sessOrdID,
+                                "price": {
+                                    # set to unknown for marketable orders
+                                    "price": neworder.ordType.limit
+                                },
+                                "quantity": {
+                                    "quantity": neworder.orderQty
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        encoded_response = response.to_bytes_packed()
+        publishing_stream.write(time_ns(), encoded_response)
+
+        fillpx = price_ref[0].askpx if neworder.side.which() == "buy" else price_ref[0].askpx
+
+        response = capnp_spec.new_message()
+        response.from_dict({
+            "message" : {
+                "data" : {
+                    "exec": {
+                        "sessOrdID": neworder.sessOrdID,
+                        "execID": "garbage",
+                        "side": "buy" if neworder.side.which() == "buy" else "sell",
+                        "transactTime": 0,
+                        "executingBroker": "garbage",
+                        "account": "garbage",
+                        "symbol": "garbage",
+                        "data" : {
+                            "filled" : {
+                                # Use proper price from market data since the fill can be done on a better price
+                                "lastPrice": fillpx,
+                                "lastQuantity": neworder.orderQty,
+                                "cumQty": neworder.orderQty,
+                                "leaves": 0,
+                                "avgPx": fillpx,
+                                "lastFees": 0,
+                                "lastLiquidity": 0
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        encoded_response = response.to_bytes_packed()
+        publishing_stream.write(time_ns(), encoded_response)
+
+    # Remove last character to keep configs compliant with oms config which expects "/" at the end
+    seq.data_callback(cfg["fv_prefix"][:-1], response_callback)
+
+    # Run context for graph
     graph.stream_ctx().run_live()
