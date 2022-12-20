@@ -11,6 +11,34 @@ capnp_spec = schemas.session.SessionMessage
 def time_ns():
     return int(time.time() * 1000000000)
 
+def sess_placed(sess_id, exec_id, side, price, quantity, transact_time, executing_broker):
+    return {
+            'message': {
+                'data': {
+                    'exec': {
+                        'sessOrdID': sess_id,
+                        'execID': exec_id,
+                        'side': side,
+                        'data': {
+                            'placed': {
+                                'brokerID': sess_id,
+                                'price': {
+                                    'unknown': None
+                                } if price is None else {
+                                    'price': price
+                                },
+                                'quantity': {
+                                    'quantity': quantity
+                                },
+                            }
+                        },
+                        'transactTime': transact_time,
+                        'executingBroker': executing_broker,
+                    }
+                }
+            }
+        }
+
 class MarketDataFV(MarketData):
 
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
@@ -68,8 +96,6 @@ if __name__ == "__main__":
         if message.message.data.which() != "new":
             return
         neworder = message.message.data.new
-        response = capnp_spec.new_message()
-        execid += 1
 
         #Validate order price/type, and time in force and act accordingly
 
@@ -84,33 +110,14 @@ if __name__ == "__main__":
 
         price_ref = graph.get_ref(mktdata.prices[mktdata_key])
 
-        response.from_dict({
-            "message" : {
-                "data" : {
-                    "exec": {
-                        "sessOrdID": neworder.sessOrdID,
-                        "execID": str(execid),
-                        "side": "buy",
-                        "transactTime": 0,
-                        "executingBroker": "FakeVenueFM",
-                        "account": neworder.account,
-                        "symbol": neworder.symbol,
-                        "data" : {
-                            "placed" : {
-                                "brokerID": neworder.sessOrdID,
-                                "price": {
-                                    # set to unknown for marketable orders
-                                    "price": neworder.ordType.limit
-                                },
-                                "quantity": {
-                                    "quantity": neworder.orderQty
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        })
+        orderpx = neworder.ordType.limit if neworder.ordType.which() == 'limit' else None
+        orderqty = neworder.orderQty
+        orderside = "buy" if neworder.side.which() == "buy" else "sell"
+
+        execid += 1
+        response = capnp_spec.new_message()
+        response.from_dict(sess_placed(neworder.sessOrdID, str(execid), orderside, orderpx, neworder.orderQty, time_ns(), "FakeVenueFM"))
+
         encoded_response = response.to_bytes_packed()
         publishing_stream.write(time_ns(), encoded_response)
 
