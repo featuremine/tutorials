@@ -24,14 +24,17 @@ def is_number(s):
         return False
 
 class MarketDataGui(reference.MarketData):
-    def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+    def __init__(self, seq, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+        graph = extractor.system.comp_graph()
+        graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
         super().__init__(peer, graph, prefix, period)
         self.prices = multiprocessing.Manager().dict()
+        self.proc = None
                 
-    def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
-        if self.prices:
-            return
-        
+    def __del__(self):
+        self.proc.join()
+
+    def _process(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         def prices_update(x, ids):
             self.prices[ids] = {
                 'bidqty': str(x[0].bidqty),
@@ -45,6 +48,15 @@ class MarketDataGui(reference.MarketData):
         for ids, quote in self.quotes.items():
             self.graph.callback(quote, functools.partial(prices_update, ids=ids))
 
+        self.graph.stream_ctx().run_live()
+
+    def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
+        if self.proc:
+            return
+
+        self.proc = multiprocessing.Process(target=self._process, args=(imnts,))
+        self.proc.start()
+
 class Orders(object):
     def __init__(self, cfg: dict) -> None:
         self.cfg = cfg
@@ -54,11 +66,11 @@ class Orders(object):
         self.streamsnd = self.peer.stream(self.chsnd)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['client_name']}/{self.cfg['oms_name']}", self._seq_clbck_rcv)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_send)
-        self.requests = []
-        self.responses = []
+        self.orderssend = []
+        self.deltaorderssend = []
+        self.ordersrecv = []
+        self.deltaordersrecv = []
         self.callbacks = []
-        self.ordid = 1
-        self.seqnum = 1
 
     def add_callback(self, clb):
         self.callbacks.append(clb)
@@ -74,39 +86,36 @@ class Orders(object):
         print('_seq_clbck_rcv')
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
-        self.responses.append(d)
-        # OMS responses
-        # ack, rejection, received
+        self.deltaordersrecv.append(d)
         # Parse order message received
 
     def _seq_clbck_send(self, peer, channel, time, data):
         print('_seq_clbck_send')
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
-        #OMS requests
-        self.requests.append(d)
-        # TODO:order placement -> increment order id
-        self.ordid += 1
-        self.seqnum += 1
+        self.deltaorderssend.append(d)
         # Parse order message sent
         
     def poll(self, limit=None):
-        self.requests = []
-        self.responses = []
+        self.deltaorderssend = []
+        self.deltaordersrecv = []
         count = 0
         while self.seq.poll() and (not limit or count <= limit):
             count += 1
         
-        if self.requests or self.responses:
+        if self.deltaorderssend or self.ordersrecv:
+            self.orderssend.extend(self.deltaorderssend)
+            self.ordersrecv.extend(self.deltaordersrecv)
             for c in self.callbacks:
-                c(self.requests, self.responses)
+                c(self.deltaorderssend, self.deltaordersrecv)
 
     def limit(self, accid, secid, venid, side, ordpx, qty):
+        ordid = len(self.orderssend)
         return {
                 'message': {
                     'strg': {
                         'new': {
-                            'strgOrdID': self.ordid,
+                            'strgOrdID': ordid,
                             'accountID': accid,
                             'securityId': secid,
                             'venueID': venid,
@@ -117,11 +126,11 @@ class Orders(object):
                             'minQty': {'none': None},
                             'timeInForce': 'day',
                             'algorithm': { 'dma': None },
-                            'tag': f"order{self.ordid}"
+                            'tag': f"order{ordid}"
                         }
                     }
                 },
-                'seqnum': self.seqnum
+                'seqnum': 0
             }
 ## Main
 parser = argparse.ArgumentParser()
@@ -261,13 +270,10 @@ with ui.expansion('orders', icon='work').classes('w-full'):
     orderslog = ui.log(max_lines=100).classes('w-full h-16')
 
 ## Market Data
-refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
-graph = extractor.system.comp_graph()
-op = graph.features
+refdata = reference.ReferenceData(cfg=cfg)
 seqmkt = ytp.sequence(cfg['price_ytp'])
-op.ytp_sequence(seqmkt, timedelta(milliseconds=1))
 peermkt = seqmkt.peer(cfg['peer'])
-mrkdata = MarketDataGui(peer=peermkt, graph=graph, period=timedelta(milliseconds=10))
+mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt,  period=timedelta(milliseconds=10))
 orders = Orders(cfg=cfg)
 
 def updateUI(delta):
@@ -307,9 +313,9 @@ def mktSubscribe(delta):
 
 refdata.add_callback(mktSubscribe)
 
-def update_orders_ui(requests, responses):
-    for r in requests:
-        orderslog.push(f"order id {r['message']['strg']['new']['strgOrdID']}")
+def update_orders_ui(deltasend, deltarecv):
+    for snd in deltasend:
+        orderslog.push(f"order id {snd['message']['strg']['new']['strgOrdID']}")
 
 orders.add_callback(update_orders_ui)
 
@@ -320,11 +326,5 @@ def update_elements():
 
 t = ui.timer(interval=0.01, callback=update_elements)
 
-## Run UI and extractor process
-refdata.poll() # Remove after changes to be able to modify graphs on the fly
-proc = multiprocessing.Process(target=graph.stream_ctx().run_live)
-proc.start()
-
 ui.run(title='Featuremine orders', reload=False, show=False)
 
-proc.join()
