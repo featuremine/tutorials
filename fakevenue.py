@@ -13,19 +13,19 @@ def time_ns():
 
 def sess_rejected(sess_id, exec_id, side, reason, transact_time, executing_broker):
     return {
-            'message': {
-                'data': {
-                    'exec': {
-                        'sessOrdID': sess_id,
-                        'execID': exec_id,
-                        'side': side,
-                        'data': {
-                            'rejected': {
-                                'reason': reason
+            "message": {
+                "data": {
+                    "exec": {
+                        "sessOrdID": sess_id,
+                        "execID": exec_id,
+                        "side": side,
+                        "data": {
+                            "rejected": {
+                                "reason": reason
                             }
                         },
-                        'transactTime': transact_time,
-                        'executingBroker': executing_broker,
+                        "transactTime": transact_time,
+                        "executingBroker": executing_broker,
                     }
                 }
             }
@@ -33,31 +33,58 @@ def sess_rejected(sess_id, exec_id, side, reason, transact_time, executing_broke
 
 def sess_placed(sess_id, exec_id, side, price, quantity, transact_time, executing_broker):
     return {
-            'message': {
-                'data': {
-                    'exec': {
-                        'sessOrdID': sess_id,
-                        'execID': exec_id,
-                        'side': side,
-                        'data': {
-                            'placed': {
-                                'brokerID': sess_id,
-                                'price': {
-                                    'unknown': None
+            "message": {
+                "data": {
+                    "exec": {
+                        "sessOrdID": sess_id,
+                        "execID": exec_id,
+                        "side": side,
+                        "data": {
+                            "placed": {
+                                "brokerID": sess_id,
+                                "price": {
+                                    "unknown": None
                                 } if price is None else {
-                                    'price': price
+                                    "price": price
                                 },
-                                'quantity': {
-                                    'quantity': quantity
+                                "quantity": {
+                                    "quantity": quantity
                                 },
                             }
                         },
-                        'transactTime': transact_time,
-                        'executingBroker': executing_broker,
+                        "transactTime": transact_time,
+                        "executingBroker": executing_broker,
                     }
                 }
             }
         }
+
+def sess_filled(sess_id, exec_id, side, price, quantity, transact_time, executing_broker):
+    return {
+            "message" : {
+                "data": {
+                    "exec": {
+                        "sessOrdID": sess_id,
+                        "execID": exec_id,
+                        "side": side,
+                        "data" : {
+                            "filled" : {
+                                "lastPrice": price,
+                                "lastQuantity": quantity,
+                                "cumQty": quantity,
+                                "leaves": 0,
+                                "avgPx": fillpx,
+                                "lastFees": 0,
+                                "lastLiquidity": 0
+                            }
+                        },
+                        "transactTime": transact_time,
+                        "executingBroker": executing_broker,
+                    }
+                }
+            }
+        }
+
 
 class MarketDataFV(MarketData):
 
@@ -110,8 +137,6 @@ if __name__ == "__main__":
     publishing_stream = peer.stream(peer.channel(time_ns(), cfg["fv_prefix"][:-1]))
 
     def send_message(msg_builder, *args, **kwargs):
-        #Ensure execid increases for every response
-        execid += 1
         response = capnp_spec.new_message()
         msg_dict = msg_builder(*args, **kwargs)
         response.from_dict(msg_dict)
@@ -135,48 +160,23 @@ if __name__ == "__main__":
         mktdata_key = (venue_id, security_id)
         if mktdata_key not in mktdata.prices:
             # reject order, no market data
+            execid += 1
             send_message(sess_rejected, neworder.sessOrdID, str(execid), orderside, "price not available for security in provided venue", time_ns(), "FakeVenueFM")
             return
 
         price_ref = graph.get_ref(mktdata.prices[mktdata_key])
 
-        orderpx = neworder.ordType.limit if neworder.ordType.which() == 'limit' else None
+        orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
         orderqty = neworder.orderQty
         orderside = "buy" if neworder.side.which() == "buy" else "sell"
 
-        send_message(sess_placed, neworder.sessOrdID, str(execid), orderside, orderpx, neworder.orderQty, time_ns(), "FakeVenueFM")
+        execid += 1
+        send_message(sess_placed, neworder.sessOrdID, str(execid), orderside, orderpx, orderqty, time_ns(), "FakeVenueFM")
 
         fillpx = price_ref[0].askpx if neworder.side.which() == "buy" else price_ref[0].askpx
 
-        response = capnp_spec.new_message()
-        response.from_dict({
-            "message" : {
-                "data" : {
-                    "exec": {
-                        "sessOrdID": neworder.sessOrdID,
-                        "execID": "garbage",
-                        "side": "buy" if neworder.side.which() == "buy" else "sell",
-                        "transactTime": 0,
-                        "executingBroker": "garbage",
-                        "account": "garbage",
-                        "symbol": "garbage",
-                        "data" : {
-                            "filled" : {
-                                "lastPrice": fillpx,
-                                "lastQuantity": neworder.orderQty,
-                                "cumQty": neworder.orderQty,
-                                "leaves": 0,
-                                "avgPx": fillpx,
-                                "lastFees": 0,
-                                "lastLiquidity": 0
-                            }
-                        }
-                    }
-                }
-            }
-        })
-        encoded_response = response.to_bytes_packed()
-        publishing_stream.write(time_ns(), encoded_response)
+        execid += 1
+        send_message(sess_filled, neworder.sessOrdID, str(execid), orderside, fillpx, orderqty, time_ns(), "FakeVenueFM")
 
     # Remove last character to keep configs compliant with oms config which expects "/" at the end
     seq.data_callback(cfg["fv_prefix"][:-1], response_callback)
