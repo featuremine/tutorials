@@ -11,6 +11,26 @@ capnp_spec = schemas.session.SessionMessage
 def time_ns():
     return int(time.time() * 1000000000)
 
+def sess_rejected(sess_id, exec_id, side, reason, transact_time, executing_broker):
+    return {
+            'message': {
+                'data': {
+                    'exec': {
+                        'sessOrdID': sess_id,
+                        'execID': exec_id,
+                        'side': side,
+                        'data': {
+                            'rejected': {
+                                'reason': reason
+                            }
+                        },
+                        'transactTime': transact_time,
+                        'executingBroker': executing_broker,
+                    }
+                }
+            }
+        }
+
 def sess_placed(sess_id, exec_id, side, price, quantity, transact_time, executing_broker):
     return {
             'message': {
@@ -89,6 +109,15 @@ if __name__ == "__main__":
     # Create stream for responses on control channel
     publishing_stream = peer.stream(peer.channel(time_ns(), cfg["fv_prefix"][:-1]))
 
+    def send_message(msg_builder, *args, **kwargs):
+        #Ensure execid increases for every response
+        execid += 1
+        response = capnp_spec.new_message()
+        msg_dict = msg_builder(*args, **kwargs)
+        response.from_dict(msg_dict)
+        encoded_response = response.to_bytes_packed()
+        publishing_stream.write(time_ns(), encoded_response)
+
     def response_callback(peer, channel, time, data):
         message = capnp_spec.from_bytes_packed(data)
         if message.message.which() != "data":
@@ -106,7 +135,8 @@ if __name__ == "__main__":
         mktdata_key = (venue_id, security_id)
         if mktdata_key not in mktdata.prices:
             # reject order, no market data
-            pass
+            send_message(sess_rejected, neworder.sessOrdID, str(execid), orderside, "price not available for security in provided venue", time_ns(), "FakeVenueFM")
+            return
 
         price_ref = graph.get_ref(mktdata.prices[mktdata_key])
 
@@ -114,12 +144,7 @@ if __name__ == "__main__":
         orderqty = neworder.orderQty
         orderside = "buy" if neworder.side.which() == "buy" else "sell"
 
-        execid += 1
-        response = capnp_spec.new_message()
-        response.from_dict(sess_placed(neworder.sessOrdID, str(execid), orderside, orderpx, neworder.orderQty, time_ns(), "FakeVenueFM"))
-
-        encoded_response = response.to_bytes_packed()
-        publishing_stream.write(time_ns(), encoded_response)
+        send_message(sess_placed, neworder.sessOrdID, str(execid), orderside, orderpx, neworder.orderQty, time_ns(), "FakeVenueFM")
 
         fillpx = price_ref[0].askpx if neworder.side.which() == "buy" else price_ref[0].askpx
 
@@ -137,7 +162,6 @@ if __name__ == "__main__":
                         "symbol": "garbage",
                         "data" : {
                             "filled" : {
-                                # Use proper price from market data since the fill can be done on a better price
                                 "lastPrice": fillpx,
                                 "lastQuantity": neworder.orderQty,
                                 "cumQty": neworder.orderQty,
