@@ -81,16 +81,18 @@ with ui.expansion('orders', icon='work').classes('w-full'):
             {'headerName': 'Side', 'field': 'side'},
             {'headerName': 'Price', 'field': 'price'},
             {'headerName': 'Quantity', 'field': 'quantity'},
+            {'headerName': '', 'field': 'cancel'},
         ],
         'rowData': [
-            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
-            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2, 'cancel':'cancel' },
+            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2, 'cancel':'cancel' },
         ],
     })
     #.style('height:200px;width:300px;margin:0.25em')
     #table.options['rowData'][0]['age'] += 1
     for col_def in table.view.options.columnDefs:
-        col_def.cellClass = ['text-2xl','text-red-500','hover:bg-blue-500']
+        col_def.cellClass = ['text-2xl','text-red-500']
+    table.view.options.columnDefs[7].cellClass = ['text-2xl','text-red-500', 'hover:bg-blue-500']
     def handle_click(sender, msg):
         print(sender)
         print(msg)
