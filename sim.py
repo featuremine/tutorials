@@ -6,7 +6,8 @@ import extractor
 import time as pytime
 from typing import Dict, Tuple, NamedTuple, Optional
 from datetime import timedelta
-from collections import deque, defaultdict
+import queue
+from collections import defaultdict
 import functools
 from bisect import insort, bisect_left
 from logging import getLogger
@@ -16,268 +17,6 @@ capnp_spec = schemas.strategy.ManagerMessage
 
 def time_ns():
     return int(pytime.time() * 1000000000)
-
-def strg_fail(orderid, failure_type, reason, request_time):
-    return {
-            "message": {
-                "sess": {
-                    "failed": {
-                        "strgOrdID": orderid,
-                        "type": failure_type,
-                        "reason": reason,
-                        "requestTime": request_time
-                    }
-                }
-            }
-        }
-
-def strg_placed(orderid, accid, securityid, venueid, side, execid, price, quantity, transact_time, executing_broker):
-    return {
-        "message": {
-            "sess": {
-                "exec": {
-                    "strgOrdID": orderid,
-                    "accountID": accid,
-                    "securityId": securityid,
-                    "venueID": venueid,
-                    "orderSide": side,
-                    "sessOrdID": str(orderid),
-                    "exchExecID": execid,
-                    "exchOrdID": str(orderid),
-                    "transactTime": transact_time,
-                    "executingBroker": executing_broker,
-                    "data": {
-                        "placed": {
-                            "orderType": {
-                                "market": None
-                            } if price is None else {
-                                "limit": price
-                            },
-                            "orderQuantity": quantity
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-def strg_filled(orderid, accid, securityid, venueid, side, execid, price, quantity, transact_time, executing_broker):
-    return {
-        "message": {
-            "sess": {
-                "exec": {
-                    "strgOrdID": orderid,
-                    "accountID": accid,
-                    "securityId": securityid,
-                    "venueID": venueid,
-                    "orderSide": side,
-                    "sessOrdID": str(orderid),
-                    "exchExecID": execid,
-                    "exchOrdID": str(orderid),
-                    "transactTime": transact_time,
-                    "executingBroker": executing_broker,
-                    "data": {
-                        "filled": {
-                            "lastQuantity": quantity,
-                            "lastPrice": price,
-                            "lastFees": 0,
-                            "liquidityCode": 0,
-                            "cumQty": quantity,
-                            "leaves": 0,
-                            "avgPx": price,
-                            "lastMkt": executing_broker
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-
-def strg_canceled(orderid, accid, securityid, venueid, side, execid, transact_time, executing_broker):
-    return {
-        "message": {
-            "sess": {
-                "exec": {
-                    "strgOrdID": orderid,
-                    "accountID": accid,
-                    "securityId": securityid,
-                    "venueID": venueid,
-                    "orderSide": side,
-                    "sessOrdID": str(orderid),
-                    "exchExecID": execid,
-                    "exchOrdID": str(orderid),
-                    "transactTime": transact_time,
-                    "executingBroker": executing_broker,
-                    "data": {
-                        "canceled": {
-                            "leaves": 0
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-
-def QueuedOrderComp(first, second):
-    if first.side == "buy":
-        if first.price < second.price:
-            return 1
-        elif first.price > second.price:
-            return -1
-    else:
-        if first.price > second.price:
-            return 1
-        elif first.price < second.price:
-            return -1
-    if first.time > second.time:
-        return 1
-    if first.time < second.time:
-        return -1
-    return 0
-
-
-class QueuedOrder(object):
-    def __init__(self, now, identifier: int, px: float, qty: float, side, security, venue, account, responder):
-        self.time = now
-        self.identifier = identifier
-        self.px = px
-        self.qty = qty
-        self.leaves = qty
-        self.side = side
-        self.securityid = security
-        self.venueid = venue
-        self.account = account
-        self.responder = responder
-
-    def __gt__(self, other):
-        return QueuedOrderComp(self, other) == 1
-
-    def __lt__(self, other):
-        return QueuedOrderComp(self, other) == -1
-
-    def send_message(self, msg_builder, *args, **kwargs):
-        response = capnp_spec.new_message()
-        msg_dict = msg_builder(*args, **kwargs)
-        response.from_dict(msg_dict)
-        encoded_response = response.to_bytes_packed()
-        self.responder.write(time_ns(), encoded_response)
-
-    def placed(self, execution_id = 0) -> None:
-        send_message(strg_placed, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), self.px, self.qty, time_ns(), "SimulatorFM")
-
-    def filled(self, px, qty, execution_id = 0) -> None:
-        send_message(strg_filled, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), px, qty, time_ns(), "SimulatorFM")
-
-    def canceled(self, execution_id = 0) -> None:
-        send_message(strg_canceled, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), time_ns(), "SimulatorFM")
-
-    def failed(self, reason) -> None:
-        send_message(strg_fail, self.identifier, "place", reason, self.time)
-
-class LimitFillModel(object):
-    def __init__(self): #probably should use venue as an argument
-        self.bids_q = {}
-        self.asks_q = {}
-
-    def trade(self, venue_symbol, mkt, frame):
-        symbol = venue_symbol["symbol"]
-        px = frame[0].price
-        qty = frame[0].qty
-        side = frame[0].side
-
-        def fill(symbol, price, quantity, side, ords, worse):
-            while ords:
-                o = ords[0]
-
-                if quantity == 0 or worse(o.price, price):
-                    break
-
-                filled = min(quantity, o.leaves)
-                o.leaves = o.leaves - filled
-                quantity = quantity - filled
-                if o.leaves == 0:
-                    self.log.info("Order filled completely %s" % o)
-                    ords.pop(0)
-                o.filled(price, filled, 1)
-
-        if side != 1:
-            if symbol in self.bids_q:
-                fill(symbol, px, qty, side, self.bids_q[symbol], lambda x, y: x < y)
-        if side != 2:
-            if symbol in self.asks_q:
-                fill(symbol, px, qty, side, self.asks_q[symbol], lambda x, y: x > y)
-
-    def place(self, order):
-        order.placed()
-
-        if order.side == "buy":
-            if order.symbol not in self.bids_q:
-                self.bids_q[order.symbol] = []
-            insort(self.bids_q[order.symbol], QueuedOrder(self.platform.clock.now(), order=order))
-        else:
-            if order.symbol not in self.asks_q:
-                self.asks_q[order.symbol] = []
-            insort(self.asks_q[order.symbol], QueuedOrder(self.platform.clock.now(), order=order))
-
-    def cancel(self, order):
-        def q_cancel():
-            self.log.info("received cancelation on %s for order %s with with id %i" % (self.name, order, order.id))
-            if not order.alive():
-                order.cancel_rej()
-                return
-            # test cancel_failed
-            if order.id == 1013:
-                if self.cancel_failed_count == 0:
-                    self.cancel_failed_count += 1
-                    self.log.info("order cancel_failed for order {}".format(order))
-                    order.cancel_failed()
-                else:
-                    self.log.info("order {} canceled".format(order))
-                    order.canceled()
-            else:
-                self.log.info("order {} canceled".format(order))
-                order.canceled()
-
-            symbol = order.symbol
-            if order.side == "buy":
-                if symbol not in self.bids_q:
-                    return
-                idx = bisect_left(
-                    self.bids_q[symbol],
-                    QueuedOrder(
-                        timedelta(
-                            seconds=0),
-                        price=order.price,
-                        qty=0,
-                        side="buy",
-                        id=0))
-                ords = self.bids_q[symbol]
-            else:
-                if symbol not in self.asks_q:
-                    return
-                idx = bisect_left(
-                    self.asks_q[symbol],
-                    QueuedOrder(
-                        timedelta(
-                            seconds=0),
-                        price=order.price,
-                        qty=0,
-                        side="SELL/SELLSHORT",
-                        id=0))
-                ords = self.asks_q[symbol]
-
-            for x in range(idx, len(ords)):
-                o = ords[x]
-                if (order.id == o.id):
-                    ords.pop(x)
-                    return
-
-            assert("This should never happen")
-
-        self.platform.timer.schedule_once(self.platform.clock.now() + timedelta(milliseconds=50), q_cancel)
-        return True
 
 class MarketDataSim(MarketData):
 
@@ -289,106 +28,56 @@ class MarketDataSim(MarketData):
             return
         self.process(imnts)
 
-class Orders:
-    def __init__(self):
-        self.bids = defaultdict(deque())
-        self.asks = defaultdict(deque())
+class StrategyOrderUpdater:
 
-def better_price(side, px, other):
-    if side == 'buy':
-        return px < other
-    return other < px
-
-# Simulator
-# message    ->     DelayQueue
-#                       |
-#             StrategyMessageUpdater
-#                       |
-#                    Orders           ->          Fillmodel     -> response 
-
-
-# message    ->   StrategyMessageUpdater
-#                       |
-#                    Orders           ->        PostgressUpdater
-
-
-# message    ->  StrategyMessageUpdater
-#                       |
-#                    Orders           ->        GUIUpdater
-
-# message    ->  StrategyMessageUpdater
-#                       |
-#                    Orders           ->        Accounts    -> Strategy -> yamal
-
-# in C we need to implement event queue and subscription and timers
-
-
-
-class OrderProcessor:
-
-    def __init__(self, peer, orders):
-        self.peer = peer
-        self.orders = orders
-
-    def gen_responder(channel):
-        requestch = channel.name()
-        requestsplit = requestch.split("/")
-        responsech = requestsplit[-3].join("/") + "/" + requestsplit[-1] + "/" + requestsplit[-2]
-        return self.peer.stream(self.peer.channel(time_ns(), responsech))
-
-    def new(self, channel, time, neworder):
-
-        orderid = neworder.strgOrdID
-        venueid = neworder.venueID
-        securityid = neworder.securityId
-        accountid = neworder.accountID
-        ordertif = neworder.timeInForce.which()
-        orderqty = neworder.orderQty
-        orderside = "buy" if neworder.side.which() == "buy" else "sell"
-        orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
-
-        order = QueuedOrder(time, orderid, orderpx, orderqty, side, securityid, venueid, accountid, self.gen_responder(channel))
-
-        mktdata_key = (venueid, securityid)
-
-        # ords = orders[mktdata_key]
-
-        # if ords.count(orderid) > 0:
-        #     order.failed("duplicated order identifier")
-        #     return
-
-        if mktdata_key not in mktdata.prices:
-            order.failed("price not available for security in provided venue")
-            return
-
-        price_ref = graph.get_ref(mktdata.prices[mktdata_key])
-
-        if ordertif == 'ioc':
-
-            #Should we ack IOC orders?
-
-            fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
-
-            if orderpx is None or not better_price(orderside, orderpx, fillpx):
-                order.filled(fillpx, orderqty)
-            else:
-                order.canceled(0)
-
-        elif ordertif == 'day':
-
-            if orderpx is None:
-                order.failed("invalid time in force for marketable order, please use ioc")
-                return
-
-            fillmodel.place(order)
-
-    def cancel(self, channel, time, cancelorder):
+    def __init__(self, orders):
         pass
 
-    def replace(self, channel, time, replaceorder):
+    def update(self, upd):
+        print("attempting to update", upd)
+        strg = upd["strg"]
+        msg = upd["msg"]
+        msgdata = getattr(msg.message, msg.message.which())
+        getattr(self, msgdata.which())(**getattr(msgdata, msgdata.which()).to_dict())
+
+    def new(self, strgOrdID, accountID, securityId, venueID, orderSide, orderType, quantity, maxFloor, timeInForce, algorithm, minQty, tag):
         pass
 
-class AbstractOrderBook(object):
+    def cancel():
+        pass
+
+class StrategyOrderWriter:
+    pass
+
+class FillModel:
+
+    def __init__(self, mktdata, orders):
+        pass
+
+class DelayQueue:
+
+    def __init__(self, graph, delay):
+        timer = graph.features.timer(timedelta(microseconds=1))
+        graph.callback(timer, self.consume)
+        self.delay = int(delay.total_seconds() * 1000000000)
+        self.queue = []
+        self.callbacks = []
+
+    def consume(self, frame):
+        curr_time_ns = int(frame[0].actual.total_seconds() * 1000000000)
+        while self.queue and curr_time_ns >= self.queue[0][0] + self.delay:
+            print("found element in queue that needs to be removed")
+            elem = self.queue.pop(0)[1]
+            for clbl in self.callbacks:
+                clbl(elem)
+
+    def push(self, item):
+        self.queue.append((time_ns(), item))
+
+    def callback(self, clbl):
+        self.callbacks.append(clbl)
+
+class AbstractOrderBook:
     pass
 
 class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
@@ -411,11 +100,10 @@ if __name__ == "__main__":
     state_peer = state_seq.peer(cfg["peer"])
     op.ytp_sequence(state_seq, timedelta(microseconds=1))
 
-    strg_seq = ytp.sequence(cfg["strg_ytp"], readonly=True)
+    strg_seq = ytp.sequence(cfg["strg_ytp"])
     strg_peer = strg_seq.peer(cfg["peer"])
     op.ytp_sequence(strg_seq, timedelta(microseconds=1))
 
-    graph.features.ytp_sequence()
     mktdata = MarketDataSim(state_peer, graph)
 
     refdata = ReferenceData(state_seq, cfg)
@@ -445,11 +133,13 @@ if __name__ == "__main__":
     delay_queue = DelayQueue(graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
     delay_queue.callback(updater.update)
 
-    oms_pfx = f'{cfg["strg_pfx"]}/{cfg["OMS_name"]}/'
+    oms_pfx = f'{cfg["strg_pfx"]}{cfg["OMS_name"]}/'
     oms_pfx_len = len(oms_pfx)
     def queue_push(peer, channel, time, data):
         strg = channel.name()[oms_pfx_len:]
-        delay_queue.push({strg: strg, msg: msg})
+        msg = capnp_spec.from_bytes_packed(data)
+        print("pushing to queue", {"strg": strg, "msg": msg})
+        delay_queue.push({"strg": strg, "msg": msg})
 
     strg_seq.data_callback(oms_pfx, queue_push)
 
