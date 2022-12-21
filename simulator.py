@@ -143,6 +143,11 @@ class Orders:
         self.bids = defaultdict(deque())
         self.asks = defaultdict(deque())
 
+def better_price(side, px, other):
+    if side == 'buy':
+        return px < other
+    return other < px
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -238,7 +243,7 @@ if __name__ == "__main__":
 
                 fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
 
-                if orderpx is None or better_price(orderside, fillpx, orderpx):
+                if orderpx is None or not better_price(orderside, orderpx, fillpx):
                     execid += 1
                     send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
                 else:
