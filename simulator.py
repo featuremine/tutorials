@@ -91,6 +91,31 @@ def strg_filled(orderid, accid, securityid, venueid, side, execid, price, quanti
     }
 
 
+def strg_canceled(orderid, accid, securityid, venueid, side, execid, transact_time, executing_broker):
+    return {
+        "message": {
+            "sess": {
+                "exec": {
+                    "strgOrdID": orderid,
+                    "accountID": accid,
+                    "securityId": securityid,
+                    "venueID": venueid,
+                    "orderSide": side,
+                    "sessOrdID": str(orderid),
+                    "exchExecID": execid,
+                    "exchOrdID": str(orderid),
+                    "transactTime": transact_time,
+                    "executingBroker": executing_broker,
+                    "data": {
+                        "canceled": {
+                            "leaves": 0
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 class MarketDataFV(MarketData):
 
     def __init__(self, orders, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
@@ -205,18 +230,22 @@ if __name__ == "__main__":
 
             price_ref = graph.get_ref(mktdata.prices[mktdata_key])
 
+            orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
+
             if ordertif == 'ioc':
 
                 #Should we ack IOC orders?
 
                 fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
 
-                execid += 1
-                send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
+                if orderpx is None or better_price(orderside, fillpx, orderpx):
+                    execid += 1
+                    send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
+                else:
+                    execid += 1
+                    send_message(strg_canceled, channel, orderid, accid, securityid, venueid, orderside, str(execid), time_ns(), "FakeVenueFM")
 
             elif ordertif == 'day':
-
-                orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
 
                 if orderpx is None:
                     send_message(strg_fail, channel, orderid, "place", "invalid time in force for marketable order, please use ioc", time)
