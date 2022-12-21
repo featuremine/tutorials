@@ -34,16 +34,18 @@ class StrategyOrderUpdater:
         pass
 
     def update(self, upd):
-        print("attempting to update", upd)
         strg = upd["strg"]
         msg = upd["msg"]
         msgdata = getattr(msg.message, msg.message.which())
-        getattr(self, msgdata.which())(**getattr(msgdata, msgdata.which()).to_dict())
+        getattr(self, msgdata.which())(strategy=strg, **getattr(msgdata, msgdata.which()).to_dict())
 
-    def new(self, strgOrdID, accountID, securityId, venueID, orderSide, orderType, quantity, maxFloor, timeInForce, algorithm, minQty, tag):
+    def new(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, orderType, quantity, maxFloor, timeInForce, algorithm, minQty, tag):
         pass
 
-    def cancel():
+    def cancel(self, strategy, strgOrdID):
+        pass
+
+    def replace(self, strategy, strgOrdID, price, quantity):
         pass
 
 class StrategyOrderWriter:
@@ -66,7 +68,6 @@ class DelayQueue:
     def consume(self, frame):
         curr_time_ns = int(frame[0].actual.total_seconds() * 1000000000)
         while self.queue and curr_time_ns >= self.queue[0][0] + self.delay:
-            print("found element in queue that needs to be removed")
             elem = self.queue.pop(0)[1]
             for clbl in self.callbacks:
                 clbl(elem)
@@ -138,7 +139,6 @@ if __name__ == "__main__":
     def queue_push(peer, channel, time, data):
         strg = channel.name()[oms_pfx_len:]
         msg = capnp_spec.from_bytes_packed(data)
-        print("pushing to queue", {"strg": strg, "msg": msg})
         delay_queue.push({"strg": strg, "msg": msg})
 
     strg_seq.data_callback(oms_pfx, queue_push)
