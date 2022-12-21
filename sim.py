@@ -281,19 +281,13 @@ class LimitFillModel(object):
 
 class MarketDataSim(MarketData):
 
-    def __init__(self, orders, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+    def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
         super().__init__(peer, graph, prefix, period)
-        self.orders = orders
-
-    def prices_update(self, ids, frame):
-        # Fill orders if the price crosses
-        pass
 
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
+        if self.quotes:
+            return
         self.process(imnts)
-
-        for ids, quote in self.quotes.items():
-            self.graph.callback(quote, functools.partial(self.prices_update, ids=ids))
 
 class Orders:
     def __init__(self):
@@ -394,29 +388,37 @@ class OrderProcessor:
     def replace(self, channel, time, replaceorder):
         pass
 
+class AbstractOrderBook(object):
+    pass
+
+class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
+    pass
+
+class SimOrderBook(SidedPriceFIFOPriorityOrderBook):
+    pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
     args = parser.parse_args()
 
     cfg = json.load(open(args.cfg))
-    seq = ytp.sequence(cfg["state_ytp"])
-    peer = seq.peer(cfg["peer"])
-
-    #Would deploy.py be invoked before running the fake venue?
-    refbuilder = ReferenceBuilder(peer, cfg)
-    refbuilder.write()
-
-    state_seq = ytp.sequence(cfg["state_ytp"], readonly=True)
-
-    refdata = ReferenceData(state_seq, cfg)
 
     graph = extractor.system.comp_graph()
+    op = graph.features
 
-    orders = defaultdict(Orders)
+    state_seq = ytp.sequence(cfg["state_ytp"], readonly=True)
+    state_peer = state_seq.peer(cfg["peer"])
+    op.ytp_sequence(state_seq, timedelta(microseconds=1))
 
-    mktdata = MarketDataSim(orders, peer, graph)
+    strg_seq = ytp.sequence(cfg["strg_ytp"], readonly=True)
+    strg_peer = strg_seq.peer(cfg["peer"])
+    op.ytp_sequence(strg_seq, timedelta(microseconds=1))
 
+    graph.features.ytp_sequence()
+    mktdata = MarketDataSim(state_peer, graph)
+
+    refdata = ReferenceData(state_seq, cfg)
     def refdata_cb(delta):
         # Subscribe to market data
         # make sure we dont subscribe more than once per pair
@@ -428,95 +430,29 @@ if __name__ == "__main__":
                 symbol = refdata.state.securities[secid].symbol
                 imnts[(venid, secid)] = (market, symbol)
         mktdata.subscribe(imnts)
-
     refdata.add_callback(refdata_cb)
+
+    orders = SimOrderBook()
+
+    updater = StrategyOrderUpdater(orders)
+    writer = StrategyOrderWriter()
+
+    fillmodel = FillModel(mktdata, orders)
+
+    # subscribe order
+    # Set up callbacks for market data updates
+
+    delay_queue = DelayQueue(graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
+    delay_queue.callback(updater.update)
+
+    oms_pfx = f'{cfg["strg_pfx"]}/{cfg["OMS_name"]}/'
+    oms_pfx_len = len(oms_pfx)
+    def queue_push(peer, channel, time, data):
+        strg = channel.name()[oms_pfx_len:]
+        delay_queue.push({strg: strg, msg: msg})
+
+    strg_seq.data_callback(oms_pfx, queue_push)
 
     refdata.poll()
 
-    # Set up callbacks for market data updates
-
-    execid = 1
-
-    def send_message(msg_builder, channel, *args, **kwargs):
-        requestch = channel.name()
-        requestsplit = requestch.split("/")
-        responsech = requestsplit[-3].join("/") + "/" + requestsplit[-1] + "/" + requestsplit[-2]
-
-        publishing_stream = peer.stream(peer.channel(time_ns(), responsech))
-        response = capnp_spec.new_message()
-        msg_dict = msg_builder(*args, **kwargs)
-        response.from_dict(msg_dict)
-        encoded_response = response.to_bytes_packed()
-        publishing_stream.write(time_ns(), encoded_response)
-
-    def response_callback(peer, channel, time, data):
-        message = capnp_spec.from_bytes_packed(data)
-
-        if message.message.which() != "strg":
-            return
-
-        if message.message.strg.which() == "new":
-            neworder = message.message.strg.new
-
-            venueid = neworder.venueID
-            securityid = neworder.securityId
-
-            orderid = neworder.strgOrdID
-
-            mktdata_key = (venueid, securityid)
-
-            ords = orders[mktdata_key]
-
-            if ords.count(orderid) > 0:
-                send_message(strg_fail, channel, orderid, "place", "duplicated order identifier", time)
-                return
-
-            if mktdata_key not in mktdata.prices:
-                send_message(strg_fail, channel, orderid, "place", "price not available for security in provided venue", time)
-                return
-
-            ordertif = neworder.timeInForce.which()
-            orderqty = neworder.orderQty
-            orderside = "buy" if neworder.side.which() == "buy" else "sell"
-
-            price_ref = graph.get_ref(mktdata.prices[mktdata_key])
-
-            orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
-
-            if ordertif == 'ioc':
-
-                #Should we ack IOC orders?
-
-                fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
-
-                if orderpx is None or not better_price(orderside, orderpx, fillpx):
-                    execid += 1
-                    send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "SimulatorFM")
-                else:
-                    execid += 1
-                    send_message(strg_canceled, channel, orderid, accid, securityid, venueid, orderside, str(execid), time_ns(), "SimulatorFM")
-
-            elif ordertif == 'day':
-
-                if orderpx is None:
-                    send_message(strg_fail, channel, orderid, "place", "invalid time in force for marketable order, please use ioc", time)
-                    return
-
-                execid += 1
-                send_message(strg_placed, channel, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "SimulatorFM")
-                
-                getattr(ords[orderpx], orderside).append(Order(identifier=orderid, price=orderpx, origqty=orderqty, outstandingqty=orderqty, side=orderside))
-
-        elif message.message.strg.which() == "cancel":
-            # handle order cancel
-            pass
-
-        else:
-            # handle order replace
-            pass
-
-    # Remove last character to keep configs compliant with oms config which expects "/" at the end
-    seq.data_callback(cfg["strategy_prefix"], response_callback)
-
-    # Run context for graph
     graph.stream_ctx().run_live()
