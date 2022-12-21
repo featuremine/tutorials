@@ -8,6 +8,9 @@ from typing import Dict, Tuple, NamedTuple, Optional
 from datetime import timedelta
 from collections import deque, defaultdict
 import functools
+from bisect import insort, bisect_left
+from logging import getLogger
+from datetime import timedelta
 from conveyor.utils import schemas
 capnp_spec = schemas.strategy.ManagerMessage
 
@@ -116,6 +119,166 @@ def strg_canceled(orderid, accid, securityid, venueid, side, execid, transact_ti
         }
     }
 
+
+def QueuedOrderComp(first, second):
+    if first.side == "buy":
+        if first.price < second.price:
+            return 1
+        elif first.price > second.price:
+            return -1
+    else:
+        if first.price > second.price:
+            return 1
+        elif first.price < second.price:
+            return -1
+    if first.time > second.time:
+        return 1
+    if first.time < second.time:
+        return -1
+    return 0
+
+
+class QueuedOrder(object):
+    def __init__(self, now, identifier: int, px: float, qty: float, side, security, venue, account, responder):
+        self.time = now
+        self.identifier = identifier
+        self.px = px
+        self.qty = qty
+        self.leaves = qty
+        self.side = side
+        self.securityid = security
+        self.venueid = venue
+        self.account = account
+        self.responder = responder
+
+    def __gt__(self, other):
+        return QueuedOrderComp(self, other) == 1
+
+    def __lt__(self, other):
+        return QueuedOrderComp(self, other) == -1
+
+    def send_message(msg_builder, *args, **kwargs):
+        response = capnp_spec.new_message()
+        msg_dict = msg_builder(*args, **kwargs)
+        response.from_dict(msg_dict)
+        encoded_response = response.to_bytes_packed()
+        self.responder.write(time_ns(), encoded_response)
+
+    def placed(self, execution_id) -> None:
+        send_message(strg_placed, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), self.px, self.qty, time_ns(), "SimulatorFM")
+
+    def filled(self, px, qty, execution_id) -> None:
+        send_message(strg_filled, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), px, qty, time_ns(), "SimulatorFM")
+
+    def canceled(self, execution_id) -> None:
+        send_message(strg_canceled, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), time_ns(), "SimulatorFM")
+
+    def failed(self, reason) -> None:
+        send_message(strg_fail, self.identifier, "place", reason, self.time)
+
+class LimitFillModel(object):
+    def __init__(self): #probably should use venue as an argument
+        self.bids_q = {}
+        self.asks_q = {}
+
+    def trade(self, venue_symbol, mkt, frame):
+        symbol = venue_symbol["symbol"]
+        px = frame[0].price
+        qty = frame[0].qty
+        side = frame[0].side
+
+        def fill(symbol, price, quantity, side, ords, worse):
+            while ords:
+                o = ords[0]
+
+                if quantity == 0 or worse(o.price, price):
+                    break
+
+                filled = min(quantity, o.leaves)
+                o.leaves = o.leaves - filled
+                quantity = quantity - filled
+                if o.leaves == 0:
+                    self.log.info("Order filled completely %s" % o)
+                    ords.pop(0)
+                o.filled(price, filled, 1)
+
+        if side != 1:
+            if symbol in self.bids_q:
+                fill(symbol, px, qty, side, self.bids_q[symbol], lambda x, y: x < y)
+        if side != 2:
+            if symbol in self.asks_q:
+                fill(symbol, px, qty, side, self.asks_q[symbol], lambda x, y: x > y)
+
+    def place(self, order):
+        order.placed()
+
+        if order.side == "buy":
+            if order.symbol not in self.bids_q:
+                self.bids_q[order.symbol] = []
+            insort(self.bids_q[order.symbol], QueuedOrder(self.platform.clock.now(), order=order))
+        else:
+            if order.symbol not in self.asks_q:
+                self.asks_q[order.symbol] = []
+            insort(self.asks_q[order.symbol], QueuedOrder(self.platform.clock.now(), order=order))
+
+    def cancel(self, order):
+        def q_cancel():
+            self.log.info("received cancelation on %s for order %s with with id %i" % (self.name, order, order.id))
+            if not order.alive():
+                order.cancel_rej()
+                return
+            # test cancel_failed
+            if order.id == 1013:
+                if self.cancel_failed_count == 0:
+                    self.cancel_failed_count += 1
+                    self.log.info("order cancel_failed for order {}".format(order))
+                    order.cancel_failed()
+                else:
+                    self.log.info("order {} canceled".format(order))
+                    order.canceled()
+            else:
+                self.log.info("order {} canceled".format(order))
+                order.canceled()
+
+            symbol = order.symbol
+            if order.side == "buy":
+                if symbol not in self.bids_q:
+                    return
+                idx = bisect_left(
+                    self.bids_q[symbol],
+                    QueuedOrder(
+                        timedelta(
+                            seconds=0),
+                        price=order.price,
+                        qty=0,
+                        side="buy",
+                        id=0))
+                ords = self.bids_q[symbol]
+            else:
+                if symbol not in self.asks_q:
+                    return
+                idx = bisect_left(
+                    self.asks_q[symbol],
+                    QueuedOrder(
+                        timedelta(
+                            seconds=0),
+                        price=order.price,
+                        qty=0,
+                        side="SELL/SELLSHORT",
+                        id=0))
+                ords = self.asks_q[symbol]
+
+            for x in range(idx, len(ords)):
+                o = ords[x]
+                if (order.id == o.id):
+                    ords.pop(x)
+                    return
+
+            assert("This should never happen")
+
+        self.platform.timer.schedule_once(self.platform.clock.now() + timedelta(milliseconds=50), q_cancel)
+        return True
+
 class MarketDataFV(MarketData):
 
     def __init__(self, orders, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
@@ -131,12 +294,6 @@ class MarketDataFV(MarketData):
 
         for ids, quote in self.quotes.items():
             self.graph.callback(quote, functools.partial(self.prices_update, ids=ids))
-
-class Order(NamedTuple):
-    identifier: int
-    price: float
-    origqty: float
-    outstandingqty: float
 
 class Orders:
     def __init__(self):
@@ -245,10 +402,10 @@ if __name__ == "__main__":
 
                 if orderpx is None or not better_price(orderside, orderpx, fillpx):
                     execid += 1
-                    send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "FakeVenueFM")
+                    send_message(strg_filled, channel, orderid, accid, securityid, venueid, orderside, str(execid), fillpx, orderqty, time_ns(), "SimulatorFM")
                 else:
                     execid += 1
-                    send_message(strg_canceled, channel, orderid, accid, securityid, venueid, orderside, str(execid), time_ns(), "FakeVenueFM")
+                    send_message(strg_canceled, channel, orderid, accid, securityid, venueid, orderside, str(execid), time_ns(), "SimulatorFM")
 
             elif ordertif == 'day':
 
@@ -257,7 +414,7 @@ if __name__ == "__main__":
                     return
 
                 execid += 1
-                send_message(strg_placed, channel, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "FakeVenueFM")
+                send_message(strg_placed, channel, orderid, accid, securityid, venueid, orderside, str(execid), orderpx, orderqty, time_ns(), "SimulatorFM")
                 
                 getattr(ords[orderpx], orderside).append(Order(identifier=orderid, price=orderpx, origqty=orderqty, outstandingqty=orderqty, side=orderside))
 
