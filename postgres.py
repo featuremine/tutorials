@@ -16,7 +16,7 @@
 """
 
 """
- * @file bars2postgresql.py
+ * @file postgres.py
  * @date 20 Oct 2022
  * @brief Populate a PostgreSQL database with bars data from extractor
  */
@@ -26,6 +26,7 @@ import os
 import functools
 import extractor
 from yamal import ytp
+from conveyor.utils import schemas
 from datetime import timedelta, date, datetime
 import psycopg2
 import time
@@ -64,7 +65,8 @@ if __name__ == "__main__":
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
     parser.add_argument("--host", help="postgreSQL database host", required=False, default="127.0.0.1")
     parser.add_argument("--port", help="postgreSQL database port", required=False, default="5432")
-    parser.add_argument("--ytp", help="YTP file with market data in ORE format", required=True)
+    parser.add_argument("--ytpmarket", help="YTP file with market data in ORE format", required=True)
+    parser.add_argument("--ytporders", help="YTP file with orders data in capnp format", required=True)
     parser.add_argument("--peer", help="YTP peer reader", required=False, default="feed_handler")
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
@@ -108,7 +110,7 @@ if __name__ == "__main__":
                    ("receive", extractor.Time64))
 
     # Wait until the YTP file is created
-    while not os.path.exists(args.ytp):
+    while not os.path.exists(args.ytpmarket):
         time.sleep(0.1)
 
     # Connect to PostgreSQL database
@@ -242,7 +244,7 @@ if __name__ == "__main__":
     def compute_bars(op, quotes, trades, times):
         return [compute_bar(op, quote, trd, ven) for quote, trd, ven, in zip(quotes, trades, times)]
 
-    seq = ytp.sequence(args.ytp)
+    seq = ytp.sequence(args.ytpmarket)
     op.ytp_sequence(seq, timedelta(milliseconds=1))
     peer = seq.peer(args.peer)
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
@@ -269,6 +271,17 @@ if __name__ == "__main__":
     # Add a callback for each bar that corresponds to a market/instrument pair
     for bar, mi, trade in zip(bars, mktimnt, trades):
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
+
+    # Orders
+    def orders2db(peer, channel, time, data):
+        d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        print(d)
+    
+    channelsorders = [ "strgs/oms1/client1" ]
+    seqorders = ytp.sequence(args.ytporders)
+    for ch in channelsorders:
+        seqorders.data_callback(ch, orders2db)
+    op.ytp_sequence(seqorders, timedelta(milliseconds=1))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
