@@ -274,35 +274,39 @@ if __name__ == "__main__":
 
     # Orders
     cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS orders
+    CREATE TABLE IF NOT EXISTS orders_new
     (
-        order_id SERIAL PRIMARY KEY NOT NULL,
-        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
-        strgordid INT NOT NULL UNIQUE,
+        order_id INT PRIMARY KEY NOT NULL,
+        time TIMESTAMP WITHOUT TIME ZONE,
         side VARCHAR(8),
         price NUMERIC NOT NULL,
-        quantity NUMERIC NOT NULL
+        quantity NUMERIC NOT NULL,
+        seqnum INT NOT NULL UNIQUE,
+        yamalsequence INT NOT NULL UNIQUE
     )
     """)
     conn.commit()
     
+    # TODO: Get the yamal sequence number
     def orders2db(peer, channel, time, data):
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
+        print(datetime.fromtimestamp(time/1000000000))
         if 'message' in d:
             if 'strg' in d['message']:
                 if 'new' in d['message']['strg']:
                     ord = d['message']['strg']['new']
                     print(ord['strgOrdID'])
                     cmd = f"""
-                    INSERT INTO orders (strgordid,side,price,quantity) VALUES
-                    ({ord['strgOrdID']},'{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']})
-                    ON CONFLICT (strgordid)
-                    DO UPDATE SET (strgordid,side,price,quantity) = ({ord['strgOrdID']},'{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']})
+                    INSERT INTO orders_new (order_id,time,side,price,quantity,seqnum,yamalsequence) VALUES
+                    ({ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}','{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']},{d['seqnum']},{d['seqnum']})
+                    ON CONFLICT (yamalsequence)
+                    DO NOTHING
                     """
                     cur.execute(cmd)
                     conn.commit()
     
+    # TODO: proper channels
     channelsorders = [ "strgs/oms1/client1" ]
     seqorders = ytp.sequence(args.ytporders)
     for ch in channelsorders:
