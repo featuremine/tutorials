@@ -273,9 +273,35 @@ if __name__ == "__main__":
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
 
     # Orders
+    cur.execute(f"""
+    CREATE TABLE IF NOT EXISTS orders
+    (
+        order_id SERIAL PRIMARY KEY NOT NULL,
+        timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
+        strgordid INT NOT NULL UNIQUE,
+        side VARCHAR(8),
+        price NUMERIC NOT NULL,
+        quantity NUMERIC NOT NULL
+    )
+    """)
+    conn.commit()
+    
     def orders2db(peer, channel, time, data):
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
+        if 'message' in d:
+            if 'strg' in d['message']:
+                if 'new' in d['message']['strg']:
+                    ord = d['message']['strg']['new']
+                    print(ord['strgOrdID'])
+                    cmd = f"""
+                    INSERT INTO orders (strgordid,side,price,quantity) VALUES
+                    ({ord['strgOrdID']},'{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']})
+                    ON CONFLICT (strgordid)
+                    DO UPDATE SET (strgordid,side,price,quantity) = ({ord['strgOrdID']},'{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']})
+                    """
+                    cur.execute(cmd)
+                    conn.commit()
     
     channelsorders = [ "strgs/oms1/client1" ]
     seqorders = ytp.sequence(args.ytporders)
