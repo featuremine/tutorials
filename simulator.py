@@ -157,20 +157,20 @@ class QueuedOrder(object):
     def __lt__(self, other):
         return QueuedOrderComp(self, other) == -1
 
-    def send_message(msg_builder, *args, **kwargs):
+    def send_message(self, msg_builder, *args, **kwargs):
         response = capnp_spec.new_message()
         msg_dict = msg_builder(*args, **kwargs)
         response.from_dict(msg_dict)
         encoded_response = response.to_bytes_packed()
         self.responder.write(time_ns(), encoded_response)
 
-    def placed(self, execution_id) -> None:
+    def placed(self, execution_id = 0) -> None:
         send_message(strg_placed, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), self.px, self.qty, time_ns(), "SimulatorFM")
 
-    def filled(self, px, qty, execution_id) -> None:
+    def filled(self, px, qty, execution_id = 0) -> None:
         send_message(strg_filled, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), px, qty, time_ns(), "SimulatorFM")
 
-    def canceled(self, execution_id) -> None:
+    def canceled(self, execution_id = 0) -> None:
         send_message(strg_canceled, self.identifier, self.accid, self.securityid, self.venueid, self.side, str(execution_id), time_ns(), "SimulatorFM")
 
     def failed(self, reason) -> None:
@@ -279,7 +279,7 @@ class LimitFillModel(object):
         self.platform.timer.schedule_once(self.platform.clock.now() + timedelta(milliseconds=50), q_cancel)
         return True
 
-class MarketDataFV(MarketData):
+class MarketDataSim(MarketData):
 
     def __init__(self, orders, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
         super().__init__(peer, graph, prefix, period)
@@ -305,6 +305,70 @@ def better_price(side, px, other):
         return px < other
     return other < px
 
+class OrderProcessor:
+
+    def __init__(self, peer, orders):
+        self.peer = peer
+        self.orders = orders
+
+    def gen_responder(channel):
+        requestch = channel.name()
+        requestsplit = requestch.split("/")
+        responsech = requestsplit[-3].join("/") + "/" + requestsplit[-1] + "/" + requestsplit[-2]
+        return self.peer.stream(self.peer.channel(time_ns(), responsech))
+
+    def new(self, channel, time, neworder):
+
+        orderid = neworder.strgOrdID
+        venueid = neworder.venueID
+        securityid = neworder.securityId
+        accountid = neworder.accountID
+        ordertif = neworder.timeInForce.which()
+        orderqty = neworder.orderQty
+        orderside = "buy" if neworder.side.which() == "buy" else "sell"
+        orderpx = neworder.ordType.limit if neworder.ordType.which() == "limit" else None
+
+        order = QueuedOrder(time, orderid, orderpx, orderqty, side, securityid, venueid, accountid, self.gen_responder(channel))
+
+        mktdata_key = (venueid, securityid)
+
+        # ords = orders[mktdata_key]
+
+        # if ords.count(orderid) > 0:
+        #     order.failed("duplicated order identifier")
+        #     return
+
+        if mktdata_key not in mktdata.prices:
+            order.failed("price not available for security in provided venue")
+            return
+
+        price_ref = graph.get_ref(mktdata.prices[mktdata_key])
+
+        if ordertif == 'ioc':
+
+            #Should we ack IOC orders?
+
+            fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
+
+            if orderpx is None or not better_price(orderside, orderpx, fillpx):
+                order.filled(fillpx, orderqty)
+            else:
+                order.canceled(0)
+
+        elif ordertif == 'day':
+
+            if orderpx is None:
+                order.failed("invalid time in force for marketable order, please use ioc")
+                return
+
+            fillmodel.place(order)
+
+    def cancel(self, channel, time, cancelorder):
+        pass
+
+    def replace(self, channel, time, replaceorder):
+        pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -326,7 +390,7 @@ if __name__ == "__main__":
 
     orders = defaultdict(Orders)
 
-    mktdata = MarketDataFV(orders, peer, graph)
+    mktdata = MarketDataSim(orders, peer, graph)
 
     def refdata_cb(delta):
         # Subscribe to market data
@@ -350,7 +414,7 @@ if __name__ == "__main__":
 
     def send_message(msg_builder, channel, *args, **kwargs):
         requestch = channel.name()
-        responsesplit = requestch.split("/")
+        requestsplit = requestch.split("/")
         responsech = requestsplit[-3].join("/") + "/" + requestsplit[-1] + "/" + requestsplit[-2]
 
         publishing_stream = peer.stream(peer.channel(time_ns(), responsech))
