@@ -15,6 +15,29 @@ from datetime import timedelta
 from conveyor.utils import schemas
 capnp_spec = schemas.strategy.ManagerMessage
 
+# Simulator
+# message    ->     DelayQueue
+#                       |
+#             StrategyMessageUpdater
+#                       |
+#                    Orders           ->          Fillmodel     -> response 
+
+
+# message    ->   StrategyMessageUpdater
+#                       |
+#                    Orders           ->        PostgressUpdater
+
+
+# message    ->  StrategyMessageUpdater
+#                       |
+#                    Orders           ->        GUIUpdater
+
+# message    ->  StrategyMessageUpdater
+#                       |
+#                    Orders           ->        Accounts    -> Strategy -> yamal
+
+# in C we need to implement event queue and subscription and timers
+
 def time_ns():
     return int(pytime.time() * 1000000000)
 
