@@ -279,7 +279,7 @@ class LimitFillModel(object):
         self.platform.timer.schedule_once(self.platform.clock.now() + timedelta(milliseconds=50), q_cancel)
         return True
 
-class MarketDataFV(MarketData):
+class MarketDataSim(MarketData):
 
     def __init__(self, orders, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
         super().__init__(peer, graph, prefix, period)
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 
     orders = defaultdict(Orders)
 
-    mktdata = MarketDataFV(orders, peer, graph)
+    mktdata = MarketDataSim(orders, peer, graph)
 
     def refdata_cb(delta):
         # Subscribe to market data
