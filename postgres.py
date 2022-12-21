@@ -287,11 +287,12 @@ if __name__ == "__main__":
     """)
     conn.commit()
     
-    # TODO: Get the yamal sequence number
+    yamalsequence = 0
     def orders2db(peer, channel, time, data):
+        global yamalsequence
+        yamalsequence += 1
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
-        print(datetime.fromtimestamp(time/1000000000))
         if 'message' in d:
             if 'strg' in d['message']:
                 if 'new' in d['message']['strg']:
@@ -299,7 +300,7 @@ if __name__ == "__main__":
                     print(ord['strgOrdID'])
                     cmd = f"""
                     INSERT INTO orders_new (order_id,time,side,price,quantity,seqnum,yamalsequence) VALUES
-                    ({ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}','{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']},{d['seqnum']},{d['seqnum']})
+                    ({ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}','{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']},{d['seqnum']},{yamalsequence})
                     ON CONFLICT (yamalsequence)
                     DO NOTHING
                     """
