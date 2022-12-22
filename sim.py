@@ -78,10 +78,11 @@ def QueuedOrderComp(first, second):
     return 0
 
 class QueuedOrder(object):
-    def __init__(self, now, px: float, qty: float, info):
+    def __init__(self, now, px: float, qty: float, side, info):
         self.time = now
         self.px = px
         self.qty = qty
+        self.side = side
         self.info = info
 
     def __gt__(self, other):
@@ -98,8 +99,7 @@ class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
         self.pxcmp = (lambda x, y: x < y, lambda x, y: x > y)
 
     def add(self, key, px, qty, side, info):
-
-        insort(self._order_heap[1 * side == "buy"], QueuedOrder(time_ns(), px, qty, info))
+        insort(self._order_heap[1 * side == "buy"], QueuedOrder(time_ns(), px, qty, side, info))
 
     def __getitem__(self, key):
         raise NotImplementedError('not implemented')
