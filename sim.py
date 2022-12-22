@@ -43,12 +43,6 @@ def time_ns():
     return int(pytime.time() * 1000000000)
 
 class AbstractOrderBook:
-    def __init__(self):
-        self._order_dict = dict()
-        # order heap is am array sorted by price time priority
-        self._order_heap[0] = []
-        self._order_heap[1] = []
-        self.pxcmp = (bidcmp, askcmp)
 
     def add(key, px, qty, side, info):
         raise NotImplementedError('not implemented')
@@ -63,7 +57,12 @@ class AbstractOrderBook:
         pass
 
 class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
-    pass
+    def __init__(self):
+        self._order_dict = dict()
+        # order heap is am array sorted by price time priority
+        self._order_heap[0] = []
+        self._order_heap[1] = []
+        self.pxcmp = (bidcmp, askcmp)
 
 class MarketDataSim(MarketData):
 
