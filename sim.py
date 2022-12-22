@@ -44,11 +44,11 @@ def time_ns():
 
 class AbstractOrderBook:
 
-    def add(key, px, qty, side, info):
+    def add(self, key, px, qty, side, info):
         raise NotImplementedError('not implemented')
 
     def __getitem__(self, key):
-        pass
+        raise NotImplementedError('not implemented')
 
     def bid(self):
         return self.side(0)
@@ -59,13 +59,50 @@ class AbstractOrderBook:
     def side(self, i):
         raise NotImplementedError('not implemented')
 
+
+def QueuedOrderComp(first, second):
+    if first.side == "buy":
+        if first.px < second.px:
+            return 1
+        elif first.px > second.px:
+            return -1
+    else:
+        if first.px > second.px:
+            return 1
+        elif first.px < second.px:
+            return -1
+    if first.time > second.time:
+        return 1
+    if first.time < second.time:
+        return -1
+    return 0
+
+class QueuedOrder(object):
+    def __init__(self, now, px: float, qty: float, info):
+        self.time = now
+        self.px = px
+        self.qty = qty
+        self.info = info
+
+    def __gt__(self, other):
+        return QueuedOrderComp(self, other) == 1
+
+    def __lt__(self, other):
+        return QueuedOrderComp(self, other) == -1
+
 class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
     def __init__(self):
         self._order_dict = dict()
-        # order heap is am array sorted by price time priority
-        self._order_heap[0] = []
-        self._order_heap[1] = []
-        self.pxcmp = (bidcmp, askcmp)
+        # each order heap is an array sorted by price time priority
+        self._order_heap = ([], [])
+        self.pxcmp = (lambda x, y: x < y, lambda x, y: x > y)
+
+    def add(self, key, px, qty, side, info):
+
+        insort(self._order_heap[1 * side == "buy"], QueuedOrder(time_ns(), px, qty, info))
+
+    def __getitem__(self, key):
+        raise NotImplementedError('not implemented')
 
     def side(self, i):
         return self._order_heap[i]
@@ -86,14 +123,61 @@ class MarketDataSim(MarketData):
     def quote_callback(self, imnt, venue, call):
         pass
 
+
+def strg_placed(orderid, accid, securityid, venueid, side, execid, price, quantity, transact_time, executing_broker):
+    return {
+        "message": {
+            "sess": {
+                "exec": {
+                    "strgOrdID": orderid,
+                    "accountID": accid,
+                    "securityId": securityid,
+                    "venueID": venueid,
+                    "orderSide": side,
+                    "sessOrdID": str(orderid),
+                    "exchExecID": execid,
+                    "exchOrdID": str(orderid),
+                    "transactTime": transact_time,
+                    "executingBroker": executing_broker,
+                    "data": {
+                        "placed": {
+                            "orderType": {
+                                "market": None
+                            } if price is None else {
+                                "limit": price
+                            },
+                            "orderQuantity": quantity
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 class StrategyOrderWriter:
-    pass
+    def __init__(self, stream):
+        self.stream = stream
+        self.execid = 0
+
+    def send_message(self, msg_builder, *args, **kwargs):
+        response = capnp_spec.new_message()
+        msg_dict = msg_builder(*args, **kwargs)
+        response.from_dict(msg_dict)
+        encoded_response = response.to_bytes_packed()
+        self.stream.write(time_ns(), encoded_response)
+
+    def placed(self, px, qty, side, info):
+        self.execid += 1
+        self.send_message(strg_placed, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
 class FillModel(AbstractOrderBook):
-    def __init__(self, mktdata):
-        pass
+    def __init__(self, responder):
+        self.book = SidedPriceFIFOPriorityOrderBook()
+        self.responder = responder
 
     def add(self, key, px, qty, side, info):
+        print("adding order", key, px, qty, side, info)
         if px is None:
             #execute market order
             pass
@@ -105,7 +189,8 @@ class FillModel(AbstractOrderBook):
             pass
         else:
             #please the rest on the book
-            pass
+            self.book.add(key, px, qty, side, info)
+            self.responder.placed(px, qty, side, info)
 
     def mkt_upd(self, frame):
         pass
@@ -118,13 +203,10 @@ class StrategyOrderUpdater:
 
     def update(self, upd):
         msg = upd["msg"]
-        print("message is ", msg)
         msgdata = getattr(msg.message, msg.message.which())
         specdata = getattr(msgdata, msgdata.which())
         if not hasattr(specdata, 'strgOrdID'):
-            print("leaving", specdata)
             return
-        print("processing")
         bookkey = self.mapper(upd)
         book = self.books[bookkey]
         ordkey = (upd["strg"], specdata.strgOrdID)
@@ -223,13 +305,17 @@ class DelayQueue:
     def callback(self, clbl):
         self.callbacks.append(clbl)
 
-class FillModels(defaultdict):
-    def __init__(self, mktdata):
-        super().__init__(lambda : FillModel(self.mktdata))
+class FillModels(dict):
+    def __init__(self, mktdata, peer, strg_pfx, oms_name):
+        super().__init__()
         self.mktdata = mktdata
+        self.peer = peer
+        self.strg_pfx = strg_pfx
+        self.oms_name = oms_name
 
     def __missing__(self, key):
-        obj = super().__missing__(key)
+        stream = self.peer.stream(self.peer.channel(time_ns(), self.strg_pfx + key.strategy + "/" + self.oms_name))
+        obj = self[key] = FillModel(StrategyOrderWriter(stream))
         self.mktdata.trade_callback(key.imnt, key.venue, obj.mkt_upd)
         return obj
 
@@ -267,7 +353,9 @@ if __name__ == "__main__":
         mktdata.subscribe(imnts)
     refdata.add_callback(refdata_cb)
 
-    fillmodels = FillModels(mktdata)
+    strg_pfx = f'{cfg["strg_pfx"]}'
+    oms_name = cfg["oms_name"]
+    fillmodels = FillModels(mktdata, strg_peer, strg_pfx, oms_name)
 
     class Key(NamedTuple):
         strategy: str
@@ -282,7 +370,6 @@ if __name__ == "__main__":
         return Key(strategy=upd['strg'], account=specdata.accountID, imnt=specdata.securityId, venue=specdata.venueID)
 
     updater = StrategyOrderUpdater(mapper, fillmodels)
-    writer = StrategyOrderWriter()
 
     # subscribe order
     # Set up callbacks for market data updates
@@ -290,9 +377,7 @@ if __name__ == "__main__":
     delay_queue = DelayQueue(graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
     delay_queue.callback(updater.update)
 
-    strg_pfx = f'{cfg["strg_pfx"]}'
     strg_pfx_len = len(strg_pfx)
-    oms_name = cfg["oms_name"]
     oms_name_len = len(oms_name)
 
     def queue_push(peer, channel, time, data):
