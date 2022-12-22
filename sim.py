@@ -71,6 +71,61 @@ class StrategyOrderUpdater:
     def replace(self, strategy, strgOrdID, price, quantity):
         pass
 
+    def failed(self, strategy, strgOrdID, type, reason, requestTime, tag):
+        pass
+
+    def exec(self, data, **execargs):
+        for exectype, execdata in data.items():
+            if execdata is None:
+                getattr(self, exectype)(**execargs)
+            else:
+                getattr(self, exectype)(**execargs, **execdata)
+
+    def placed(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, orderType, orderQuantity):
+        pass
+
+    def replaced(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, orderType, orderQuantity):
+        pass
+
+    def partiallyFilled(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, lastQuantity, lastPrice, lastFees, liquidityCode, cumQty, leaves, avgPx, lastMkt):
+        pass
+
+    def filled(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, lastQuantity, lastPrice, lastFees, liquidityCode, cumQty, leaves, avgPx, lastMkt):
+        pass
+
+    def rejected(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, reason):
+        pass
+
+    def doneForDay(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, leaves):
+        pass
+
+    def canceled(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, leaves):
+        pass
+
+    def expired(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, leaves):
+        pass
+
+    def pendingNew(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime):
+        pass
+
+    def pendingCancel(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime):
+        pass
+
+    def pendingReplace(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime):
+        pass
+
+    def correction(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID):
+        pass
+
+    def bust(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID):
+        pass
+
+    def restated(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx):
+        pass
+
+    def status(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx):
+        pass
+
 class StrategyOrderWriter:
     pass
 
