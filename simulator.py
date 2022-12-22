@@ -305,6 +305,31 @@ def better_price(side, px, other):
         return px < other
     return other < px
 
+# Simulator
+# message    ->     DelayQueue
+#                       |
+#             StrategyMessageUpdater
+#                       |
+#                    Orders           ->          Fillmodel     -> response 
+
+
+# message    ->   StrategyMessageUpdater
+#                       |
+#                    Orders           ->        PostgressUpdater
+
+
+# message    ->  StrategyMessageUpdater
+#                       |
+#                    Orders           ->        GUIUpdater
+
+# message    ->  StrategyMessageUpdater
+#                       |
+#                    Orders           ->        Accounts    -> Strategy -> yamal
+
+# in C we need to implement event queue and subscription and timers
+
+
+
 class OrderProcessor:
 
     def __init__(self, peer, orders):
