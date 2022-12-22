@@ -144,10 +144,12 @@ class MarketDataSim(MarketData):
         self.process(imnts)
 
     def trade_callback(self, imnt, venue, call):
-        pass
+        key = (venue, imnt)
+        self.graph.callback(self.trades[key], call)
 
     def quote_callback(self, imnt, venue, call):
-        pass
+        key = (venue, imnt)
+        self.graph.callback(self.quotes[key], call)
 
 
 def strg_placed(orderid, accid, securityid, venueid, side, execid, price, quantity, transact_time, executing_broker):
@@ -383,10 +385,10 @@ class StrategyOrderUpdater:
         pass
 
     def partiallyFilled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
-        book.fill(key=ordkey, px=lastPrice, qty=lastQuantity, side=orderSide, info=kwargs)
+        book.cancel(key=ordkey, qty=lastQuantity, side=orderSide, info=kwargs)
 
     def filled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
-        book.fill(key=ordkey, px=lastPrice, qty=lastQuantity, side=orderSide, info=kwargs)
+        book.cancel(key=ordkey, qty=lastQuantity, side=orderSide, info=kwargs)
 
     def failed(self, ordkey, book, **kwargs):
         if kwargs["type"] != "place":
