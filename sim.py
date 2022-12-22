@@ -38,8 +38,16 @@ capnp_spec = schemas.strategy.ManagerMessage
 
 # in C we need to implement event queue and subscription and timers
 
+
 def time_ns():
     return int(pytime.time() * 1000000000)
+
+class AbstractOrderBook:
+    def add(key, px, qty, side, info):
+        raise NotImplementedError('not implemented')
+
+class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
+    pass
 
 class MarketDataSim(MarketData):
 
@@ -51,28 +59,48 @@ class MarketDataSim(MarketData):
             return
         self.process(imnts)
 
+    def callback(self, imnt, venue, call):
+        pass
+
+class StrategyOrderWriter:
+    pass
+
+class FillModel(AbstractOrderBook):
+    def __init__(self, mktdata, orders):
+        pass
+
+    def add(key, px, qty, side, info):
+        if px is None:
+            #execute market order
+            pass
+
+        #check whether it can be executed immideately
+
+        if info['timeInForce'] == 'IOC':
+            #cancel what is left
+            pass
+        else:
+            #please the rest on the book
+            pass
+
 class StrategyOrderUpdater:
 
-    def __init__(self, orders):
+    def __init__(self, mapper: callable[dict, any], books: dict[AbstractOrderBook]):
         pass
 
     def update(self, upd):
-        strg = upd["strg"]
         msg = upd["msg"]
         msgdata = getattr(msg.message, msg.message.which())
-        getattr(self, msgdata.which())(strategy=strg, **getattr(msgdata, msgdata.which()).to_dict())
+        if not 'StrgOrdID' in msgdata:
+            return
+        bookkey = self.mapper(upd)
+        book = self.books[bookkey]
+        ordkey = (upd["strg"], msgdata['StrgOrdID'])
+        getattr(self, msgdata.which())(ordkey, book, **getattr(msgdata, msgdata.which()).to_dict())
 
-    def heartbeat(self, strategy, session):
-        pass
-
-    def logon(self, strategy, session, interval):
-        pass
-
-    def logout(self, strategy, session):
-        pass
-
-    def new(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, orderType, quantity, maxFloor, timeInForce, algorithm, minQty, tag):
-        pass
+    def new(self, ordkey, book, orderType, quantity, side,  **kwargs):
+        px = None if 'market' in orderType else orderType['limit']
+        book.add(ordkey, px=px, qty=quantity, side=side, info=kwargs)
 
     def cancel(self, strategy, strgOrdID):
         pass
@@ -141,14 +169,6 @@ class StrategyOrderUpdater:
     def status(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx):
         pass
 
-class StrategyOrderWriter:
-    pass
-
-class FillModel:
-
-    def __init__(self, mktdata, orders):
-        pass
-
 class DelayQueue:
 
     def __init__(self, graph, delay):
@@ -159,26 +179,22 @@ class DelayQueue:
         self.callbacks = []
 
     def consume(self, frame):
-        curr_time_ns = int(frame[0].actual.total_seconds() * 1000000000)
-        while self.queue and curr_time_ns >= self.queue[0][0] + self.delay:
+        curr_time_ns = time_ns()
+        while self.queue and curr_time_ns >= self.queue[0][0]:
             elem = self.queue.pop(0)[1]
             for clbl in self.callbacks:
                 clbl(elem)
 
     def push(self, item):
-        self.queue.append((time_ns(), item))
+        self.queue.append((time_ns() + self.delay, item))
 
     def callback(self, clbl):
         self.callbacks.append(clbl)
 
-class AbstractOrderBook:
-    pass
-
-class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
-    pass
-
-class SimOrderBook(SidedPriceFIFOPriorityOrderBook):
-    pass
+class FillModels(defaultdict):
+    def __missing__(self, key: _KT) -> _VT:
+        obj = FillModel()
+        self.mktdata.callback(key.imnt, key.venue, obj.mkt_upd)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -214,7 +230,7 @@ if __name__ == "__main__":
         mktdata.subscribe(imnts)
     refdata.add_callback(refdata_cb)
 
-    orders = SimOrderBook()
+    orders = FillModels(mktdata)
 
     updater = StrategyOrderUpdater(orders)
     writer = StrategyOrderWriter()
