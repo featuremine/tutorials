@@ -51,10 +51,13 @@ class AbstractOrderBook:
         pass
 
     def bid(self):
-        pass
+        return self.side(0)
 
     def ask(self):
-        pass
+        return self.side(1)
+
+    def side(self, i):
+        raise NotImplementedError('not implemented')
 
 class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
     def __init__(self):
@@ -63,6 +66,9 @@ class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
         self._order_heap[0] = []
         self._order_heap[1] = []
         self.pxcmp = (bidcmp, askcmp)
+
+    def side(self, i):
+        return self._order_heap[i]
 
 class MarketDataSim(MarketData):
 
