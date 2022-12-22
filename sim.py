@@ -265,14 +265,18 @@ if __name__ == "__main__":
     delay_queue = DelayQueue(graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
     delay_queue.callback(updater.update)
 
-    oms_pfx = f'{cfg["strg_pfx"]}/{cfg["OMS_name"]}/'
+    strg_pfx = f'{cfg["strg_pfx"]}/'
+    strg_pfx_len = len(strg_pfx)
+    oms_pfx = f'{cfg["oms_pfx"]}/'
     oms_pfx_len = len(oms_pfx)
+
     def queue_push(peer, channel, time, data):
-        strg = channel.name()[oms_pfx_len:]
+        rest = channel.name()[strg_pfx_len:]
+        strg = rest[oms_pfx_len:] if rest.startswith(oms_pfx) else rest[:-oms_pfx_len]
         msg = capnp_spec.from_bytes_packed(data)
         delay_queue.push({"strg": strg, "msg": msg})
 
-    strg_seq.data_callback(oms_pfx, queue_push)
+    strg_seq.data_callback(strg_pfx, queue_push)
 
     refdata.poll()
 
