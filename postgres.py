@@ -27,6 +27,7 @@ import functools
 import extractor
 from yamal import ytp
 from conveyor.utils import schemas
+import reference
 from datetime import timedelta, date, datetime
 import psycopg2
 import time
@@ -73,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
     parser.add_argument("--period", help="Bar period in seconds", required=False, default=10)
     parser.add_argument("--levels", help="Book levels to display", required=False, default=1)
+    parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
 
     args = parser.parse_args()
 
@@ -324,6 +326,53 @@ if __name__ == "__main__":
     for ch in channelsorders:
         seqorders.data_callback(ch, orders2db)
     op.ytp_sequence(seqorders, timedelta(milliseconds=1))
+
+    # Venues and instruments
+    cur.execute(f"""
+    CREATE TABLE IF NOT EXISTS venues
+    (
+        venue_id INT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS imnts
+    (
+        imnt_id INT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+    );
+    """)
+    conn.commit()
+    
+    cfg = json.load(open(args.cfg))
+    seqref = ytp.sequence(cfg['state_ytp'])
+    peerref = seqref.peer(cfg['peer'])
+    refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
+    
+    def venues2db(delta):
+        for id, venue in delta.venuesNames.items():
+            print(id)
+            print(venue)
+            cmd = f"""
+            INSERT INTO venues (venue_id,name) VALUES
+            ({id},'{venue.label}')
+            ON CONFLICT (venue_id)
+            DO NOTHING
+            """
+            cur.execute(cmd)
+            conn.commit()
+        for id, security in delta.securities.items():
+            print(id)
+            print(security)
+            cmd = f"""
+            INSERT INTO imnts (imnt_id,name) VALUES
+            ({id},'{security.symbol}')
+            ON CONFLICT (imnt_id)
+            DO NOTHING
+            """
+            cur.execute(cmd)
+            conn.commit()
+
+    refdata.add_callback(venues2db)
+    refdata.poll()
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
