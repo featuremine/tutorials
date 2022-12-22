@@ -170,6 +170,66 @@ def strg_fail(orderid, failure_type, reason, request_time):
         }
 
 
+
+def strg_filled(orderid, accid, securityid, venueid, side, execid, price, quantity, transact_time, executing_broker):
+    return {
+        "message": {
+            "sess": {
+                "exec": {
+                    "strgOrdID": orderid,
+                    "accountID": accid,
+                    "securityId": securityid,
+                    "venueID": venueid,
+                    "orderSide": side,
+                    "sessOrdID": str(orderid),
+                    "exchExecID": execid,
+                    "exchOrdID": str(orderid),
+                    "transactTime": transact_time,
+                    "executingBroker": executing_broker,
+                    "data": {
+                        "filled": {
+                            "lastQuantity": quantity,
+                            "lastPrice": price,
+                            "lastFees": 0,
+                            "liquidityCode": 0,
+                            "cumQty": quantity,
+                            "leaves": 0,
+                            "avgPx": price,
+                            "lastMkt": executing_broker
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+def strg_canceled(orderid, accid, securityid, venueid, side, execid, transact_time, executing_broker):
+    return {
+        "message": {
+            "sess": {
+                "exec": {
+                    "strgOrdID": orderid,
+                    "accountID": accid,
+                    "securityId": securityid,
+                    "venueID": venueid,
+                    "orderSide": side,
+                    "sessOrdID": str(orderid),
+                    "exchExecID": execid,
+                    "exchOrdID": str(orderid),
+                    "transactTime": transact_time,
+                    "executingBroker": executing_broker,
+                    "data": {
+                        "canceled": {
+                            "leaves": 0
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 class StrategyOrderWriter:
     def __init__(self, stream):
         self.stream = stream
@@ -189,6 +249,14 @@ class StrategyOrderWriter:
     def failed(self, info, reason):
         #TODO: report back actual request time from YTP instead of current time?
         self.send_message(strg_fail, info['strgOrdID'], "place", reason, time_ns())
+
+    def canceled(self, side, info, leaves):
+        self.execid += 1
+        self.send_message(strg_canceled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), time_ns(), "SimulatorFM")
+
+    def filled(self, px, qty, side, info):
+        self.execid += 1
+        self.send_message(strg_filled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
 class FillModel(AbstractOrderBook):
     def __init__(self, mktdata, responder):
@@ -212,13 +280,12 @@ class FillModel(AbstractOrderBook):
         def worse(px, other):
             return px > other if orderside == "buy" else px < other
 
-        if px is None or worse(px, fillpx):
+        if px is None or not worse(px, fillpx):
             self.responder.filled(fillpx, qty, side, info)
             return
 
         if info['timeInForce'] == 'IOC':
-            #cancel what is left
-            pass
+            self.responder.canceled(side, info, 0)
         else:
             #please the rest on the book
             self.book.add(key, px, qty, side, info)
