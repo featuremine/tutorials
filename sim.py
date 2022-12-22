@@ -4,7 +4,7 @@ from yamal import ytp
 import json
 import extractor
 import time as pytime
-from typing import Dict, Tuple, NamedTuple, Optional
+from typing import Dict, Tuple, NamedTuple, Optional, Callable, Any
 from datetime import timedelta
 import queue
 from collections import defaultdict
@@ -90,10 +90,10 @@ class StrategyOrderWriter:
     pass
 
 class FillModel(AbstractOrderBook):
-    def __init__(self, mktdata, orders):
+    def __init__(self, mktdata):
         pass
 
-    def add(key, px, qty, side, info):
+    def add(self, key, px, qty, side, info):
         if px is None:
             #execute market order
             pass
@@ -107,24 +107,32 @@ class FillModel(AbstractOrderBook):
             #please the rest on the book
             pass
 
+    def mkt_upd(self, frame):
+        pass
+
 class StrategyOrderUpdater:
 
-    def __init__(self, mapper: callable[dict, any], books: dict[AbstractOrderBook]):
-        pass
+    def __init__(self, mapper: Callable[[dict], Any], books: Dict[Any, AbstractOrderBook]):
+        self.mapper = mapper
+        self.books = books
 
     def update(self, upd):
         msg = upd["msg"]
+        print("message is ", msg)
         msgdata = getattr(msg.message, msg.message.which())
-        if not 'StrgOrdID' in msgdata:
+        specdata = getattr(msgdata, msgdata.which())
+        if not hasattr(specdata, 'strgOrdID'):
+            print("leaving", specdata)
             return
+        print("processing")
         bookkey = self.mapper(upd)
         book = self.books[bookkey]
-        ordkey = (upd["strg"], msgdata['StrgOrdID'])
-        getattr(self, msgdata.which())(ordkey, book, **getattr(msgdata, msgdata.which()).to_dict())
+        ordkey = (upd["strg"], specdata.strgOrdID)
+        getattr(self, msgdata.which())(ordkey, book, **specdata.to_dict())
 
-    def new(self, ordkey, book, orderType, quantity, side,  **kwargs):
+    def new(self, ordkey, book, orderType, quantity, orderSide, **kwargs):
         px = None if 'market' in orderType else orderType['limit']
-        book.add(ordkey, px=px, qty=quantity, side=side, info=kwargs)
+        book.add(key=ordkey, px=px, qty=quantity, side=orderSide, info=kwargs)
 
     def cancel(self, strategy, strgOrdID):
         pass
@@ -216,9 +224,14 @@ class DelayQueue:
         self.callbacks.append(clbl)
 
 class FillModels(defaultdict):
-    def __missing__(self, key: _KT) -> _VT:
-        obj = FillModel()
-        self.mktdata.callback(key.imnt, key.venue, obj.mkt_upd)
+    def __init__(self, mktdata):
+        super().__init__(lambda : FillModel(self.mktdata))
+        self.mktdata = mktdata
+
+    def __missing__(self, key):
+        obj = super().__missing__(key)
+        self.mktdata.trade_callback(key.imnt, key.venue, obj.mkt_upd)
+        return obj
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -256,7 +269,19 @@ if __name__ == "__main__":
 
     fillmodels = FillModels(mktdata)
 
-    updater = StrategyOrderUpdater(fillmodels)
+    class Key(NamedTuple):
+        strategy: str
+        account: int
+        imnt: int
+        venue: int
+
+    def mapper(upd):
+        msg = upd["msg"]
+        msgdata = getattr(msg.message, msg.message.which())
+        specdata = getattr(msgdata, msgdata.which())
+        return Key(strategy=upd['strg'], account=specdata.accountID, imnt=specdata.securityId, venue=specdata.venueID)
+
+    updater = StrategyOrderUpdater(mapper, fillmodels)
     writer = StrategyOrderWriter()
 
     # subscribe order
@@ -265,14 +290,14 @@ if __name__ == "__main__":
     delay_queue = DelayQueue(graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
     delay_queue.callback(updater.update)
 
-    strg_pfx = f'{cfg["strg_pfx"]}/'
+    strg_pfx = f'{cfg["strg_pfx"]}'
     strg_pfx_len = len(strg_pfx)
-    oms_pfx = f'{cfg["oms_pfx"]}/'
-    oms_pfx_len = len(oms_pfx)
+    oms_name = cfg["oms_name"]
+    oms_name_len = len(oms_name)
 
     def queue_push(peer, channel, time, data):
         rest = channel.name()[strg_pfx_len:]
-        strg = rest[oms_pfx_len:] if rest.startswith(oms_pfx) else rest[:-oms_pfx_len]
+        strg = rest[oms_name_len + 1:] if rest.startswith(oms_name) else rest[:-oms_name_len - 1]
         msg = capnp_spec.from_bytes_packed(data)
         delay_queue.push({"strg": strg, "msg": msg})
 
