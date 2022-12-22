@@ -296,12 +296,6 @@ if __name__ == "__main__":
 
     # Order Events
     cur.execute(f"""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ordtype') THEN
-            create type ordtype AS ENUM ('new', 'cancel', 'replace', 'fill');
-        END IF;
-    END $$;
     CREATE TABLE IF NOT EXISTS order_events
     (
         pubseq INT PRIMARY KEY NOT NULL,
@@ -310,7 +304,7 @@ if __name__ == "__main__":
         strgOrdID INT NOT NULL,
         pubtime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
         seqnum INT NOT NULL UNIQUE,
-        type ordtype,
+        type VARCHAR(12),
         info JSON
     );
     """)
@@ -326,29 +320,32 @@ if __name__ == "__main__":
         #TODO:Parse channel to get strategy and oms
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
-        if 'message' in d:
-            if 'strg' in d['message']:
-                if 'new' in d['message']['strg']:
-                    ord = d['message']['strg']['new']
-                    cmd = f"""
-                    INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type,info) VALUES
-                    ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'new','{json.dumps(ord)}')
-                    ON CONFLICT (pubseq)
-                    DO NOTHING
-                    """
-                    cur.execute(cmd)
-                    conn.commit()
-                    
-                    #TODO: the orders table is simulated here. Change it to actually process the orders
-                    cmd = f"""
-                    INSERT INTO orders (strategy,oms,strgOrdID,status) VALUES
-                    ('{strategy}','{oms}',{ord['strgOrdID']},'unacked')
-                    ON CONFLICT (strategy,strgOrdID)
-                    DO NOTHING
-                    """
-                    cur.execute(cmd)
-                    conn.commit()
-                    #TODO: End orders table sim
+        if 'strg' in d['message']:
+            return
+        msg = d['message']['strg']
+        msgtype = msg.keys()[0]
+        if not 'strgOrdID' in msg[msgtype]:
+            return
+        ord = msg[msgtype]
+        cmd = f"""
+        INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type,info) VALUES
+        ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'{msgtype}','{json.dumps(ord)}')
+        ON CONFLICT (pubseq)
+        DO NOTHING
+        """
+        cur.execute(cmd)
+        conn.commit()
+        
+        #TODO: the orders table is simulated here. Change it to actually process the orders
+        cmd = f"""
+        INSERT INTO orders (strategy,oms,strgOrdID,status) VALUES
+        ('{strategy}','{oms}',{ord['strgOrdID']},'unacked')
+        ON CONFLICT (strategy,strgOrdID)
+        DO NOTHING
+        """
+        cur.execute(cmd)
+        conn.commit()
+        #TODO: End orders table sim
     
     # TODO: proper channels
     channelsorders = [ "strgs/oms1/client1" ]

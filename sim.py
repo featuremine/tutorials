@@ -254,12 +254,10 @@ if __name__ == "__main__":
         mktdata.subscribe(imnts)
     refdata.add_callback(refdata_cb)
 
-    orders = FillModels(mktdata)
+    fillmodels = FillModels(mktdata)
 
-    updater = StrategyOrderUpdater(orders)
+    updater = StrategyOrderUpdater(fillmodels)
     writer = StrategyOrderWriter()
-
-    fillmodel = FillModel(mktdata, orders)
 
     # subscribe order
     # Set up callbacks for market data updates
@@ -267,7 +265,7 @@ if __name__ == "__main__":
     delay_queue = DelayQueue(graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
     delay_queue.callback(updater.update)
 
-    oms_pfx = f'{cfg["strg_pfx"]}{cfg["OMS_name"]}/'
+    oms_pfx = f'{cfg["strg_pfx"]}/{cfg["OMS_name"]}/'
     oms_pfx_len = len(oms_pfx)
     def queue_push(peer, channel, time, data):
         strg = channel.name()[oms_pfx_len:]
