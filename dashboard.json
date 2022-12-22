@@ -607,7 +607,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT info->'orderType'->'limit' as price, info->'quantity' as quantity, info->'orderSide' as side, * from order_events\nWHERE type = 'new'\nORDER BY pubseq ASC;",
+          "rawSql": "SELECT (info->'orderType'->'limit')::text as price, (info->'quantity')::text as quantity, (info->'orderSide')::text as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq from order_events\nWHERE type = 'new'\nUNION\nSELECT NULL as price, (info->'leaves')::text as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq from order_events\nWHERE type = 'cancel'\nUNION\nSELECT NULL as price, NULL as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq from order_events\nWHERE NOT (type = 'new' OR type = 'cancel')\nORDER BY pubseq ASC;",
           "refId": "A",
           "select": [
             [
@@ -721,7 +721,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT info->'orderType'->'limit' as price, info->'quantity' as quantity, info->'orderSide' as side, * from order_events\nWHERE type = 'new'\nORDER BY pubseq ASC;",
+          "rawSql": "SELECT (info->'orderType'->'limit')::text as price, (info->'quantity')::text as quantity, (info->'orderSide')::text as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq from order_events\nWHERE type = 'new'\nUNION\nSELECT NULL as price, (info->'leaves')::text as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq from order_events\nWHERE type = 'cancel'\nUNION\nSELECT NULL as price, NULL as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq from order_events\nWHERE NOT (type = 'new' OR type = 'cancel')\nORDER BY pubseq ASC;",
           "refId": "A",
           "select": [
             [
@@ -889,6 +889,6 @@
   "timezone": "",
   "title": "Market data tutorial",
   "uid": "rD_20UI42",
-  "version": 12,
+  "version": 13,
   "weekStart": ""
 }
