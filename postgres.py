@@ -274,16 +274,23 @@ if __name__ == "__main__":
 
     # Orders
     cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS orders_new
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ordtype') THEN
+            create type ordtype AS ENUM ('new', 'cancel', 'replace', 'fill');
+        END IF;
+    END $$;
+    CREATE TABLE IF NOT EXISTS order_events
     (
-        order_id INT PRIMARY KEY NOT NULL,
-        time TIMESTAMP WITHOUT TIME ZONE,
-        side VARCHAR(8),
-        price NUMERIC NOT NULL,
-        quantity NUMERIC NOT NULL,
+        pubseq INT PRIMARY KEY NOT NULL,
+        strategy TEXT NOT NULL,
+        oms TEXT NOT NULL,
+        strgOrdID INT NOT NULL,
+        pubtime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
         seqnum INT NOT NULL UNIQUE,
-        yamalsequence INT NOT NULL UNIQUE
-    )
+        type ordtype,
+        info JSON
+    );
     """)
     conn.commit()
     
@@ -291,6 +298,10 @@ if __name__ == "__main__":
     def orders2db(peer, channel, time, data):
         global yamalsequence
         yamalsequence += 1
+        chparsed = channel.name().split('/')
+        strategy = chparsed[2]
+        oms = chparsed[1]
+        #TODO:Parse channel to get strategy and oms
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
         if 'message' in d:
@@ -299,9 +310,9 @@ if __name__ == "__main__":
                     ord = d['message']['strg']['new']
                     print(ord['strgOrdID'])
                     cmd = f"""
-                    INSERT INTO orders_new (order_id,time,side,price,quantity,seqnum,yamalsequence) VALUES
-                    ({ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}','{ord['orderSide']}',{ord['orderType']['limit']},{ord['quantity']},{d['seqnum']},{yamalsequence})
-                    ON CONFLICT (yamalsequence)
+                    INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type) VALUES
+                    ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'new')
+                    ON CONFLICT (pubseq)
                     DO NOTHING
                     """
                     cur.execute(cmd)
