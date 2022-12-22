@@ -32,6 +32,7 @@ import psycopg2
 import time
 import math
 from time import time_ns
+import json
 
 # YTP channels prefix
 prefix = "ore/imnts"
@@ -308,10 +309,9 @@ if __name__ == "__main__":
             if 'strg' in d['message']:
                 if 'new' in d['message']['strg']:
                     ord = d['message']['strg']['new']
-                    print(ord['strgOrdID'])
                     cmd = f"""
-                    INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type) VALUES
-                    ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'new')
+                    INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type,info) VALUES
+                    ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'new','{json.dumps(ord)}')
                     ON CONFLICT (pubseq)
                     DO NOTHING
                     """
