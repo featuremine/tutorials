@@ -606,8 +606,8 @@
           "format": "table",
           "group": [],
           "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  pubtime AS \"time\",\n  strgordid,\n  type,\n  strategy,\n  oms,\n  info\nFROM order_events\nORDER BY 1",
+          "rawQuery": true,
+          "rawSql": "SELECT info->'orderType'->'limit' as price, info->'quantity' as quantity, info->'orderSide' as side, * from order_events\nWHERE type = 'new'\nORDER BY pubseq ASC;",
           "refId": "A",
           "select": [
             [
@@ -657,7 +657,7 @@
           "where": []
         }
       ],
-      "title": "Order events",
+      "title": "Orders",
       "type": "table"
     },
     {
@@ -720,8 +720,8 @@
           "format": "table",
           "group": [],
           "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  pubtime AS \"time\",\n  strgordid,\n  type,\n  strategy,\n  oms,\n  info\nFROM order_events\nORDER BY 1",
+          "rawQuery": true,
+          "rawSql": "SELECT info->'orderType'->'limit' as price, info->'quantity' as quantity, info->'orderSide' as side, * from order_events\nWHERE type = 'new'\nORDER BY pubseq ASC;",
           "refId": "A",
           "select": [
             [
@@ -889,6 +889,6 @@
   "timezone": "",
   "title": "Market data tutorial",
   "uid": "rD_20UI42",
-  "version": 9,
+  "version": 12,
   "weekStart": ""
 }
