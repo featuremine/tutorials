@@ -121,9 +121,6 @@ if __name__ == "__main__":
         time.sleep(1)
     cur = conn.cursor()
 
-    bar_record_fields = [str(field[0]) for field in bars_descr]
-    bar_records_str = ",".join(bar_record_fields)
-
     # Create database table to store market data
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS market_data
@@ -138,6 +135,58 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
+    # Orders
+    cur.execute(f"""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ordstatus') THEN
+            create type ordstatus AS ENUM ('ack', 'unacked', 'done');
+        END IF;
+    END $$;
+    CREATE TABLE IF NOT EXISTS orders
+    (
+        strategy TEXT NOT NULL,
+        oms TEXT NOT NULL,
+        strgOrdID INT NOT NULL,
+        status ordstatus,
+        PRIMARY KEY (strategy, strgOrdID)
+    );
+    """)
+    conn.commit()
+
+    # Order Events
+    cur.execute(f"""
+    CREATE TABLE IF NOT EXISTS order_events
+    (
+        pubseq INT PRIMARY KEY NOT NULL,
+        strategy TEXT NOT NULL,
+        oms TEXT NOT NULL,
+        strgOrdID INT NOT NULL,
+        pubtime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+        seqnum INT NOT NULL UNIQUE,
+        type VARCHAR(12),
+        info JSON
+    );
+    """)
+    conn.commit()
+
+    # Venues and instruments
+    cur.execute(f"""
+    CREATE TABLE IF NOT EXISTS venues
+    (
+        venueID INT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS imnts
+    (
+        imntID INT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+    );
+    """)
+    conn.commit()
+
+    bar_record_fields = [str(field[0]) for field in bars_descr]
+    bar_records_str = ",".join(bar_record_fields)
     def bar2db(x, market, imnt):
         if x[0].vwap == extractor.Decimal128(0):
             return
@@ -151,6 +200,67 @@ if __name__ == "__main__":
         """
         cur.execute(cmd)
         conn.commit()
+
+    yamalsequence = 0
+    def orders2db(peer, channel, time, data):
+        global yamalsequence
+        yamalsequence += 1
+        chparsed = channel.name().split('/')
+        strategy = chparsed[2]
+        oms = chparsed[1]
+        #TODO:Parse channel to get strategy and oms
+        d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        print(d)
+        if 'strg' not in d['message']:
+            return
+        msg = d['message']['strg']
+        msgtype = list(msg.keys())[0]
+        if 'strgOrdID' not in msg[msgtype]:
+            return
+        ord = msg[msgtype]
+        cmd = f"""
+        INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type,info) VALUES
+        ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'{msgtype}','{json.dumps(ord)}')
+        ON CONFLICT (pubseq)
+        DO NOTHING
+        """
+        cur.execute(cmd)
+        conn.commit()
+        
+        #TODO: the orders table is simulated here. Change it to actually process the orders
+        cmd = f"""
+        INSERT INTO orders (strategy,oms,strgOrdID,status) VALUES
+        ('{strategy}','{oms}',{ord['strgOrdID']},'unacked')
+        ON CONFLICT (strategy,strgOrdID)
+        DO NOTHING
+        """
+        cur.execute(cmd)
+        conn.commit()
+        #TODO: End orders table sim
+    
+    def venues2db(delta):
+        for id, venue in delta.venuesNames.items():
+            print(id)
+            print(venue)
+            cmd = f"""
+            INSERT INTO venues (venueID,name) VALUES
+            ({id},'{venue.label}')
+            ON CONFLICT (venueID)
+            DO NOTHING
+            """
+            cur.execute(cmd)
+            conn.commit()
+        for id, security in delta.securities.items():
+            print(id)
+            print(security)
+            cmd = f"""
+            INSERT INTO imnts (imntID,name) VALUES
+            ({id},'{security.symbol}')
+            ON CONFLICT (imntID)
+            DO NOTHING
+            """
+            cur.execute(cmd)
+            conn.commit()
 
     graph = extractor.system.comp_graph()
     op = graph.features
@@ -259,78 +369,6 @@ if __name__ == "__main__":
     for bar, mi, trade in zip(bars, mktimnt, trades):
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
 
-    # Orders
-    cur.execute(f"""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ordstatus') THEN
-            create type ordstatus AS ENUM ('ack', 'unacked', 'done');
-        END IF;
-    END $$;
-    CREATE TABLE IF NOT EXISTS orders
-    (
-        strategy TEXT NOT NULL,
-        oms TEXT NOT NULL,
-        strgOrdID INT NOT NULL,
-        status ordstatus,
-        PRIMARY KEY (strategy, strgOrdID)
-    );
-    """)
-    conn.commit()
-
-    # Order Events
-    cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS order_events
-    (
-        pubseq INT PRIMARY KEY NOT NULL,
-        strategy TEXT NOT NULL,
-        oms TEXT NOT NULL,
-        strgOrdID INT NOT NULL,
-        pubtime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-        seqnum INT NOT NULL UNIQUE,
-        type VARCHAR(12),
-        info JSON
-    );
-    """)
-    conn.commit()
-    
-    yamalsequence = 0
-    def orders2db(peer, channel, time, data):
-        global yamalsequence
-        yamalsequence += 1
-        chparsed = channel.name().split('/')
-        strategy = chparsed[2]
-        oms = chparsed[1]
-        #TODO:Parse channel to get strategy and oms
-        d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
-        print(d)
-        if 'strg' not in d['message']:
-            return
-        msg = d['message']['strg']
-        msgtype = list(msg.keys())[0]
-        if 'strgOrdID' not in msg[msgtype]:
-            return
-        ord = msg[msgtype]
-        cmd = f"""
-        INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type,info) VALUES
-        ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'{msgtype}','{json.dumps(ord)}')
-        ON CONFLICT (pubseq)
-        DO NOTHING
-        """
-        cur.execute(cmd)
-        conn.commit()
-        
-        #TODO: the orders table is simulated here. Change it to actually process the orders
-        cmd = f"""
-        INSERT INTO orders (strategy,oms,strgOrdID,status) VALUES
-        ('{strategy}','{oms}',{ord['strgOrdID']},'unacked')
-        ON CONFLICT (strategy,strgOrdID)
-        DO NOTHING
-        """
-        cur.execute(cmd)
-        conn.commit()
-        #TODO: End orders table sim
-    
     # TODO: proper channels
     channelsorders = [ "strgs/oms1/client1" ]
     seqorders = ytp.sequence(args.ytporders)
@@ -338,50 +376,11 @@ if __name__ == "__main__":
         seqorders.data_callback(ch, orders2db)
     op.ytp_sequence(seqorders, timedelta(milliseconds=1))
 
-    # Venues and instruments
-    cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS venues
-    (
-        venueID INT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS imnts
-    (
-        imntID INT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL
-    );
-    """)
-    conn.commit()
-    
     cfg = json.load(open(args.cfg))
     seqref = ytp.sequence(cfg['state_ytp'])
     peerref = seqref.peer(cfg['peer'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
     op.ytp_sequence(seqref, timedelta(milliseconds=1))
-    
-    def venues2db(delta):
-        for id, venue in delta.venuesNames.items():
-            print(id)
-            print(venue)
-            cmd = f"""
-            INSERT INTO venues (venueID,name) VALUES
-            ({id},'{venue.label}')
-            ON CONFLICT (venueID)
-            DO NOTHING
-            """
-            cur.execute(cmd)
-            conn.commit()
-        for id, security in delta.securities.items():
-            print(id)
-            print(security)
-            cmd = f"""
-            INSERT INTO imnts (imntID,name) VALUES
-            ({id},'{security.symbol}')
-            ON CONFLICT (imntID)
-            DO NOTHING
-            """
-            cur.execute(cmd)
-            conn.commit()
 
     refdata.add_callback(venues2db)
     refdata.poll()
