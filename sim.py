@@ -62,6 +62,15 @@ class StrategyOrderUpdater:
         msgdata = getattr(msg.message, msg.message.which())
         getattr(self, msgdata.which())(strategy=strg, **getattr(msgdata, msgdata.which()).to_dict())
 
+    def heartbeat(self, strategy, session):
+        pass
+
+    def logon(self, strategy, session, interval):
+        pass
+
+    def logout(self, strategy, session):
+        pass
+
     def new(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, orderType, quantity, maxFloor, timeInForce, algorithm, minQty, tag):
         pass
 
@@ -72,6 +81,12 @@ class StrategyOrderUpdater:
         pass
 
     def failed(self, strategy, strgOrdID, type, reason, requestTime, tag):
+        pass
+
+    def cancelRej(self, strategy, strgOrdID, reason, sessOrdID, transactTime, requestTime, tag, receiveTime):
+        pass
+
+    def replaceRej(self, strategy, strgOrdID, reason, sessOrdID, transactTime, requestTime, tag, receiveTime):
         pass
 
     def exec(self, data, **execargs):
