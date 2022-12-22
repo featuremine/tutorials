@@ -40,19 +40,11 @@ prefix = "ore/imnts"
 
 e2psqltype = {
     extractor.Time64: 'TIMESTAMP WITHOUT TIME ZONE',
-    extractor.Rprice: 'NUMERIC NOT NULL'
+    extractor.Rprice: 'NUMERIC NOT NULL',
+    extractor.Float64: 'NUMERIC NOT NULL',
+    extractor.Decimal128: 'NUMERIC NOT NULL',
+    extractor.Int32: 'INT NOT NULL'
 }
-# def extractor2psqlfield(name, t):
-#     elif t == extractor.Rprice:
-#         return f'{name} NUMERIC NOT NULL'
-#     elif t == extractor.Float64:
-#         return f'{name} NUMERIC NOT NULL'
-#     elif t == extractor.Decimal128:
-#         return f'{name} NUMERIC NOT NULL'
-#     elif t == extractor.Int32:
-#         return f'{name} INT NOT NULL'
-#     else:
-#         return f'{name} VARCHAR(32)'
 
 def extractor2psqlvalue(val):
     if isinstance(val, str):
@@ -312,11 +304,11 @@ if __name__ == "__main__":
         #TODO:Parse channel to get strategy and oms
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
-        if 'strg' in d['message']:
+        if 'strg' not in d['message']:
             return
         msg = d['message']['strg']
-        msgtype = msg.keys()[0]
-        if not 'strgOrdID' in msg[msgtype]:
+        msgtype = list(msg.keys())[0]
+        if 'strgOrdID' not in msg[msgtype]:
             return
         ord = msg[msgtype]
         cmd = f"""
