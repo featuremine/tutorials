@@ -80,7 +80,10 @@ class MarketDataSim(MarketData):
             return
         self.process(imnts)
 
-    def callback(self, imnt, venue, call):
+    def trade_callback(self, imnt, venue, call):
+        pass
+
+    def quote_callback(self, imnt, venue, call):
         pass
 
 class StrategyOrderWriter:

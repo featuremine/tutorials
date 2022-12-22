@@ -124,6 +124,7 @@ class MarketData(object):
         self.prefix = prefix
         self.period = period
         self.quotes = {}
+        self.trades = {}
 
         op = self.graph.features
         if self.period:
