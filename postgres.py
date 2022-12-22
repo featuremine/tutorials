@@ -279,6 +279,25 @@ if __name__ == "__main__":
     cur.execute(f"""
     DO $$
     BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ordstatus') THEN
+            create type ordstatus AS ENUM ('ack', 'unacked', 'done');
+        END IF;
+    END $$;
+    CREATE TABLE IF NOT EXISTS orders
+    (
+        strategy TEXT NOT NULL,
+        oms TEXT NOT NULL,
+        strgOrdID INT NOT NULL,
+        status ordstatus,
+        PRIMARY KEY (strategy, strgOrdID)
+    );
+    """)
+    conn.commit()
+
+    # Order Events
+    cur.execute(f"""
+    DO $$
+    BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ordtype') THEN
             create type ordtype AS ENUM ('new', 'cancel', 'replace', 'fill');
         END IF;
@@ -319,6 +338,17 @@ if __name__ == "__main__":
                     """
                     cur.execute(cmd)
                     conn.commit()
+                    
+                    #TODO: the orders table is simulated here. Change it to actually process the orders
+                    cmd = f"""
+                    INSERT INTO orders (strategy,oms,strgOrdID,status) VALUES
+                    ('{strategy}','{oms}',{ord['strgOrdID']},'unacked')
+                    ON CONFLICT (strategy,strgOrdID)
+                    DO NOTHING
+                    """
+                    cur.execute(cmd)
+                    conn.commit()
+                    #TODO: End orders table sim
     
     # TODO: proper channels
     channelsorders = [ "strgs/oms1/client1" ]
