@@ -178,6 +178,7 @@ class QueuedOrder(object):
 
 class LimitFillModel(object):
     def __init__(self): #probably should use venue as an argument
+        # TODO need to reset quote limit when quote changes
         self.bids_q = {}
         self.asks_q = {}
 
