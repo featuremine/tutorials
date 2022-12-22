@@ -47,7 +47,13 @@ class AbstractOrderBook:
     def add(self, key, px, qty, side, info):
         raise NotImplementedError('not implemented')
 
+    def cancel(self, key, qty, side, info):
+        raise NotImplementedError('not implemented')
+
     def __getitem__(self, key):
+        raise NotImplementedError('not implemented')
+
+    def __contains__(self, key):
         raise NotImplementedError('not implemented')
 
     def bid(self):
@@ -82,6 +88,7 @@ class QueuedOrder(object):
         self.time = now
         self.px = px
         self.qty = qty
+        self.leaves = qty
         self.side = side
         self.info = info
 
@@ -99,10 +106,29 @@ class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
         self.pxcmp = (lambda x, y: x < y, lambda x, y: x > y)
 
     def add(self, key, px, qty, side, info):
-        insort(self._order_heap[1 * side == "buy"], QueuedOrder(time_ns(), px, qty, side, info))
+        order = QueuedOrder(time_ns(), px, qty, side, info)
+        insort(self._order_heap[1 * side == "buy"], order)
+        self._order_dict[key] = order
+
+    def cancel(self, key, qty, side, info):
+        order = self._order_dict[key]
+        ords = self._order_heap[1 * side == "buy"]
+        idx = bisect_left(ords, order)
+
+        for x in range(idx, len(ords)):
+            o = ords[x]
+            if (info["strgOrdID"] == o.id):
+                o.leaves -= qty
+                if qty == 0:
+                    ords.pop(x)
+                    del self._order_dict[key]
+                return
 
     def __getitem__(self, key):
-        raise NotImplementedError('not implemented')
+        return self._order_dict[key]
+
+    def __contains__(self, key):
+        return key in self._order_dict
 
     def side(self, i):
         return self._order_heap[i]
@@ -281,18 +307,40 @@ class FillModel(AbstractOrderBook):
             return px > other if orderside == "buy" else px < other
 
         if px is None or not worse(px, fillpx):
+            # self.book.cancel(key, px, qty, side)
             self.responder.filled(fillpx, qty, side, info)
             return
 
-        if info['timeInForce'] == 'IOC':
+        if info['timeInForce'] == 'ioc':
             self.responder.canceled(side, info, 0)
         else:
             #please the rest on the book
             self.book.add(key, px, qty, side, info)
             self.responder.placed(px, qty, side, info)
 
+    def cancel(self, key, qty, side, info):
+        if key in self.book:
+            self.book.cancel(key, qty, side, info)
+
     def mkt_upd(self, frame):
-        pass
+        side = frame[0].side
+        px = frame[0].price
+        quantity = frame[0].qty
+        ords = self.book.side(side)
+        worse = self.book.pxcmp[side]
+
+        while ords:
+            o = ords[0]
+
+            if quantity == 0 or worse(o.price, px):
+                break
+
+            filled = min(quantity, o.leaves)
+            self.book.cancel(o, filled)
+            if filled == o.leaves:
+                self.responder.partiallyFilled(px, filled, side, o.info)
+            else:
+                self.responder.filled(px, filled, side, o.info)
 
 class StrategyOrderUpdater:
 
@@ -315,71 +363,80 @@ class StrategyOrderUpdater:
         px = None if 'market' in orderType else orderType['limit']
         book.add(key=ordkey, px=px, qty=quantity, side=orderSide, info=kwargs)
 
-    def cancel(self, strategy, strgOrdID):
+    def cancel(self, ordkey, book, **kwargs):
         pass
 
-    def replace(self, strategy, strgOrdID, price, quantity):
+    def replace(self, ordkey, book, price, quantity, **kwargs):
         pass
 
-    def failed(self, strategy, strgOrdID, type, reason, requestTime, tag):
-        pass
-
-    def cancelRej(self, strategy, strgOrdID, reason, sessOrdID, transactTime, requestTime, tag, receiveTime):
-        pass
-
-    def replaceRej(self, strategy, strgOrdID, reason, sessOrdID, transactTime, requestTime, tag, receiveTime):
-        pass
-
-    def exec(self, data, **execargs):
+    def exec(self, ordkey, book, data, **execargs):
         for exectype, execdata in data.items():
             if execdata is None:
-                getattr(self, exectype)(**execargs)
+                getattr(self, exectype)(ordkey, book, **execargs)
             else:
-                getattr(self, exectype)(**execargs, **execdata)
+                getattr(self, exectype)(ordkey, book, **execargs, **execdata)
 
-    def placed(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, orderType, orderQuantity):
+    def placed(self, ordkey, book, orderType, orderQuantity, **kwargs):
         pass
 
-    def replaced(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, orderType, orderQuantity):
+    def replaced(self, ordkey, book, orderType, orderQuantity, **kwargs):
         pass
 
-    def partiallyFilled(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, lastQuantity, lastPrice, lastFees, liquidityCode, cumQty, leaves, avgPx, lastMkt):
+    def partiallyFilled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
+        book.fill(key=ordkey, px=lastPrice, qty=lastQuantity, side=orderSide, info=kwargs)
+
+    def filled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
+        book.fill(key=ordkey, px=lastPrice, qty=lastQuantity, side=orderSide, info=kwargs)
+
+    def failed(self, ordkey, book, **kwargs):
+        if kwargs["type"] != "place":
+            # No effect
+            return
+        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+
+    # No effect
+    def rejected(self, ordkey, book, reason, **kwargs):
         pass
 
-    def filled(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, lastQuantity, lastPrice, lastFees, liquidityCode, cumQty, leaves, avgPx, lastMkt):
+    # No effect
+    def cancelRej(self, ordkey, book, **kwargs):
         pass
 
-    def rejected(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, reason):
+    # No effect
+    def replaceRej(self, ordkey, book, **kwargs):
         pass
 
-    def doneForDay(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, leaves):
+    def doneForDay(self, ordkey, book, orderSide, leaves, **kwargs):
+        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+
+    def canceled(self, ordkey, book, orderSide, leaves, **kwargs):
+        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+
+    def expired(self, ordkey, book, orderSide, leaves, **kwargs):
+        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+
+    # No effect
+    def pendingNew(self, **kwargs):
         pass
 
-    def canceled(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, leaves):
+    # No effect
+    def pendingCancel(self, **kwargs):
         pass
 
-    def expired(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, leaves):
+    # No effect
+    def pendingReplace(self, **kwargs):
         pass
 
-    def pendingNew(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime):
+    def correction(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID, **kwargs):
         pass
 
-    def pendingCancel(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime):
+    def bust(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID, **kwargs):
         pass
 
-    def pendingReplace(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime):
+    def restated(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
         pass
 
-    def correction(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID):
-        pass
-
-    def bust(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID):
-        pass
-
-    def restated(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx):
-        pass
-
-    def status(self, strategy, strgOrdID, accountID, securityId, venueID, orderSide, sessOrdID, exchExecID, exchOrdID, transactTime, executingBroker, requestTime, tag, receiveTime, cumQty, leaves, avgPx):
+    def status(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
         pass
 
 class DelayQueue:
