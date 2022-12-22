@@ -576,10 +576,35 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "strategy"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 122
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "oms"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 82
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 6,
         "w": 12,
         "x": 0,
         "y": 10
@@ -587,14 +612,15 @@
       "id": 21,
       "options": {
         "footer": {
-          "enablePagination": true,
+          "enablePagination": false,
           "fields": "",
           "reducer": [
             "sum"
           ],
           "show": false
         },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": []
       },
       "pluginVersion": "9.2.6",
       "targets": [
@@ -693,15 +719,15 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 6,
+        "w": 10,
         "x": 12,
         "y": 10
       },
       "id": 22,
       "options": {
         "footer": {
-          "enablePagination": true,
+          "enablePagination": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -721,7 +747,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT (info->'orderType'->'limit')::text as price, (info->'quantity')::text as quantity, (info->'orderSide')::text as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, imnts.name as imnt, venues.name as venue from order_events\nINNER JOIN imnts ON order_events.type = 'new' AND (order_events.info->'securityId')::text = imnts.imnt_id::text AND imnts.name = '$instrument'\nINNER JOIN venues ON (order_events.info->'venueID')::text = venues.venue_id::text AND venues.name = '$market'\nUNION\nSELECT NULL as price, (info->'leaves')::text as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, imnts.name as imnt, venues.name as venue from order_events\nINNER JOIN imnts ON order_events.type = 'cancel' AND (order_events.info->'securityId')::text = imnts.imnt_id::text AND imnts.name = '$instrument'\nINNER JOIN venues ON (order_events.info->'venueID')::text = venues.venue_id::text AND venues.name = '$market'\nUNION\nSELECT NULL as price, NULL as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, NULL as imnt, NULL as venue from order_events\nWHERE NOT (type = 'new' OR type = 'cancel')\nORDER BY pubseq ASC;",
+          "rawSql": "SELECT (info->'orderType'->'limit')::text as price, (info->'quantity')::text as quantity, (info->'orderSide')::text as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, imnts.name as imnt, venues.name as venue from order_events\nINNER JOIN imnts ON order_events.type = 'new' AND (order_events.info->'securityId')::text = imnts.imntID::text AND imnts.name = '$instrument'\nINNER JOIN venues ON (order_events.info->'venueID')::text = venues.venueID::text AND venues.name = '$market'\nUNION\nSELECT NULL as price, (info->'leaves')::text as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, imnts.name as imnt, venues.name as venue from order_events\nINNER JOIN imnts ON order_events.type = 'cancel' AND (order_events.info->'securityId')::text = imnts.imntID::text AND imnts.name = '$instrument'\nINNER JOIN venues ON (order_events.info->'venueID')::text = venues.venueID::text AND venues.name = '$market'\nUNION\nSELECT NULL as price, NULL as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, NULL as imnt, NULL as venue from order_events\nWHERE NOT (type = 'new' OR type = 'cancel')\nORDER BY pubseq ASC;",
           "refId": "A",
           "select": [
             [
@@ -784,7 +810,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 16
       },
       "id": 19,
       "options": {
@@ -889,6 +915,6 @@
   "timezone": "",
   "title": "Market data tutorial",
   "uid": "rD_20UI42",
-  "version": 15,
+  "version": 16,
   "weekStart": ""
 }
