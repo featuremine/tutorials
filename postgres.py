@@ -38,19 +38,21 @@ import json
 # YTP channels prefix
 prefix = "ore/imnts"
 
-def extractor2psqlfield(name, t):
-    if t == extractor.Time64:
-        return f'{name} TIMESTAMP WITHOUT TIME ZONE'
-    elif t == extractor.Rprice:
-        return f'{name} NUMERIC NOT NULL'
-    elif t == extractor.Float64:
-        return f'{name} NUMERIC NOT NULL'
-    elif t == extractor.Decimal128:
-        return f'{name} NUMERIC NOT NULL'
-    elif t == extractor.Int32:
-        return f'{name} INT NOT NULL'
-    else:
-        return f'{name} VARCHAR(32)'
+e2psqltype = {
+    extractor.Time64: 'TIMESTAMP WITHOUT TIME ZONE',
+    extractor.Rprice: 'NUMERIC NOT NULL'
+}
+# def extractor2psqlfield(name, t):
+#     elif t == extractor.Rprice:
+#         return f'{name} NUMERIC NOT NULL'
+#     elif t == extractor.Float64:
+#         return f'{name} NUMERIC NOT NULL'
+#     elif t == extractor.Decimal128:
+#         return f'{name} NUMERIC NOT NULL'
+#     elif t == extractor.Int32:
+#         return f'{name} INT NOT NULL'
+#     else:
+#         return f'{name} VARCHAR(32)'
 
 def extractor2psqlvalue(val):
     if isinstance(val, str):
@@ -59,6 +61,35 @@ def extractor2psqlvalue(val):
         return f"'{val + datetime(1970, 1, 1)}'"
     else:
         return str(val)
+
+bars_descr = (("open_time", extractor.Time64),
+                ("close_time", extractor.Time64),
+                ("close_askpx", extractor.Decimal128),
+                ("close_asksz", extractor.Decimal128),
+                ("close_bidpx", extractor.Decimal128),
+                ("close_bidsz", extractor.Decimal128),
+                ("high_askpx", extractor.Decimal128),
+                ("high_asksz", extractor.Decimal128),
+                ("high_bidpx", extractor.Decimal128),
+                ("high_bidsz", extractor.Decimal128),
+                ("low_askpx", extractor.Decimal128),
+                ("low_asksz", extractor.Decimal128),
+                ("low_bidpx", extractor.Decimal128),
+                ("low_bidsz", extractor.Decimal128),
+                ("open_askpx", extractor.Decimal128),
+                ("open_asksz", extractor.Decimal128),
+                ("open_bidpx", extractor.Decimal128),
+                ("open_bidsz", extractor.Decimal128),
+                ("close_px", extractor.Decimal128),
+                ("close_sz", extractor.Decimal128),
+                ("high_px", extractor.Decimal128),
+                ("high_sz", extractor.Decimal128),
+                ("low_px", extractor.Decimal128),
+                ("low_sz", extractor.Decimal128),
+                ("open_px", extractor.Decimal128),
+                ("open_sz", extractor.Decimal128),
+                ("notional", extractor.Decimal128),
+                ("vwap", extractor.Decimal128))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -77,40 +108,6 @@ if __name__ == "__main__":
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
 
     args = parser.parse_args()
-
-    bars_descr = (("open_time", extractor.Time64),
-                  ("close_time", extractor.Time64),
-                  ("close_askpx", extractor.Decimal128),
-                  ("close_asksz", extractor.Decimal128),
-                  ("close_bidpx", extractor.Decimal128),
-                  ("close_bidsz", extractor.Decimal128),
-                  ("high_askpx", extractor.Decimal128),
-                  ("high_asksz", extractor.Decimal128),
-                  ("high_bidpx", extractor.Decimal128),
-                  ("high_bidsz", extractor.Decimal128),
-                  ("low_askpx", extractor.Decimal128),
-                  ("low_asksz", extractor.Decimal128),
-                  ("low_bidpx", extractor.Decimal128),
-                  ("low_bidsz", extractor.Decimal128),
-                  ("open_askpx", extractor.Decimal128),
-                  ("open_asksz", extractor.Decimal128),
-                  ("open_bidpx", extractor.Decimal128),
-                  ("open_bidsz", extractor.Decimal128),
-                  ("close_px", extractor.Decimal128),
-                  ("close_sz", extractor.Decimal128),
-                  ("high_px", extractor.Decimal128),
-                  ("high_sz", extractor.Decimal128),
-                  ("low_px", extractor.Decimal128),
-                  ("low_sz", extractor.Decimal128),
-                  ("open_px", extractor.Decimal128),
-                  ("open_sz", extractor.Decimal128),
-                  ("notional", extractor.Decimal128),
-                  ("vwap", extractor.Decimal128))
-
-    trade_descr = (("price", extractor.Decimal128),
-                   ("qty", extractor.Decimal128),
-                  #("side", extractor.Array(extractor.Char, 1)),
-                   ("receive", extractor.Time64))
 
     # Wait until the YTP file is created
     while not os.path.exists(args.ytpmarket):
@@ -132,13 +129,8 @@ if __name__ == "__main__":
         time.sleep(1)
     cur = conn.cursor()
 
-    db_fields_array = []
-    db_fields_create = ''
-    for field in bars_descr:
-        db_fields_array += [field[0]]
-        db_fields_create += extractor2psqlfield(field[0], field[1]) + ','
-    db_fields_create = db_fields_create[:-1]
-    db_fields_str = ",".join(db_fields_array)
+    bar_record_fields = [str(field[0]) for field in bars_descr]
+    bar_records_str = ",".join(bar_record_fields)
 
     # Create database table to store market data
     cur.execute(f"""
@@ -148,7 +140,7 @@ if __name__ == "__main__":
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() at time zone 'utc'),
         market VARCHAR(32),
         imnt VARCHAR(32),
-        {db_fields_create},
+        {",".join([f'{field[0]} {e2psqltype[field[1]]}' for field in bars_descr])},
         UNIQUE (market, imnt, close_time)
     )
     """)
@@ -158,12 +150,12 @@ if __name__ == "__main__":
         if x[0].vwap == extractor.Decimal128(0):
             return
         # Populate the market data parameters into the database
-        values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in db_fields_array])
+        values = ",".join([extractor2psqlvalue(getattr(x[0], f)) for f in bar_record_fields])
         cmd = f"""
-        INSERT INTO market_data (market,imnt,{db_fields_str}) VALUES
+        INSERT INTO market_data (market,imnt,{bar_records_str}) VALUES
         ('{market}','{imnt}',{values})
         ON CONFLICT  (market, imnt, close_time)
-        DO UPDATE SET (market,imnt,{db_fields_str}) = ('{market}','{imnt}',{values});
+        DO UPDATE SET (market,imnt,{bar_records_str}) = ('{market}','{imnt}',{values});
         """
         cur.execute(cmd)
         conn.commit()
@@ -358,12 +350,12 @@ if __name__ == "__main__":
     cur.execute(f"""
     CREATE TABLE IF NOT EXISTS venues
     (
-        venue_id INT PRIMARY KEY NOT NULL,
+        venueID INT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS imnts
     (
-        imnt_id INT PRIMARY KEY NOT NULL,
+        imntID INT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL
     );
     """)
@@ -373,15 +365,16 @@ if __name__ == "__main__":
     seqref = ytp.sequence(cfg['state_ytp'])
     peerref = seqref.peer(cfg['peer'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
+    op.ytp_sequence(seqref, timedelta(milliseconds=1))
     
     def venues2db(delta):
         for id, venue in delta.venuesNames.items():
             print(id)
             print(venue)
             cmd = f"""
-            INSERT INTO venues (venue_id,name) VALUES
+            INSERT INTO venues (venueID,name) VALUES
             ({id},'{venue.label}')
-            ON CONFLICT (venue_id)
+            ON CONFLICT (venueID)
             DO NOTHING
             """
             cur.execute(cmd)
@@ -390,9 +383,9 @@ if __name__ == "__main__":
             print(id)
             print(security)
             cmd = f"""
-            INSERT INTO imnts (imnt_id,name) VALUES
+            INSERT INTO imnts (imntID,name) VALUES
             ({id},'{security.symbol}')
-            ON CONFLICT (imnt_id)
+            ON CONFLICT (imntID)
             DO NOTHING
             """
             cur.execute(cmd)
@@ -400,6 +393,7 @@ if __name__ == "__main__":
 
     refdata.add_callback(venues2db)
     refdata.poll()
+    refdata.batch = False
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()

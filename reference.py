@@ -58,7 +58,7 @@ class ReferenceData(object):
             self.venuesSecurities = defaultdict(set)
             self.venuesNames = defaultdict(ReferenceData.Venue)
             self.securities = defaultdict(ReferenceData.Security)
-            self.accounts = set()   
+            self.accounts = set()
 
         def update(self, delta):
             for k, v in delta.venuesSecurities.items():
@@ -69,7 +69,7 @@ class ReferenceData(object):
                 self.securities[k] = v
             self.accounts.update(delta.accounts)
 
-    def __init__(self, seq, cfg: dict) -> None:
+    def __init__(self, seq, cfg: dict, batch=True) -> None:
         self.state = ReferenceData.State()
         self.delta = ReferenceData.State()
 
@@ -80,6 +80,7 @@ class ReferenceData(object):
             cfg['risk_channel']: schemas.reference.RiskData
         }
 
+        self.batch = batch
         self.seq = seq
         self.seq.data_callback('/', self._seq_clbck)
 
@@ -87,6 +88,9 @@ class ReferenceData(object):
         self.callbacks.append(clb)
 
     def _seq_clbck(self, peer, channel, time, data):
+        if not self.batch:
+            self.delta = ReferenceData.State()
+
         chname = channel.name()
         if not chname in self.parser:
             return
@@ -106,16 +110,25 @@ class ReferenceData(object):
         elif 'account' in d['message']:
             self.delta.accounts.add(d['message']['account']['identifier'])
 
+        if not self.batch:
+            self.state.update(self.delta)
+
+            for c in self.callbacks:
+                c(self.delta)
+
     def poll(self, limit=None):
-        self.delta = ReferenceData.State()
+        if self.batch:
+            self.delta = ReferenceData.State()
+
         count = 0
         while self.seq.poll() and (not limit or count <= limit):
             count += 1
 
-        self.state.update(self.delta)
+        if self.batch:
+            self.state.update(self.delta)
 
-        for c in self.callbacks:
-            c(self.delta)
+            for c in self.callbacks:
+                c(self.delta)
 
 class MarketData(object):
     def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
