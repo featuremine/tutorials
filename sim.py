@@ -155,6 +155,21 @@ def strg_placed(orderid, accid, securityid, venueid, side, execid, price, quanti
     }
 
 
+def strg_fail(orderid, failure_type, reason, request_time):
+    return {
+            "message": {
+                "sess": {
+                    "failed": {
+                        "strgOrdID": orderid,
+                        "type": failure_type,
+                        "reason": reason,
+                        "requestTime": request_time
+                    }
+                }
+            }
+        }
+
+
 class StrategyOrderWriter:
     def __init__(self, stream):
         self.stream = stream
@@ -171,18 +186,35 @@ class StrategyOrderWriter:
         self.execid += 1
         self.send_message(strg_placed, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
+    def failed(self, info, reason):
+        #TODO: report back actual request time from YTP instead of current time?
+        self.send_message(strg_fail, info['strgOrdID'], "place", reason, time_ns())
+
 class FillModel(AbstractOrderBook):
-    def __init__(self, responder):
-        self.book = SidedPriceFIFOPriorityOrderBook()
+    def __init__(self, mktdata, responder):
+        self.mktdata = mktdata
         self.responder = responder
+        self.book = SidedPriceFIFOPriorityOrderBook()
 
     def add(self, key, px, qty, side, info):
-        print("adding order", key, px, qty, side, info)
-        if px is None:
-            #execute market order
-            pass
 
-        #check whether it can be executed immideately
+        #TODO: validate duplicate order ids
+
+        mktdata_key = (info["venueID"], info["securityId"])
+
+        if mktdata_key not in self.mktdata.quotes:
+            self.responder.failed(info, "price not available for security in provided venue")
+            return
+
+        price_ref = graph.get_ref(self.mktdata.quotes[mktdata_key])
+        fillpx = price_ref[0].askpx if orderside == "buy" else price_ref[0].bidpx
+
+        def worse(px, other):
+            return px > other if orderside == "buy" else px < other
+
+        if px is None or worse(px, fillpx):
+            self.responder.filled(fillpx, qty, side, info)
+            return
 
         if info['timeInForce'] == 'IOC':
             #cancel what is left
@@ -315,7 +347,7 @@ class FillModels(dict):
 
     def __missing__(self, key):
         stream = self.peer.stream(self.peer.channel(time_ns(), self.strg_pfx + key.strategy + "/" + self.oms_name))
-        obj = self[key] = FillModel(StrategyOrderWriter(stream))
+        obj = self[key] = FillModel(mktdata, StrategyOrderWriter(stream))
         self.mktdata.trade_callback(key.imnt, key.venue, obj.mkt_upd)
         return obj
 
