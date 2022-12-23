@@ -100,6 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
 
     args = parser.parse_args()
+    cfg = json.load(open(args.cfg))
 
     # Wait until the YTP file is created
     while not os.path.exists(args.ytpmarket):
@@ -201,14 +202,16 @@ if __name__ == "__main__":
         cur.execute(cmd)
         conn.commit()
 
+    strg_pfx = f"{cfg['strategy_prefix']}"
+    strg_pfx_len = len(strg_pfx)
+    oms = cfg['oms_name']
+    oms_len = len(oms)
     yamalsequence = 0
     def orders2db(peer, channel, time, data):
         global yamalsequence
         yamalsequence += 1
-        chparsed = channel.name().split('/')
-        strategy = chparsed[2]
-        oms = chparsed[1]
-        #TODO:Parse channel to get strategy and oms
+        rest = channel.name()[strg_pfx_len:]
+        strategy = rest[oms_len + 1:] if rest.startswith(oms) else rest[:-oms_len - 1]
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
         if 'strg' not in d['message']:
@@ -369,14 +372,10 @@ if __name__ == "__main__":
     for bar, mi, trade in zip(bars, mktimnt, trades):
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
 
-    # TODO: proper channels
-    channelsorders = [ "strgs/oms1/client1" ]
     seqorders = ytp.sequence(args.ytporders)
-    for ch in channelsorders:
-        seqorders.data_callback(ch, orders2db)
+    seqorders.data_callback(strg_pfx, orders2db)
     op.ytp_sequence(seqorders, timedelta(milliseconds=1))
 
-    cfg = json.load(open(args.cfg))
     seqref = ytp.sequence(cfg['state_ytp'])
     peerref = seqref.peer(cfg['peer'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
