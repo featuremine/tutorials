@@ -10,7 +10,7 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
             ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
             ui.label('Featuremine Trading GUI')
     with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
-        selectAccount = ui.select(['1234']).style('width:10em;height:1em;').props(add='borderless label=Account')
+        selectAccount = ui.select(['1001','1002','1003']).style('width:10em;height:1em;').props(add='borderless label=Account')
 
 
 with ui.expansion('orders BUY/SELL', icon='work').classes('w-full'):
@@ -25,15 +25,15 @@ with ui.expansion('orders BUY/SELL', icon='work').classes('w-full'):
                 ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
                 ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
             with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
-                bidlabel = ui.label('123.456').style('width:10em;align-items:center;text-align:center;')
-                asklabel = ui.label('124.456').style('width:10em;align-items:center;text-align:center;')
+                bidlabel = ui.label('123456.123456789').style('width:10em;align-items:center;text-align:center;')
+                asklabel = ui.label('123457.123456789').style('width:10em;align-items:center;text-align:center;')
 
     with ui.row().style('height:3em'):
         pass
 
     with ui.row():
         with ui.column():
-            pricein = ui.input(label='Price', placeholder='0.00').style('width:8em;align-items:center;text-align:center;')
+            pricein = ui.input(label='Price', placeholder='0.00').style('width:10em;align-items:center;text-align:center;')
         with ui.column():
             def update_askbid_checkbox(check):
                 if check.sender == bidcheckbox and check.value:
@@ -54,29 +54,30 @@ with ui.expansion('orders BUY/SELL', icon='work').classes('w-full'):
             askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;')
 
         with ui.column():
-            def switch_qty(notional):
-                qtyin.view.label = 'Notional' if notional else 'Quantity'
-                qtyin.update()
-                qtyout.set_text('Quantity: -' if notional else 'Notional: -')
-                    
-            qtyin = ui.input(label='Quantity', placeholder='0.00').style('width:8em;align-items:center;text-align:center;')
-        with ui.column():
-            with ui.row().style('height:7px'):
-                pass
+            with ui.row():
+                def switch_qty(notional):
+                    qtyin.view.label = 'Notional' if notional else 'Quantity'
+                    qtyin.update()
+                    qtyout.set_text('Quantity: -' if notional else 'Notional: -')
+                        
+                qtyin = ui.input(label='Quantity', placeholder='0.00').style('width:10em;align-items:center;text-align:center;')
+                with ui.column():
+                    with ui.row().style('height:7px'):
+                        pass
 
-            notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:5em;height:1em;align-items:center;text-align:center;')
-        
-        with ui.column():
-            with ui.row().style('height:5px'):
-                pass
-            qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
+                    notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:5em;height:1em;align-items:center;text-align:center;')
+                
+                with ui.column():
+                    with ui.row().style('height:5px'):
+                        pass
+                    qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
 
     with ui.row().style('height:3em'):
         pass
 
     with ui.row():
-        ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:9em;align-items:center;text-align:center;').props('color=green')
-        ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:9em;align-items:center;text-align:center;')
+        ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;').props('color=green')
+        ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;')
 
 with ui.expansion('orders list', icon='work').classes('w-full'):
     table = ui.table(options={
