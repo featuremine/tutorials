@@ -80,41 +80,41 @@ with ui.expansion('orders BUY/SELL', icon='work').classes('w-full'):
         ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;')
 
 with ui.expansion('orders list', icon='work').classes('w-full'):
-    table = ui.table(options={
-        'defaultColDef': {
-            'minWidth': 100,
-            'filter': True,
-            'sortable': True,
-            'cellStyle': {'textAlign': 'center'},
-            'headerClass': 'font-bold'
-        }, 
-        'columnDefs': [
-            {'headerName': 'Order', 'field': 'order'},
-            {'headerName': 'Account', 'field': 'account'},
-            {'headerName': 'Security', 'field': 'security'},
-            {'headerName': 'Venue', 'field': 'venue'},
-            {'headerName': 'Side', 'field': 'side'},
-            {'headerName': 'Price', 'field': 'price'},
-            {'headerName': 'Quantity', 'field': 'quantity'},
-            {'headerName': '', 'field': 'cancel'},
-        ],
-        'rowData': [
-            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2, 'cancel':'cancel' },
-            {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2, 'cancel':'cancel' },
-        ],
-    })
-    #.style('height:200px;width:300px;margin:0.25em')
-    #table.options['rowData'][0]['age'] += 1
-    for col_def in table.view.options.columnDefs:
-        col_def.cellClass = ['text-2xl','text-white-500']
-    table.view.options.columnDefs[7].cellClass = ['text-2xl','text-white-500', 'bg-blue-500', 'hover:bg-red-500', 'hover:text-yellow-500']
-    def handle_click(sender, msg):
-        print(msg)
-        if msg['event_type'] == 'cellClicked' and msg['colId'] == 'cancel':
-            print('cellClicked')
+    with ui.row().style('margin-left:2em'):
+        with ui.column():
+            selectOrder = ui.select({1001:'1001', 1002:'1002',}).style('width:10em').props(add='label=Order')
 
-    table.view.on('cellClicked', handle_click)
-    table.view.theme = 'ag-theme-balham-dark'
+        with ui.column().style('margin-left:2em;margin-top:1em'):
+            ui.button('cancel', on_click=lambda: ui.notify('order 1001 canceled')).style('width:10em').props('color=red')
+                
+    with ui.row():
+        table = ui.table(options={
+            'defaultColDef': {
+                'minWidth': 100,
+                'filter': True,
+                'sortable': True,
+                'cellStyle': {'textAlign': 'center'},
+                'headerClass': 'font-bold'
+            }, 
+            'columnDefs': [
+                {'headerName': 'Order', 'field': 'order'},
+                {'headerName': 'Account', 'field': 'account'},
+                {'headerName': 'Security', 'field': 'security'},
+                {'headerName': 'Venue', 'field': 'venue'},
+                {'headerName': 'Side', 'field': 'side'},
+                {'headerName': 'Price', 'field': 'price'},
+                {'headerName': 'Quantity', 'field': 'quantity'},
+            ],
+            'rowData': [
+                {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+                {'order': 1002, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+            ],
+        })
+        #.style('height:200px;width:300px;margin:0.25em')
+        #table.options['rowData'][0]['age'] += 1
+        for col_def in table.view.options.columnDefs:
+            col_def.cellClass = ['text-2xl','text-white-500']
+        table.view.theme = 'ag-theme-balham-dark'
 
 ## Run
 ui.run(title='Featuremine orders', reload=False, show=False)
