@@ -1,0 +1,34 @@
+{
+    "state_ytp": "testdir/symb.ytp",
+    "peer": "setup-peer",
+    "venue_channel": "venu",
+    "symbology_channel": "symb",
+    "risk_channel": "risk",
+    "accounts": [
+        {"identifier": 1001, "aggUnit": 1001, "managerAggUnit": 1001}
+    ],
+    "venues": [
+        {"identifier": 1001, "code": "coinbase", "swapIndicator": false}
+    ],
+    "venueAccountMappings": [
+        {"identifier": 1001, "venueID": 1001, "venueAccount": "account-1001-1001"}
+    ],
+    "securityDefinitions": [
+        {"identifier": 2001, "symbol": "BTC-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 2002, "symbol": "ETH-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 2003, "symbol": "DOGE-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 2004, "symbol": "USDT-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 1001, "symbol": "USD", "instrumentType": "currency", "quoteCurrency": 1001, "assetClass": {"currency": {}}}
+    ],
+    "venueSecurityAttributes": [
+        {"venueID": 1001, "securityId": 2001, "scalingFactor": 1.0, "symbol": "BTC-USD", "idSource": "1001", "securityID": "BTC-USD.ID", "securityExch": "1001"},
+        {"venueID": 1001, "securityId": 2002, "scalingFactor": 1.0, "symbol": "ETH-USD", "idSource": "1001", "securityID": "ETH-USD.ID", "securityExch": "1001"},
+        {"venueID": 1001, "securityId": 2003, "scalingFactor": 1.0, "symbol": "DOGE-USD", "idSource": "1001", "securityID": "DOGE-USD.ID", "securityExch": "1001"},
+        {"venueID": 1001, "securityId": 2004, "scalingFactor": 1.0, "symbol": "USDT-USD", "idSource": "1001", "securityID": "USDT-USD.ID", "securityExch": "1001"}
+    ],
+    "price_ytp": "testdir/ore_coinbase_l2.ytp",
+    "strg_ytp": "testdir/orders.ytp",
+    "strg_pfx": "strg/",
+    "sim_delay": 10,
+    "oms_name": "oms"
+}

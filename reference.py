@@ -163,6 +163,11 @@ class MarketData(object):
             else:
                 quote = level
             self.quotes[ids] = quote
-    
+            self.trades[ids] = op.combine(op.book_trades(upd),
+                                    (("trade_price", "price"),
+                                    ("vendor", "receive"),
+                                    ("qty", "qty"),
+                                    ("decoration", "side")))
+
     def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
         raise NotImplementedError("function is not implemented")
