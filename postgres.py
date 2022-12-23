@@ -136,6 +136,21 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
+    # Venues and instruments
+    cur.execute(f"""
+    CREATE TABLE IF NOT EXISTS venues
+    (
+        venueID INT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS imnts
+    (
+        imntID INT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+    );
+    """)
+    conn.commit()
+
     # Orders
     cur.execute(f"""
     DO $$
@@ -171,21 +186,6 @@ if __name__ == "__main__":
     """)
     conn.commit()
 
-    # Venues and instruments
-    cur.execute(f"""
-    CREATE TABLE IF NOT EXISTS venues
-    (
-        venueID INT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS imnts
-    (
-        imntID INT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL
-    );
-    """)
-    conn.commit()
-
     bar_record_fields = [str(field[0]) for field in bars_descr]
     bar_records_str = ",".join(bar_record_fields)
     def bar2db(x, market, imnt):
@@ -201,6 +201,30 @@ if __name__ == "__main__":
         """
         cur.execute(cmd)
         conn.commit()
+
+    def venues2db(delta):
+        for id, venue in delta.venuesNames.items():
+            print(id)
+            print(venue)
+            cmd = f"""
+            INSERT INTO venues (venueID,name) VALUES
+            ({id},'{venue.label}')
+            ON CONFLICT (venueID)
+            DO NOTHING
+            """
+            cur.execute(cmd)
+            conn.commit()
+        for id, security in delta.securities.items():
+            print(id)
+            print(security)
+            cmd = f"""
+            INSERT INTO imnts (imntID,name) VALUES
+            ({id},'{security.symbol}')
+            ON CONFLICT (imntID)
+            DO NOTHING
+            """
+            cur.execute(cmd)
+            conn.commit()
 
     strg_pfx = f"{cfg['strategy_prefix']}"
     strg_pfx_len = len(strg_pfx)
@@ -240,30 +264,6 @@ if __name__ == "__main__":
         cur.execute(cmd)
         conn.commit()
         #TODO: End orders table sim
-    
-    def venues2db(delta):
-        for id, venue in delta.venuesNames.items():
-            print(id)
-            print(venue)
-            cmd = f"""
-            INSERT INTO venues (venueID,name) VALUES
-            ({id},'{venue.label}')
-            ON CONFLICT (venueID)
-            DO NOTHING
-            """
-            cur.execute(cmd)
-            conn.commit()
-        for id, security in delta.securities.items():
-            print(id)
-            print(security)
-            cmd = f"""
-            INSERT INTO imnts (imntID,name) VALUES
-            ({id},'{security.symbol}')
-            ON CONFLICT (imntID)
-            DO NOTHING
-            """
-            cur.execute(cmd)
-            conn.commit()
 
     graph = extractor.system.comp_graph()
     op = graph.features
@@ -372,18 +372,16 @@ if __name__ == "__main__":
     for bar, mi, trade in zip(bars, mktimnt, trades):
        graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
 
-    seqorders = ytp.sequence(args.ytporders)
-    seqorders.data_callback(strg_pfx, orders2db)
-    op.ytp_sequence(seqorders, timedelta(milliseconds=1))
-
     seqref = ytp.sequence(cfg['state_ytp'])
-    peerref = seqref.peer(cfg['peer'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
     op.ytp_sequence(seqref, timedelta(milliseconds=1))
-
     refdata.add_callback(venues2db)
     refdata.poll()
     refdata.batch = False
+
+    seqorders = ytp.sequence(args.ytporders)
+    seqorders.data_callback(strg_pfx, orders2db)
+    op.ytp_sequence(seqorders, timedelta(milliseconds=1))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
