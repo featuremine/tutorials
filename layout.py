@@ -18,8 +18,6 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
     with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
         selectAccount = ui.select(['1001','1002','1003']).style('width:10em;height:1em;').props(add='borderless label=Account')
 
-
-
 with expansion_bar('orders BUY/SELL'):
     with padded_row():
         with ui.column():
@@ -28,10 +26,10 @@ with expansion_bar('orders BUY/SELL'):
                 selectSecurity = ui.select({1001:'BTC-USD',1002:'ETH-USD',1003:'DOGE-USD',1004:'USDT-USD'}).style('width:10em;align-items:center;text-align:center;').props(add='label=Instrument')
                 
         with ui.column():
-            with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+            with ui.row().style('align-items:center;'):
                 ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
                 ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
-            with ui.row().style('margin-start:auto;margin-end:auto;align-items:center;'):
+            with ui.row().style('align-items:center;'):
                 bidlabel = ui.label('123456.123456789').style('width:10em;align-items:center;text-align:center;')
                 asklabel = ui.label('123457.123456789').style('width:10em;align-items:center;text-align:center;')
 
@@ -51,11 +49,8 @@ with expansion_bar('orders BUY/SELL'):
                     pricein.set_value(asklabel.text)
                 else:
                     pricein.props(remove='readonly')
-            
-            with ui.row().style('height:2px'):
-                pass
 
-            bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;')
+            bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;margin-top:1em;')
             askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;')
 
         with ui.column():
