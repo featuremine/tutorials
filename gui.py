@@ -287,8 +287,9 @@ with expansion_bar('orders list'):
                 indices = [i for i, x in enumerate(selected) if x]
                 for i in sorted(indices, reverse=True):
                     table.options['rowData'].pop(i)
-                table.update()
-                selected = [ x for i,x in enumerate(selected) if not x]
+                if indices:
+                    table.update()
+                    selected = [ x for i,x in enumerate(selected) if not x]
 
             ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
                 
@@ -310,11 +311,7 @@ with expansion_bar('orders list'):
                 {'headerName': 'Price', 'field': 'price'},
                 {'headerName': 'Quantity', 'field': 'quantity'},
             ],
-            'rowData': [
-                {'enabled': False, 'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
-                {'enabled': False, 'order': 1002, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
-                {'enabled': False, 'order': 1003, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
-            ],
+            'rowData': [],
         }).style('margin:0;padding:0;height:100vh;width:100%;')
         selected = [False] * len(table.options['rowData'])
         for col_def in table.view.options.columnDefs:
@@ -371,9 +368,25 @@ def mktSubscribe(delta):
 refdata.add_callback(mktSubscribe)
 
 def update_orders_ui(requests, responses):
-    pass
-    #for r in requests:
-    #    orderslog.push(f"order id {r['message']['strg']['new']['strgOrdID']}")
+    for r in requests:
+        if 'strg' not in r['message']:
+            continue
+        msg = r['message']['strg']
+        neword = msg['new'] # TODO: parse other messages
+        table.options['rowData'].append({
+            'enabled': False,
+            'order': neword['strgOrdID'],
+            'account': neword['accountID'],
+            'security': neword['securityId'],
+            'venue': neword['venueID'],
+            'side': neword['orderSide'],
+            'price': '-' if 'market' in neword['orderType'] else neword['orderType']['limit'],
+            'quantity': neword['quantity'] 
+        })
+        selected.append(False)
+
+    if requests or responses:
+        table.update()
 
 orders.add_callback(update_orders_ui)
 
