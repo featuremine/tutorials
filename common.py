@@ -2,8 +2,6 @@ import argparse
 from reference import ReferenceBuilder, ReferenceData, MarketData
 from yamal import ytp
 import json
-import extractor
-import time as pytime
 from typing import Dict, Tuple, NamedTuple, Optional, Callable, Any
 from datetime import timedelta
 import queue
@@ -14,9 +12,6 @@ from logging import getLogger
 from datetime import timedelta
 from conveyor.utils import schemas
 capnp_spec = schemas.strategy.ManagerMessage
-
-def time_ns():
-    return int(pytime.time() * 1000000000)
 
 class AbstractOrderBook:
 
@@ -41,40 +36,39 @@ class AbstractOrderBook:
     def side(self, i):
         raise NotImplementedError('not implemented')
 
-
-def QueuedOrderComp(first, second):
-    if first.side == "buy":
-        if first.px < second.px:
-            return 1
-        elif first.px > second.px:
-            return -1
-    else:
-        if first.px > second.px:
-            return 1
-        elif first.px < second.px:
-            return -1
-    if first.time > second.time:
-        return 1
-    if first.time < second.time:
-        return -1
-    return 0
-
-class QueuedOrder(object):
-    def __init__(self, now, px: float, qty: float, side, info):
-        self.time = now
-        self.px = px
-        self.qty = qty
-        self.leaves = qty
-        self.side = side
-        self.info = info
-
-    def __gt__(self, other):
-        return QueuedOrderComp(self, other) == 1
-
-    def __lt__(self, other):
-        return QueuedOrderComp(self, other) == -1
-
 class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
+    def Comp(first, second):
+        if first.side == "buy":
+            if first.px < second.px:
+                return 1
+            elif first.px > second.px:
+                return -1
+        else:
+            if first.px > second.px:
+                return 1
+            elif first.px < second.px:
+                return -1
+        if first.time > second.time:
+            return 1
+        if first.time < second.time:
+            return -1
+        return 0
+
+
+    class Order(object):
+        def __init__(self, px: float, qty: float, side, info):
+            self.px = px
+            self.qty = qty
+            self.leaves = qty
+            self.side = side
+            self.info = info
+
+        def __gt__(self, other):
+            return SidedPriceFIFOPriorityOrderBook.Comp(self, other) == 1
+
+        def __lt__(self, other):
+            return SidedPriceFIFOPriorityOrderBook.Comp(self, other) == -1
+
     def __init__(self):
         self._order_dict = dict()
         # each order heap is an array sorted by price time priority
@@ -82,7 +76,7 @@ class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
         self.pxcmp = (lambda x, y: x < y, lambda x, y: x > y)
 
     def add(self, key, px, qty, side, info):
-        order = QueuedOrder(time_ns(), px, qty, side, info)
+        order = SidedPriceFIFOPriorityOrderBook.Order(px, qty, side, info)
         insort(self._order_heap[1 * side == "buy"], order)
         self._order_dict[key] = order
 
@@ -109,7 +103,21 @@ class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
     def side(self, i):
         return self._order_heap[i]
 
-class StrategyOrderWriter:
+class CapnpMessageWriter:
+    def __init__(self, category, kind):
+        self.category = category
+        self.kind = kind
+
+    def __call__ (self, **rest):
+        return {
+            "message": {
+                self.category: {
+                    self.kind: rest
+                }
+            }
+        }
+
+class ManagerMessageWriter:
     def strg_placed(orderid, accid, securityid, venueid, side, execid, price, quantity, transact_time, executing_broker):
         return {
             "message": {
@@ -208,32 +216,46 @@ class StrategyOrderWriter:
             }
         }
 
-    def __init__(self, stream):
-        self.stream = stream
-        self.execid = 0
+    _place = CapnpMessageWriter('strg', 'new')
 
-    def send_message(self, msg_builder, *args, **kwargs):
-        response = capnp_spec.new_message()
-        msg_dict = msg_builder(*args, **kwargs)
-        response.from_dict(msg_dict)
-        encoded_response = response.to_bytes_packed()
-        self.stream.write(time_ns(), encoded_response)
+    def __init__(self, systime, stream, ctx):
+        self.systime = systime
+        self.stream = stream
+        self.ctx = ctx
+
+    def send(self, builder, **rest):
+        msg = capnp_spec.new_message()
+        msg_dict = builder(**rest)
+        msg.from_dict(msg_dict)
+        encoded_response = msg.to_bytes_packed()
+        self.stream.write(self.systime(), encoded_response)
+
+    def place(self, strgOrdID, orderSide, px, quantity, maxFloor, minQty, timeInForce, algorithm, tag, **rest):
+        self.send(ManagerMessageWriter._place,
+                  strgOrdID=strgOrdID,
+                  orderSide=orderSide,
+                  orderType={'market': None} if px is None else {'limit': px},
+                  quantity=quantity,
+                  maxFloor={'none': None} if maxFloor is None else {'maxFloor': maxFloor},
+                  minQty={'none': None} if minQty is None else {'maxQty': minQty},
+                  timeInForce=timeInForce,
+                  algorithm={'dma': None} if algorithm is None else {'custom': algorithm},
+                  tag=tag,
+                  **rest,
+                  **self.ctx)
 
     def placed(self, px, qty, side, info):
-        self.execid += 1
-        self.send_message(self.strg_placed, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
+        CapnpMessageWriter.send_message(self.strg_placed, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
     def failed(self, info, reason):
         #TODO: report back actual request time from YTP instead of current time?
-        self.send_message(self.strg_fail, info['strgOrdID'], "place", reason, time_ns())
+        CapnpMessageWriter.send_message(self.strg_fail, info['strgOrdID'], "place", reason, time_ns())
 
     def canceled(self, side, info, leaves):
-        self.execid += 1
-        self.send_message(self.strg_canceled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), time_ns(), "SimulatorFM")
+        CapnpMessageWriter.send_message(self.strg_canceled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), time_ns(), "SimulatorFM")
 
     def filled(self, px, qty, side, info):
-        self.execid += 1
-        self.send_message(self.strg_filled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
+        CapnpMessageWriter.send_message(self.strg_filled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
 class StrategyOrderUpdater:
 
