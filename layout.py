@@ -79,13 +79,19 @@ with ui.expansion('orders BUY/SELL').classes('w-full'):
         ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;').props('color=green')
         ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;')
 
+selected = []
 with ui.expansion('orders list').classes('w-full'):
     with ui.row().style('margin-left:2em'):
-        with ui.column():
-            selectOrder = ui.select({1001:'1001', 1002:'1002',}).style('width:10em').props(add='label=Order')
-
         with ui.column().style('margin-left:2em;margin-top:1em'):
-            ui.button('cancel', on_click=lambda: ui.notify('order 1001 canceled')).style('width:10em').props('color=red')
+            def cancel_orders(b):
+                global selected
+                indices = [i for i, x in enumerate(selected) if x]
+                for i in sorted(indices, reverse=True):
+                    table.options['rowData'].pop(i)
+                table.update()
+                selected = [ x for i,x in enumerate(selected) if not x]
+
+            ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
                 
     with ui.row():
         table = ui.table(options={
@@ -97,6 +103,7 @@ with ui.expansion('orders list').classes('w-full'):
                 'headerClass': 'font-bold'
             }, 
             'columnDefs': [
+                {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'},
                 {'headerName': 'Order', 'field': 'order'},
                 {'headerName': 'Account', 'field': 'account'},
                 {'headerName': 'Security', 'field': 'security'},
@@ -106,15 +113,20 @@ with ui.expansion('orders list').classes('w-full'):
                 {'headerName': 'Quantity', 'field': 'quantity'},
             ],
             'rowData': [
-                {'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
-                {'order': 1002, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+                {'enabled': False, 'order': 1001, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+                {'enabled': False, 'order': 1002, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
+                {'enabled': False, 'order': 1003, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
             ],
         })
-        #.style('height:200px;width:300px;margin:0.25em')
-        #table.options['rowData'][0]['age'] += 1
+        selected = [False] * len(table.options['rowData'])
         for col_def in table.view.options.columnDefs:
             col_def.cellClass = ['text-2xl','text-white-500']
         table.view.theme = 'ag-theme-balham-dark'
+                
+        def handle_change(sender, msg):
+            selected[msg['rowIndex']] = msg['value']
+
+        table.view.on('cellValueChanged', handle_change)
 
 ## Run
 ui.run(title='Featuremine orders', reload=False, show=False)
