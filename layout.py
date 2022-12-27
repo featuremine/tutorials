@@ -13,7 +13,7 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
         selectAccount = ui.select(['1001','1002','1003']).style('width:10em;height:1em;').props(add='borderless label=Account')
 
 
-with ui.expansion('orders BUY/SELL').classes('w-full'):
+with ui.expansion('orders BUY/SELL').classes('w-full').props(add='switch-toggle-side'):
     with ui.row():
         with ui.column():
             with ui.row():
@@ -80,7 +80,7 @@ with ui.expansion('orders BUY/SELL').classes('w-full'):
         ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;')
 
 selected = []
-with ui.expansion('orders list').classes('w-full'):
+with ui.expansion('orders list').classes('w-full').props(add='switch-toggle-side'):
     with ui.row().style('margin-left:2em'):
         with ui.column().style('margin-left:2em;margin-top:1em'):
             def cancel_orders(b):
