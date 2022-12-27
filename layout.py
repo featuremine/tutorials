@@ -2,7 +2,7 @@ from nicegui import ui
 
 
 def padded_row():
-    return ui.row().style('margin-left:2em')
+    return ui.row().style('margin:1em;')
 
 def expansion_bar(name):
     return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
@@ -35,8 +35,6 @@ with expansion_bar('orders BUY/SELL'):
                 bidlabel = ui.label('123456.123456789').style('width:10em;align-items:center;text-align:center;')
                 asklabel = ui.label('123457.123456789').style('width:10em;align-items:center;text-align:center;')
 
-    with padded_row().style('height:3em'):
-        pass
 
     with padded_row():
         with ui.column():
@@ -79,18 +77,16 @@ with expansion_bar('orders BUY/SELL'):
                         pass
                     qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
 
-    with padded_row().style('height:3em'):
-        pass
 
     with padded_row():
-        ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;').props('color=green')
-        ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;')
+        ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
+        ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;align-items:center;text-align:center;')
 
 selected = []
 
 with expansion_bar('orders list'):
     with padded_row():
-        with ui.column().style('margin-left:2em;margin-top:1em'):
+        with ui.column():
             def cancel_orders(b):
                 global selected
                 indices = [i for i, x in enumerate(selected) if x]
@@ -125,7 +121,7 @@ with expansion_bar('orders list'):
                 {'enabled': False, 'order': 1002, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
                 {'enabled': False, 'order': 1003, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
             ],
-        })
+        }).style('margin:0;padding:0;height:100vh;width:100%')
         selected = [False] * len(table.options['rowData'])
         for col_def in table.view.options.columnDefs:
             col_def.cellClass = ['text-2xl','text-white-500']
