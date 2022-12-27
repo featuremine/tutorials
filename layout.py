@@ -62,16 +62,10 @@ with expansion_bar('orders BUY/SELL'):
                         
                 qtyin = ui.input(label='Quantity', placeholder='0.00').style('width:10em;align-items:center;text-align:center;')
                 with ui.column():
-                    with ui.row().style('height:7px'):
-                        pass
+                    qtyout = ui.label('Notional: 1234.56789').style('width:10em;align-items:center;text-align:left;margin-top:2em;')
 
-                    notionalcheckbox = ui.checkbox('notional', on_change=lambda c: switch_qty(c.value)).style('width:5em;height:1em;align-items:center;text-align:center;')
-                
                 with ui.column():
-                    with ui.row().style('height:5px'):
-                        pass
-                    qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
-
+                    notionalswitch = ui.switch('notional', on_change=lambda c: switch_qty(c.value)).style('margin-top:1em;')                
 
     with padded_row():
         ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:10em;align-items:center;text-align:center;').props('color=green')
