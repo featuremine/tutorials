@@ -1,6 +1,12 @@
 from nicegui import ui
 
 
+def padded_row():
+    return ui.row().style('margin-left:2em')
+
+def expansion_bar(name):
+    return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
+
 ## UI
 UNAVAILABLE = '-'
 
@@ -13,8 +19,9 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
         selectAccount = ui.select(['1001','1002','1003']).style('width:10em;height:1em;').props(add='borderless label=Account')
 
 
-with ui.expansion('orders BUY/SELL').classes('w-full').props(add='switch-toggle-side'):
-    with ui.row():
+
+with expansion_bar('orders BUY/SELL'):
+    with padded_row():
         with ui.column():
             with ui.row():
                 selectMarket = ui.select({1001:'coinbase'}).style('width:10em;align-items:center;text-align:center;').props(add='label=Market')
@@ -28,10 +35,10 @@ with ui.expansion('orders BUY/SELL').classes('w-full').props(add='switch-toggle-
                 bidlabel = ui.label('123456.123456789').style('width:10em;align-items:center;text-align:center;')
                 asklabel = ui.label('123457.123456789').style('width:10em;align-items:center;text-align:center;')
 
-    with ui.row().style('height:3em'):
+    with padded_row().style('height:3em'):
         pass
 
-    with ui.row():
+    with padded_row():
         with ui.column():
             pricein = ui.input(label='Price', placeholder='0.00').style('width:10em;align-items:center;text-align:center;')
         with ui.column():
@@ -72,16 +79,17 @@ with ui.expansion('orders BUY/SELL').classes('w-full').props(add='switch-toggle-
                         pass
                     qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:center;')
 
-    with ui.row().style('height:3em'):
+    with padded_row().style('height:3em'):
         pass
 
-    with ui.row():
+    with padded_row():
         ui.button('buy', on_click=lambda: ui.notify('buy on ask was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;').props('color=green')
         ui.button('sell', on_click=lambda: ui.notify('buy on bid was pressed')).style('width:10em;margin-left:2em;align-items:center;text-align:center;')
 
 selected = []
-with ui.expansion('orders list').classes('w-full').props(add='switch-toggle-side'):
-    with ui.row().style('margin-left:2em'):
+
+with expansion_bar('orders list'):
+    with padded_row():
         with ui.column().style('margin-left:2em;margin-top:1em'):
             def cancel_orders(b):
                 global selected
@@ -93,7 +101,7 @@ with ui.expansion('orders list').classes('w-full').props(add='switch-toggle-side
 
             ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
                 
-    with ui.row():
+    with padded_row():
         table = ui.table(options={
             'defaultColDef': {
                 'minWidth': 100,
