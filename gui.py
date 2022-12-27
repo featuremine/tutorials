@@ -303,7 +303,6 @@ def create_orders_table(options):
     t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
     for col_def in t.view.options.columnDefs:
         col_def.cellClass = ['text-2xl','text-white-500']
-    t.view.theme = 'ag-theme-balham-dark'
     return t
     
 with expansion_bar('orders list'):
