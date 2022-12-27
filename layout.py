@@ -91,8 +91,7 @@ with expansion_bar('orders list'):
             'defaultColDef': {
                 'minWidth': 100,
                 'filter': True,
-                'sortable': True,
-                'cellStyle': {'textAlign': 'center'},
+                'cellStyle': {'display': 'flex ','justify-content': 'center'},
                 'headerClass': 'font-bold'
             }, 
             'columnDefs': [
@@ -110,7 +109,7 @@ with expansion_bar('orders list'):
                 {'enabled': False, 'order': 1002, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
                 {'enabled': False, 'order': 1003, 'account': 1001, 'security': 1001, 'venue':1001, 'side':'buy', 'price':1.1, 'quantity':2.2 },
             ],
-        }).style('margin:0;padding:0;height:100vh;width:100%')
+        }).style('margin:0;padding:0;height:100vh;width:100%;')
         selected = [False] * len(table.options['rowData'])
         for col_def in table.view.options.columnDefs:
             col_def.cellClass = ['text-2xl','text-white-500']
