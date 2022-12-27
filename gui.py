@@ -12,6 +12,7 @@ import functools
 import os
 import reference
 from math import inf
+import copy
 
 def time_ns():
     return int(time.time() * 1000000000)
@@ -279,22 +280,7 @@ with expansion_bar('orders BUY/SELL'):
 
 selected = []
 
-with expansion_bar('orders list'):
-    with padded_row():
-        with ui.column():
-            def cancel_orders(b):
-                global selected
-                indices = [i for i, x in enumerate(selected) if x]
-                for i in sorted(indices, reverse=True):
-                    table.options['rowData'].pop(i)
-                if indices:
-                    table.update()
-                    selected = [ x for i,x in enumerate(selected) if not x]
-
-            ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
-                
-    with padded_row():
-        table = ui.table(options={
+table_options = {
             'defaultColDef': {
                 'minWidth': 100,
                 'filter': True,
@@ -302,7 +288,6 @@ with expansion_bar('orders list'):
                 'headerClass': 'font-bold'
             }, 
             'columnDefs': [
-                {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'},
                 {'headerName': 'Order', 'field': 'order'},
                 {'headerName': 'Account', 'field': 'account'},
                 {'headerName': 'Security', 'field': 'security'},
@@ -312,16 +297,42 @@ with expansion_bar('orders list'):
                 {'headerName': 'Quantity', 'field': 'quantity'},
             ],
             'rowData': [],
-        }).style('margin:0;padding:0;height:100vh;width:100%;')
-        selected = [False] * len(table.options['rowData'])
-        for col_def in table.view.options.columnDefs:
-            col_def.cellClass = ['text-2xl','text-white-500']
-        table.view.theme = 'ag-theme-balham-dark'
+        }
+
+def create_orders_table(options):
+    t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
+    for col_def in t.view.options.columnDefs:
+        col_def.cellClass = ['text-2xl','text-white-500']
+    t.view.theme = 'ag-theme-balham-dark'
+    return t
+    
+with expansion_bar('orders list'):
+    with padded_row():
+        with ui.column():
+            def cancel_orders(b):
+                global selected
+                indices = [i for i, x in enumerate(selected) if x]
+                for i in sorted(indices, reverse=True):
+                    table_orders.options['rowData'].pop(i)
+                if indices:
+                    table_orders.update()
+                    selected = [ x for i,x in enumerate(selected) if not x]
+
+            ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
+                
+    with padded_row():
+        opt = copy.deepcopy(table_options)
+        opt['columnDefs'].insert(0, {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'})
+        table_orders = create_orders_table(opt)
                 
         def handle_change(sender, msg):
             selected[msg['rowIndex']] = msg['value']
 
-        table.view.on('cellValueChanged', handle_change)
+        table_orders.view.on('cellValueChanged', handle_change)
+        
+with expansion_bar('orders event list'):                
+    with padded_row():
+        table_order_events = create_orders_table(table_options)
 
 ## Market Data
 refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
@@ -373,7 +384,7 @@ def update_orders_ui(requests, responses):
             continue
         msg = r['message']['strg']
         neword = msg['new'] # TODO: parse other messages
-        table.options['rowData'].append({
+        table_entry = {
             'enabled': False,
             'order': neword['strgOrdID'],
             'account': neword['accountID'],
@@ -382,11 +393,14 @@ def update_orders_ui(requests, responses):
             'side': neword['orderSide'],
             'price': '-' if 'market' in neword['orderType'] else neword['orderType']['limit'],
             'quantity': neword['quantity'] 
-        })
+        }
+        table_orders.options['rowData'].append(table_entry)
         selected.append(False)
+        table_order_events.options['rowData'].append(table_entry)
 
     if requests or responses:
-        table.update()
+        table_orders.update()
+        table_order_events.update()
 
 orders.add_callback(update_orders_ui)
 
