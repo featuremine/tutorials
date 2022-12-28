@@ -11,6 +11,7 @@ import multiprocessing
 import functools
 import os
 import reference
+import signals
 from math import inf
 import copy
 
@@ -24,11 +25,12 @@ def is_number(s):
     except ValueError:
         return False
 
-class MarketDataGui(reference.MarketData):
-    def __init__(self, seq, peer, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
+class MarketDataGui(signals.MarketSignals):
+    def __init__(self, seq, peer, prefix: str="ore/imnts/", sample: Optional[timedelta]=None) -> None:
         graph = extractor.system.comp_graph()
         graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
-        super().__init__(peer, graph, prefix, period)
+        components = {"graph": graph, "systime": time_ns}
+        super().__init__(components, peer,  prefix, sample)
         self.prices = multiprocessing.Manager().dict()
         self.proc = None
                 
@@ -182,7 +184,7 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
             ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
             ui.label('Featuremine Trading GUI')
     with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
-        selectAccount = ui.select([]).style('width:10em;height:1em;').props(add='borderless label=Account')
+        selectAccount = ui.select([]).classes('items-center').style('width:10em;height:1em;').props(add='borderless').style('margin-start:auto;margin-end:right;align-items:right;text-align:right;')
 
 with expansion_bar('orders BUY/SELL'):
     with padded_row():
@@ -305,39 +307,45 @@ def create_orders_table(options):
         col_def.cellClass = ['text-2xl','text-white-500']
     return t
     
-with expansion_bar('orders list'):
-    with padded_row():
-        with ui.column():
-            def cancel_orders(b):
-                global selected
-                indices = [i for i, x in enumerate(selected) if x]
-                for i in sorted(indices, reverse=True):
-                    table_orders.options['rowData'].pop(i)
-                if indices:
-                    table_orders.update()
-                    selected = [ x for i,x in enumerate(selected) if not x]
+def column_expansion():
+    return ui.column()
 
-            ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
-                
-    with padded_row():
-        opt = copy.deepcopy(table_options)
-        opt['columnDefs'].insert(0, {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'})
-        table_orders = create_orders_table(opt)
-                
-        def handle_change(sender, msg):
-            selected[msg['rowIndex']] = msg['value']
+with ui.row():
+    with column_expansion():
+        with expansion_bar('orders list'):
+            with padded_row():
+                with ui.column():
+                    def cancel_orders(b):
+                        global selected
+                        indices = [i for i, x in enumerate(selected) if x]
+                        for i in sorted(indices, reverse=True):
+                            table_orders.options['rowData'].pop(i)
+                        if indices:
+                            table_orders.update()
+                            selected = [ x for i,x in enumerate(selected) if not x]
 
-        table_orders.view.on('cellValueChanged', handle_change)
-        
-with expansion_bar('orders event list'):                
-    with padded_row():
-        table_order_events = create_orders_table(table_options)
+                    ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
+                        
+            with padded_row():
+                opt = copy.deepcopy(table_options)
+                opt['columnDefs'].insert(0, {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'})
+                table_orders = create_orders_table(opt)
+                        
+                def handle_change(sender, msg):
+                    selected[msg['rowIndex']] = msg['value']
+
+                table_orders.view.on('cellValueChanged', handle_change)
+    
+    with column_expansion():
+        with expansion_bar('orders event list'):                
+            with padded_row():
+                table_order_events = create_orders_table(table_options)
 
 ## Market Data
 refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
 seqmkt = ytp.sequence(cfg['price_ytp'])
 peermkt = seqmkt.peer(cfg['peer'])
-mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt,  period=timedelta(milliseconds=10))
+mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt, sample=timedelta(milliseconds=10))
 orders = Orders(cfg=cfg)
 
 def updateUI(delta):

@@ -1,5 +1,5 @@
 import argparse
-from reference import ReferenceBuilder, ReferenceData, MarketData
+from reference import ReferenceBuilder, ReferenceData
 from yamal import ytp
 import json
 from typing import Dict, Tuple, NamedTuple, Optional, Callable, Any

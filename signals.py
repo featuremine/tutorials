@@ -14,6 +14,7 @@ class MarketSignals(object):
         self.prefix = prefix
         self.sample = sample
         self.quotes = {}
+        self.times = {}
         self.trades = {}
 
         op = self.graph.features
@@ -35,7 +36,7 @@ class MarketSignals(object):
                             ("bid_shr_0", "bidqty"),
                             ("ask_prx_0", "askprice"),
                             ("ask_shr_0", "askqty")))
-            if self.period:
+            if self.sample:
                 quote = op.asof(level, self.close)
             else:
                 quote = level
