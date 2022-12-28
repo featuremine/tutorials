@@ -17,6 +17,33 @@ from yamal import ytp
 from conveyor.utils import schemas
 import extractor
 
+class Strategies(object):
+    class Key(NamedTuple):
+        strategy: str
+        account: int
+        imnt: int
+        venue: int
+    def __init__(self, components):
+        super().__init__()
+        self.mktdata = components["mktdata"]
+        self.writers = components["writers"]
+        self._strategies = {}
+
+    def get(self, key):
+        writer = self.writers.get()
+        obj = self[key] = FillModel(mktdata, ManagerMessageWriter(stream))
+        self.mktdata.trade_callback(key.imnt, key.venue, obj.mkt_upd)
+        return obj
+
+class StrategyOrderWriters(object):
+    def __init__(self):
+        pass
+
+    def get(self, strategy, account, imnt, venue):
+        pass
+
+class YamalSequence(object):
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -25,68 +52,56 @@ if __name__ == "__main__":
 
     cfg = json.load(open(args.cfg))
 
-    components = {}
-
-    components["graph"] = extractor.system.comp_graph()
-    op = components["graph"].features
-
+    graph = extractor.system.comp_graph()
+    op = graph.features
+  
     state_seq = ytp.sequence(cfg["state_ytp"], readonly=True)
     state_peer = state_seq.peer(cfg["peer"])
     op.ytp_sequence(state_seq, timedelta(microseconds=1))
+
+    refdata = ReferenceData(state_seq, cfg)
 
     strg_seq = ytp.sequence(cfg["strg_ytp"])
     strg_peer = strg_seq.peer(cfg["peer"])
     op.ytp_sequence(strg_seq, timedelta(microseconds=1))
 
-    signals = VWAPRevSignals(components["graph"], state_peer)
-    refdata = ReferenceData(state_seq, cfg)
+    writers = StrategyOrderWriters(strg_peer)
 
+    signals = VWAPRevSignals(graph, state_peer)
+
+    orders = defaultdict(SidedPriceFIFOPriorityOrderBook)
+
+    strategies = Strategies(refdata=refdata, signals=signals, writers=writers, orders=orders)
+    
+    ref_called = False
     def refdata_cb(delta):
-        # Subscribe to market data
-        # make sure we dont subscribe more than once per pair
-        imnts = {}
+        if ref_called:
+            return
+        ref_called = True
         for venid, securities in delta.venuesSecurities.items():
-            venue = refdata.state.venuesNames[venid]
-            market = venue.exdest if venue.exdest else venue.code
             for secid in securities:
-                symbol = refdata.state.securities[secid].symbol
-                imnts[(venid, secid)] = (market, symbol)
-        signals.subscribe(imnts)
+                strategies.get(secid=secid, venid=venid)
     refdata.add_callback(refdata_cb)
-
-    strg_pfx = f'{cfg["strg_pfx"]}'
+ 
+    strg_pfx = cfg["strg_pfx"]
     oms_name = cfg["oms_name"]
-
-    class Key(NamedTuple):
-        strategy: str
-        account: int
-        imnt: int
-        venue: int
 
     def mapper(upd):
         msg = upd["msg"]
         msgdata = getattr(msg.message, msg.message.which())
-        specdata = getattr(msgdata, msgdata.which())
-        return Key(strategy=upd['strg'], account=specdata.accountID, imnt=specdata.securityId, venue=specdata.venueID)
+        d = getattr(msgdata, msgdata.which())
+        return Strategies.Key(strategy=upd['strg'], account=d.accountID, imnt=d.securityId, venue=d.venueID)
 
-    updater = StrategyOrderUpdater(mapper, fillmodels)
-
-    # subscribe order
-    # Set up callbacks for market data updates
-
-    delay_queue = DelayQueue(
-        graph, delay=timedelta(milliseconds=cfg["sim_delay"]))
-    delay_queue.callback(updater.update)
+    updater = StrategyOrderUpdater(mapper, orders)
 
     strg_pfx_len = len(strg_pfx)
     oms_name_len = len(oms_name)
 
     def queue_push(peer, channel, time, data):
         rest = channel.name()[strg_pfx_len:]
-        strg = rest[oms_name_len +
-                    1:] if rest.startswith(oms_name) else rest[:-oms_name_len - 1]
+        strg = rest[oms_name_len + 1:] if rest.startswith(oms_name) else rest[:-oms_name_len - 1]
         msg = capnp_spec.from_bytes_packed(data)
-        delay_queue.push({"strg": strg, "msg": msg})
+        updater.update({"strg": strg, "msg": msg})
 
     strg_seq.data_callback(strg_pfx, queue_push)
 
