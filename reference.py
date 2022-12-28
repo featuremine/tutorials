@@ -1,7 +1,6 @@
 from collections import defaultdict, namedtuple
 from typing import Dict, Tuple, NamedTuple, Optional
 from yamal import ytp
-import extractor
 from conveyor.utils import schemas
 import time
 from math import inf
@@ -129,45 +128,3 @@ class ReferenceData(object):
 
             for c in self.callbacks:
                 c(self.delta)
-
-class MarketData(object):
-    def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
-        self.peer = peer
-        self.graph = graph
-        self.prefix = prefix
-        self.period = period
-        self.quotes = {}
-        self.trades = {}
-
-        op = self.graph.features
-        if self.period:
-            self.close = op.timer(self.period)
-
-    def process(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
-        op = self.graph.features
-
-        for ids, syms in imnts.items():
-            # NOTE: maybe we will need to address symbology changes
-            if ids in self.quotes:
-                continue
-
-            channel = self.peer.channel(time_ns(), f"{self.prefix}{syms[0]}/{syms[1]}")
-            upd = op.decode_data(op.ore_ytp_decode(channel))
-            level = op.combine(op.book_build(upd, 1),
-                            (("bid_prx_0", "bidprice"),
-                            ("bid_shr_0", "bidqty"),
-                            ("ask_prx_0", "askprice"),
-                            ("ask_shr_0", "askqty")))
-            if self.period:
-                quote = op.asof(level, self.close)
-            else:
-                quote = level
-            self.quotes[ids] = quote
-            self.trades[ids] = op.combine(op.book_trades(upd),
-                                    (("trade_price", "price"),
-                                    ("vendor", "receive"),
-                                    ("qty", "qty"),
-                                    ("decoration", "side")))
-
-    def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
-        raise NotImplementedError("function is not implemented")

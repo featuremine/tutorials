@@ -1,8 +1,5 @@
 import argparse
-from reference import ReferenceBuilder, ReferenceData, MarketData
-from yamal import ytp
 import json
-import extractor
 import time as pytime
 from typing import Dict, Tuple, NamedTuple, Optional, Callable, Any
 from datetime import timedelta
@@ -12,7 +9,14 @@ import functools
 from bisect import insort, bisect_left
 from logging import getLogger
 from datetime import timedelta
+
+from reference import ReferenceData, MarketDataCallbacks
+from common import AbstractOrderBook, SidedPriceFIFOPriorityOrderBook, StrategyOrderUpdater, ManagerMessageWriter
+
+from yamal import ytp
 from conveyor.utils import schemas
+import extractor
+
 capnp_spec = schemas.strategy.ManagerMessage
 
 # Simulator
@@ -41,24 +45,6 @@ capnp_spec = schemas.strategy.ManagerMessage
 
 def time_ns():
     return int(pytime.time() * 1000000000)
-
-class MarketDataSim(MarketData):
-
-    def __init__(self, peer, graph, prefix: str="ore/imnts/", period: Optional[timedelta]=None) -> None:
-        super().__init__(peer, graph, prefix, period)
-
-    def subscribe(self, imnts: Dict[Tuple[int,int], Tuple[str,str]]) -> None:
-        if self.quotes:
-            return
-        self.process(imnts)
-
-    def trade_callback(self, imnt, venue, call):
-        key = (venue, imnt)
-        self.graph.callback(self.trades[key], call)
-
-    def quote_callback(self, imnt, venue, call):
-        key = (venue, imnt)
-        self.graph.callback(self.quotes[key], call)
 
 class FillModel(AbstractOrderBook):
     def __init__(self, mktdata, responder):
@@ -118,103 +104,6 @@ class FillModel(AbstractOrderBook):
             else:
                 self.responder.filled(px, filled, side, o.info)
 
-class StrategyOrderUpdater:
-
-    def __init__(self, mapper: Callable[[dict], Any], books: Dict[Any, AbstractOrderBook]):
-        self.mapper = mapper
-        self.books = books
-
-    def update(self, upd):
-        msg = upd["msg"]
-        msgdata = getattr(msg.message, msg.message.which())
-        specdata = getattr(msgdata, msgdata.which())
-        if not hasattr(specdata, 'strgOrdID'):
-            return
-        bookkey = self.mapper(upd)
-        book = self.books[bookkey]
-        ordkey = (upd["strg"], specdata.strgOrdID)
-        getattr(self, msgdata.which())(ordkey, book, **specdata.to_dict())
-
-    def new(self, ordkey, book, orderType, quantity, orderSide, **kwargs):
-        px = None if 'market' in orderType else orderType['limit']
-        book.add(key=ordkey, px=px, qty=quantity, side=orderSide, info=kwargs)
-
-    def cancel(self, ordkey, book, **kwargs):
-        pass
-
-    def replace(self, ordkey, book, price, quantity, **kwargs):
-        pass
-
-    def exec(self, ordkey, book, data, **execargs):
-        for exectype, execdata in data.items():
-            if execdata is None:
-                getattr(self, exectype)(ordkey, book, **execargs)
-            else:
-                getattr(self, exectype)(ordkey, book, **execargs, **execdata)
-
-    def placed(self, ordkey, book, orderType, orderQuantity, **kwargs):
-        pass
-
-    def replaced(self, ordkey, book, orderType, orderQuantity, **kwargs):
-        pass
-
-    def partiallyFilled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
-        book.cancel(key=ordkey, qty=lastQuantity, side=orderSide, info=kwargs)
-
-    def filled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
-        book.cancel(key=ordkey, qty=lastQuantity, side=orderSide, info=kwargs)
-
-    def failed(self, ordkey, book, **kwargs):
-        if kwargs["type"] != "place":
-            # No effect
-            return
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
-
-    # No effect
-    def rejected(self, ordkey, book, reason, **kwargs):
-        pass
-
-    # No effect
-    def cancelRej(self, ordkey, book, **kwargs):
-        pass
-
-    # No effect
-    def replaceRej(self, ordkey, book, **kwargs):
-        pass
-
-    def doneForDay(self, ordkey, book, orderSide, leaves, **kwargs):
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
-
-    def canceled(self, ordkey, book, orderSide, leaves, **kwargs):
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
-
-    def expired(self, ordkey, book, orderSide, leaves, **kwargs):
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
-
-    # No effect
-    def pendingNew(self, **kwargs):
-        pass
-
-    # No effect
-    def pendingCancel(self, **kwargs):
-        pass
-
-    # No effect
-    def pendingReplace(self, **kwargs):
-        pass
-
-    def correction(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID, **kwargs):
-        pass
-
-    def bust(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID, **kwargs):
-        pass
-
-    def restated(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
-        pass
-
-    def status(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
-        pass
-
 class DelayQueue:
 
     def __init__(self, graph, delay):
@@ -247,7 +136,7 @@ class FillModels(dict):
 
     def __missing__(self, key):
         stream = self.peer.stream(self.peer.channel(time_ns(), self.strg_pfx + key.strategy + "/" + self.oms_name))
-        obj = self[key] = FillModel(mktdata, StrategyOrderWriter(stream))
+        obj = self[key] = FillModel(mktdata, ManagerMessageWriter(stream))
         self.mktdata.trade_callback(key.imnt, key.venue, obj.mkt_upd)
         return obj
 
@@ -269,7 +158,7 @@ if __name__ == "__main__":
     strg_peer = strg_seq.peer(cfg["peer"])
     op.ytp_sequence(strg_seq, timedelta(microseconds=1))
 
-    mktdata = MarketDataSim(state_peer, graph)
+    mktdata = MarketDataCallbacks(state_peer, graph)
 
     refdata = ReferenceData(state_seq, cfg)
     def refdata_cb(delta):

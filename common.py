@@ -13,7 +13,12 @@ from datetime import timedelta
 from conveyor.utils import schemas
 capnp_spec = schemas.strategy.ManagerMessage
 
-class AbstractOrderBook:
+
+class SystemTime(object):
+    def __call__(self) -> Any:
+        raise NotImplementedError('not implemented')
+
+class AbstractOrderBook(object):
 
     def add(self, key, px, qty, side, info):
         raise NotImplementedError('not implemented')
@@ -258,7 +263,6 @@ class ManagerMessageWriter:
         CapnpMessageWriter.send_message(self.strg_filled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
 class StrategyOrderUpdater:
-
     def __init__(self, mapper: Callable[[dict], Any], books: Dict[Any, AbstractOrderBook]):
         self.mapper = mapper
         self.books = books

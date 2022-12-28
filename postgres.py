@@ -265,6 +265,9 @@ if __name__ == "__main__":
         conn.commit()
         #TODO: End orders table sim
 
+
+    # TODO update to use ReferenceData and BarSignals
+
     graph = extractor.system.comp_graph()
     op = graph.features
 
