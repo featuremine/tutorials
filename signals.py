@@ -52,7 +52,8 @@ class MarketSignals(object):
             return
         self.process(imnts)
 
-class BarSignals(sMarketSignals):
+
+class BarSignals(MarketSignals):
     def __init__(self, components, peer, prefix: str, period, sample: Optional[timedelta] = None) -> None:
         super().__init__(components, peer, prefix, sample)
         self.period = period
