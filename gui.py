@@ -307,39 +307,33 @@ def create_orders_table(options):
         col_def.cellClass = ['text-2xl','text-white-500']
     return t
     
-def column_expansion():
-    return ui.column()
+with expansion_bar('orders list'):
+    with padded_row():
+        with ui.column():
+            def cancel_orders(b):
+                global selected
+                indices = [i for i, x in enumerate(selected) if x]
+                for i in sorted(indices, reverse=True):
+                    table_orders.options['rowData'].pop(i)
+                if indices:
+                    table_orders.update()
+                    selected = [ x for i,x in enumerate(selected) if not x]
 
-with ui.row():
-    with column_expansion():
-        with expansion_bar('orders list'):
-            with padded_row():
-                with ui.column():
-                    def cancel_orders(b):
-                        global selected
-                        indices = [i for i, x in enumerate(selected) if x]
-                        for i in sorted(indices, reverse=True):
-                            table_orders.options['rowData'].pop(i)
-                        if indices:
-                            table_orders.update()
-                            selected = [ x for i,x in enumerate(selected) if not x]
+            ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
+                
+    with padded_row():
+        opt = copy.deepcopy(table_options)
+        opt['columnDefs'].insert(0, {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'})
+        table_orders = create_orders_table(opt)
+                
+        def handle_change(sender, msg):
+            selected[msg['rowIndex']] = msg['value']
 
-                    ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
-                        
-            with padded_row():
-                opt = copy.deepcopy(table_options)
-                opt['columnDefs'].insert(0, {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'})
-                table_orders = create_orders_table(opt)
-                        
-                def handle_change(sender, msg):
-                    selected[msg['rowIndex']] = msg['value']
+        table_orders.view.on('cellValueChanged', handle_change)
 
-                table_orders.view.on('cellValueChanged', handle_change)
-    
-    with column_expansion():
-        with expansion_bar('orders event list'):                
-            with padded_row():
-                table_order_events = create_orders_table(table_options)
+with expansion_bar('orders event list'):                
+    with padded_row():
+        table_order_events = create_orders_table(table_options)
 
 ## Market Data
 refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
