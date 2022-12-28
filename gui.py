@@ -184,7 +184,7 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
             ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
             ui.label('Featuremine Trading GUI')
     with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
-        selectAccount = ui.select([]).classes('items-center').style('width:10em;height:1em;').props(add='borderless').style('margin-start:auto;margin-end:right;align-items:right;text-align:right;')
+        selectAccount = ui.select([]).style('width:10em;height:1em;').props(add='borderless label=Account')
 
 with expansion_bar('orders BUY/SELL'):
     with padded_row():
