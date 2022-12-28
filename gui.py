@@ -97,7 +97,8 @@ class Orders(object):
         d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         print(d)
         self.requests.append(d)
-        self.orderid += 1
+        if 'new' in d['message']['strg']:
+            self.orderid += 1
         self.seqnum += 1
         # Parse order message sent
         
@@ -134,6 +135,19 @@ class Orders(object):
                 },
                 'seqnum': self.seqnum
             }
+    
+    def cancel(self, orderid):
+        return {
+                'message': {
+                    'strg': {
+                        'cancel': {
+                            'strgOrdID': orderid
+                        }
+                    }
+                },
+                'seqnum': self.seqnum
+            }
+        
 ## Main
 parser = argparse.ArgumentParser()
 parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -314,6 +328,7 @@ with expansion_bar('orders list'):
                 global selected
                 indices = [i for i, x in enumerate(selected) if x]
                 for i in sorted(indices, reverse=True):
+                    orders.send(orders.cancel(orderid=table_orders.options['rowData'][i]['order']))
                     table_orders.options['rowData'].pop(i)
                 if indices:
                     table_orders.update()
@@ -333,6 +348,7 @@ with expansion_bar('orders list'):
 
 with expansion_bar('orders event list'):                
     with padded_row():
+        table_options['columnDefs'].insert(0, {'headerName': 'Type', 'field': 'type'})
         table_order_events = create_orders_table(table_options)
 
 ## Market Data
@@ -384,19 +400,35 @@ def update_orders_ui(requests, responses):
         if 'strg' not in r['message']:
             continue
         msg = r['message']['strg']
-        neword = msg['new'] # TODO: parse other messages
-        table_entry = {
-            'enabled': False,
-            'order': neword['strgOrdID'],
-            'account': neword['accountID'],
-            'security': neword['securityId'],
-            'venue': neword['venueID'],
-            'side': neword['orderSide'],
-            'price': '-' if 'market' in neword['orderType'] else neword['orderType']['limit'],
-            'quantity': neword['quantity'] 
-        }
-        table_orders.options['rowData'].append(table_entry)
-        selected.append(False)
+        if 'new' in msg:
+            neword = msg['new']
+            table_entry = {
+                'enabled': False,
+                'type': 'new',
+                'order': neword['strgOrdID'],
+                'account': neword['accountID'],
+                'security': neword['securityId'],
+                'venue': neword['venueID'],
+                'side': neword['orderSide'],
+                'price': '-' if 'market' in neword['orderType'] else neword['orderType']['limit'],
+                'quantity': neword['quantity'] 
+            }
+            table_orders.options['rowData'].append(table_entry)
+            selected.append(False)
+        elif 'cancel' in msg:
+            cancelord = msg['cancel']
+            table_entry = {
+                'enabled': False,
+                'type': 'cancel',
+                'order': cancelord['strgOrdID'],
+                'account': '',
+                'security': '',
+                'venue': '',
+                'side': '',
+                'price': '',
+                'quantity': ''
+            }
+        
         table_order_events.options['rowData'].append(table_entry)
 
     if requests or responses:
