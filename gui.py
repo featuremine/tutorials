@@ -183,12 +183,6 @@ def expansion_bar(name):
 
 UNAVAILABLE = '-'
 
-def update_prices():
-    p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
-                           {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
-    bidlabel.set_text(p['bidpx'])
-    asklabel.set_text(p['askpx'])
-
 with ui.header().style('background-color: #3874c8').props('elevated'):
     with ui.column():
         with ui.row():
@@ -197,6 +191,12 @@ with ui.header().style('background-color: #3874c8').props('elevated'):
     with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
         selectAccount = ui.select([]).style('width:10em;height:1em;').props(add='borderless label=Account')
 
+def update_prices():
+    p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
+                           {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
+    bidlabel.set_text(p['bidpx'])
+    asklabel.set_text(p['askpx'])
+
 with expansion_bar('orders BUY/SELL'):
     with padded_row():
         with ui.column():
@@ -204,14 +204,12 @@ with expansion_bar('orders BUY/SELL'):
                 def update_select_securities(market):
                     selectSecurity.value = None
                     selectSecurity.options = {}
-                    where = refdata.state.venuesSecurities.get(market, [])
-                    for sid in where:
-                        print(sid)
+                    for sid in refdata.state.venuesSecurities.get(market, []):
                         selectSecurity.options[sid] = refdata.state.securities[sid].symbol
                     selectSecurity.update()
 
-                selectMarket = ui.select({}, on_change=lambda s: update_select_securities(s.value)).style('width:10em;align-items:center;text-align:center;').props(add='label=Market')
-                selectSecurity = ui.select({}, on_change=update_prices).style('width:10em;align-items:center;text-align:center;').props(add='label=Instrument')
+                selectMarket = ui.select({}, on_change=lambda s: update_select_securities(s.value)).style('width:10em;').props(add='label=Market')
+                selectSecurity = ui.select({}, on_change=update_prices).style('width:10em;').props(add='label=Instrument')
                 
         with ui.column():
             with ui.row().style('align-items:center;'):
