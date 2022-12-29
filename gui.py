@@ -236,11 +236,8 @@ with expansion_bar('orders BUY/SELL'):
             pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;')
         with ui.column():
             def update_askbid_checkbox(check):
-                if check.sender == bidcheckbox and check.value:
-                    askcheckbox.set_value(False)
-                    pricein.props(add='readonly')
-                elif check.sender == askcheckbox and check.value:
-                    bidcheckbox.set_value(False)
+                if check.value:
+                    (askcheckbox if check.sender == bidcheckbox else bidcheckbox).set_value(False)
                     pricein.props(add='readonly')
                 else:
                     pricein.props(remove='readonly')
