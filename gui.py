@@ -196,6 +196,10 @@ def update_prices():
                            {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
     bidlabel.set_text(p['bidpx'])
     asklabel.set_text(p['askpx'])
+    if bidcheckbox.value:
+        pricein.set_value(p['bidpx'])
+    elif askcheckbox.value:
+        pricein.set_value(p['askpx'])
 
 with expansion_bar('orders BUY/SELL'):
     with padded_row():
@@ -366,11 +370,6 @@ def updateUI(delta):
     if where:
         selectSecurity.update()
     
-    if bidcheckbox.value:
-        pricein.set_value(bidlabel.text)
-    elif askcheckbox.value:
-        pricein.set_value(asklabel.text)
-
     update_prices()
 
 refdata.add_callback(updateUI)
