@@ -1,4 +1,3 @@
-from collections import defaultdict, namedtuple
 from typing import Dict, Tuple, Optional
 from yamal import ytp
 import extractor
@@ -12,7 +11,6 @@ import functools
 import os
 import reference
 import signals
-from math import inf
 import copy
 
 def time_ns():
@@ -64,9 +62,8 @@ class Orders(object):
     def __init__(self, cfg: dict) -> None:
         self.cfg = cfg
         self.seq = ytp.sequence(self.cfg['strategy_ytp'])
-        self.peer = self.seq.peer(self.cfg['peer'])
-        self.chsnd = self.peer.channel(time_ns(), f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}")
-        self.streamsnd = self.peer.stream(self.chsnd)
+        peer = self.seq.peer(self.cfg['peer'])
+        self.streamsnd = peer.stream(peer.channel(time_ns(), f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}"))
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['client_name']}/{self.cfg['oms_name']}", self._seq_clbck_rcv)
         self.seq.data_callback(f"{self.cfg['strategy_prefix']}{self.cfg['oms_name']}/{self.cfg['client_name']}", self._seq_clbck_send)
         self.requests = []
@@ -170,12 +167,12 @@ elif not os.path.isfile(cfg['state_ytp']):
     print(f"yamal file {cfg['state_ytp']} does not exist. Please provide a valid yamal file for the market symbology.")
     exit(1)
 
+if args.no_gui:
+    exit()
+
 if not os.path.isfile(cfg['price_ytp']):
     print(f"yamal file {cfg['price_ytp']} does not exist. Please provide a valid yamal file for the market data.")
     exit(1)
-
-if args.no_gui:
-    exit()
 
 ## UI
 def padded_row():
