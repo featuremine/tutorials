@@ -1,8 +1,8 @@
 import argparse
 from reference import ReferenceBuilder, ReferenceData
-from yamal import ytp
 import json
-from typing import Dict, Tuple, NamedTuple, Optional, Callable, Any
+from typing import Dict, List, Tuple, NamedTuple, Optional, Callable, Any
+from enum import Enum
 from datetime import timedelta
 import queue
 from collections import defaultdict
@@ -10,20 +10,45 @@ import functools
 from bisect import insort, bisect_left
 from logging import getLogger
 from datetime import timedelta
+from weakref import WeakValueDictionary
+
+from yamal import ytp
+import extractor
 from conveyor.utils import schemas
+
 capnp_spec = schemas.strategy.ManagerMessage
 
+class Side(Enum):
+    BID = 0
+    ASK = 1
 
 class SystemTime(object):
     def __call__(self) -> Any:
         raise NotImplementedError('not implemented')
 
-class AbstractOrderBook(object):
-
-    def add(self, key, px, qty, side, info):
+class AbstractOrderContainer(object):
+    def place(self, key, imnt: int, venue: int, account: int, strg: str, px: float, qty: int, side: Side, info: Any):
         raise NotImplementedError('not implemented')
 
-    def cancel(self, key, qty, side, info):
+    def cancel(self, key, leaves):
+        raise NotImplementedError('not implemented')
+
+    def replace(self, key, px, qty):
+        raise NotImplementedError('not implemented')
+
+    def placed(self, key):
+        raise NotImplementedError('not implemented')
+
+    def filled(self, key, qty):
+        raise NotImplementedError('not implemented')
+
+    def canceled(self, key, leaves):
+        raise NotImplementedError('not implemented')
+
+    def replaced(self, key):
+        raise NotImplementedError('not implemented')
+
+    def rejected(self, key, reason):
         raise NotImplementedError('not implemented')
 
     def __getitem__(self, key):
@@ -38,27 +63,91 @@ class AbstractOrderBook(object):
     def ask(self):
         return self.side(1)
 
-    def side(self, i):
+    def side(self, i: Side):
         raise NotImplementedError('not implemented')
 
-class OrderBookTable(AbstractOrderBook):
-    class Order(object):
-        def __init__(self, px: float, qty: float, side, info):
-            self.px = px
-            self.qty = qty
-            self.leaves = qty
-            self.side = side
-            self.info = info
-        
-    def __init__(self):
-        self.orders = defaultdict(OrderBookTable.Order)
-    
-    def add(self, key, px, qty, side, info):
-        self.orders[key] = OrderBookTable.Order(px=px,qty=qty,side=side,info=info)
+class OrderStateTable(AbstractOrderContainer):
+    class Request(NamedTuple):
+        pass
 
-    def cancel(self, key, qty, side, info):
-        o = self.orders[key]
-        o.leaves -= qty
+    class Place(Request):
+        px: float
+        qty: int
+
+    class Replace(Request):
+        px: float
+        qty: int
+
+    class Cancel(Request):
+        leaves: int
+
+    class Order(NamedTuple):
+        imnt: int
+        venue: int
+        account: int
+        strg: str
+        px: float
+        qty: int
+        left: int
+        filled: int
+        canceled: int
+        side: Side
+        info: Any
+        rejected: bool
+        requests: List[OrderStateTable.Request]
+
+    def __init__(self):
+        self.orders = defaultdict(OrderStateTable.Order)
+        self.sided = (WeakValueDictionary, WeakValueDictionary)
+    
+    def place(self, key, imnt: int, venue: int, account: int, strg: str, px: float, qty: int, side: Side, info: Any):
+        order = OrderStateTable.Order(imnt=imnt, venue=venue, account=account, strg=strg,
+                                      px=px, qty=qty, left=qty, side=side, info=info,
+                                      status=OrderStateTable.Status.UNACKED)
+        order.requests.append(OrderStateTable.Place(px=px, qty=qty))
+        self.orders[key] = order
+        self.sided[side][key] = order
+
+    def cancel(self, key, leaves):
+        order = self.orders[key]
+        order.requests.append(OrderStateTable.Cancel(leaves=leaves))
+
+    def replace(self, key, px, qty):
+        order = self.orders[key]
+        order.requests.append(OrderStateTable.Replace(px=px, qty=qty))
+
+    def placed(self, key):
+        order = self.orders[key]
+        assert order.requests and order.requests[0] is OrderStateTable.Place, "was not expecting place"
+        del order.requests[0]
+
+    def filled(self, key, qty):
+        order = self.orders[key]
+        order.left -= qty
+        order.filled += qty
+
+    def canceled(self, key, leaves):
+        order = self.orders[key]
+        assert order.requests and order.requests[0] is OrderStateTable.Cancel, "was not expecting place"
+        del order.requests[0]
+        oldleft = order.left
+        order.left = leaves
+        order.canceled += oldleft - leaves
+
+    # TODO might get replace px and qty on the message. Need to check they match our request
+    def replaced(self, key):
+        order = self.orders[key]
+        assert order.requests and order.requests[0] is OrderStateTable.Replace, "was not expecting place"
+        req = order.requests.pop(0)
+        order.px = req.px
+        order.qty = req.qty
+
+    def rejected(self, key, reason):
+        order = self.orders[key]
+        assert order.requests, "was not expecting reject"
+        req = order.requests.pop(0)
+        if req is OrderStateTable.Place:
+            order.failed = True
 
     def __getitem__(self, key):
         return self.orders[key]
@@ -67,10 +156,10 @@ class OrderBookTable(AbstractOrderBook):
         return key in self.orders
 
     def side(self, i):
-        raise NotImplementedError('not implemented')
+        return self.sided[i]
    
 
-class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
+class SidedPriceFIFOPriorityOrderBook(AbstractOrderContainer):
     def Comp(first, second):
         if first.side == "buy":
             if first.px < second.px:
@@ -292,24 +381,23 @@ class ManagerMessageWriter:
         CapnpMessageWriter.send_message(self.strg_filled, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")
 
 class StrategyOrderUpdater:
-    def __init__(self, mapper: Callable[[dict], Any], books: Dict[Any, AbstractOrderBook]):
-        self.mapper = mapper
-        self.books = books
+    def __init__(self, book: AbstractOrderContainer):
+        self.book = book
 
-    def update(self, upd):
+    def __call__(self, upd: dict):
         msg = upd["msg"]
         msgdata = getattr(msg.message, msg.message.which())
         specdata = getattr(msgdata, msgdata.which())
         if not hasattr(specdata, 'strgOrdID'):
             return
-        bookkey = self.mapper(upd)
-        book = self.books[bookkey]
-        ordkey = (upd["strg"], specdata.strgOrdID)
-        getattr(self, msgdata.which())(ordkey, book, **specdata.to_dict())
-
-    def new(self, ordkey, book, orderType, quantity, orderSide, **kwargs):
+        key = (upd["strg"], specdata.strgOrdID)
+        getattr(self, msgdata.which())(key, **specdata.to_dict())
+    
+    def new(self, key, strgOrdID, accountID, securityId, venueID, orderType, quantity, orderSide, **kwargs):
         px = None if 'market' in orderType else orderType['limit']
-        book.add(key=ordkey, px=px, qty=quantity, side=orderSide, info=kwargs)
+        side = Side.BID if orderSide == 'buy' else Side.ASK
+        self.book.place(key=key, imnt=securityId, venue=venueID, aacount=accountID,
+                        strg=key[0], px=px, qty=quantity, side=side, info=kwargs)
 
     def cancel(self, ordkey, book, **kwargs):
         pass
