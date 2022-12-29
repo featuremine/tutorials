@@ -106,9 +106,8 @@ class Orders(object):
         while self.seq.poll() and (not limit or count <= limit):
             count += 1
         
-        if self.requests or self.responses:
-            for c in self.callbacks:
-                c(self.requests, self.responses)
+        for c in self.callbacks:
+            c(self.requests, self.responses)
 
     def limit(self, accid, secid, venid, side, ordpx, qty):
         return {
@@ -354,7 +353,7 @@ peermkt = seqmkt.peer(cfg['peer'])
 mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt, sample=timedelta(milliseconds=10))
 orders = Orders(cfg=cfg)
 
-def updateUI(delta):
+def update_ui(delta):
     if delta.accounts:
         selectAccount.options.extend(delta.accounts)
         selectAccount.update()
@@ -372,7 +371,7 @@ def updateUI(delta):
     
     update_prices()
 
-refdata.add_callback(updateUI)
+refdata.add_callback(update_ui)
 
 def mktSubscribe(delta):
     imnts = {}
