@@ -41,6 +41,35 @@ class AbstractOrderBook(object):
     def side(self, i):
         raise NotImplementedError('not implemented')
 
+class OrderBookTable(AbstractOrderBook):
+    class Order(object):
+        def __init__(self, px: float, qty: float, side, info):
+            self.px = px
+            self.qty = qty
+            self.leaves = qty
+            self.side = side
+            self.info = info
+        
+    def __init__(self):
+        self.orders = defaultdict(OrderBookTable.Order)
+    
+    def add(self, key, px, qty, side, info):
+        self.orders[key] = OrderBookTable.Order(px=px,qty=qty,side=side,info=info)
+
+    def cancel(self, key, qty, side, info):
+        o = self.orders[key]
+        o.leaves -= qty
+
+    def __getitem__(self, key):
+        return self.orders[key]
+
+    def __contains__(self, key):
+        return key in self.orders
+
+    def side(self, i):
+        raise NotImplementedError('not implemented')
+   
+
 class SidedPriceFIFOPriorityOrderBook(AbstractOrderBook):
     def Comp(first, second):
         if first.side == "buy":
