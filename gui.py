@@ -213,11 +213,11 @@ with expansion_bar('orders BUY/SELL'):
                 
         with ui.column():
             with ui.row().style('align-items:center;'):
-                ui.label('bid price').style('width:10em;align-items:center;text-align:center;')
-                ui.label('ask price').style('width:10em;align-items:center;text-align:center;')
+                ui.label('bid price').style('width:10em;text-align:center;')
+                ui.label('ask price').style('width:10em;text-align:center;')
             with ui.row().style('align-items:center;'):
-                bidlabel = ui.label(UNAVAILABLE).style('width:10em;align-items:center;text-align:center;')
-                asklabel = ui.label(UNAVAILABLE).style('width:10em;align-items:center;text-align:center;')
+                bidlabel = ui.label(UNAVAILABLE).style('width:10em;text-align:center;')
+                asklabel = ui.label(UNAVAILABLE).style('width:10em;text-align:center;')
 
     def update_qty():
         if notionalswitch.value:
@@ -233,7 +233,7 @@ with expansion_bar('orders BUY/SELL'):
 
     with padded_row():
         with ui.column():
-            pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;align-items:center;text-align:center;')
+            pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;')
         with ui.column():
             def update_askbid_checkbox(check):
                 if check.sender == bidcheckbox and check.value:
@@ -245,8 +245,8 @@ with expansion_bar('orders BUY/SELL'):
                 else:
                     pricein.props(remove='readonly')
 
-            bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;margin-top:1em;')
-            askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;align-items:center;text-align:center;')
+            bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;margin-top:1em;')
+            askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;')
         
         with ui.column():
             with ui.row():
@@ -255,9 +255,9 @@ with expansion_bar('orders BUY/SELL'):
                     qtyin.update()
                     update_qty()
                         
-                qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:10em;align-items:center;text-align:center;')
+                qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:10em;')
                 with ui.column():
-                    qtyout = ui.label('Notional: -').style('width:10em;align-items:center;text-align:left;margin-top:2em;')
+                    qtyout = ui.label('Notional: -').style('width:10em;text-align:left;margin-top:2em;')
 
                 with ui.column():
                     notionalswitch = ui.switch('notional', on_change=lambda c: switch_qty(c.value)).style('margin-top:1em;')                
@@ -285,8 +285,8 @@ with expansion_bar('orders BUY/SELL'):
                 venid=int(selectMarket.value), side=side, ordpx=float(pricein.value),
                 qty=float(qtyin.value)))
             ui.notify('An order was sent')
-        ui.button('buy', on_click=lambda: parse_order('buy')).style('width:10em;align-items:center;text-align:center;').props('color=green')
-        ui.button('sell', on_click=lambda: parse_order('sell')).style('width:10em;align-items:center;text-align:center;')
+        ui.button('buy', on_click=lambda: parse_order('buy')).style('width:10em;').props('color=green')
+        ui.button('sell', on_click=lambda: parse_order('sell')).style('width:10em;')
 
 
 selected = []
