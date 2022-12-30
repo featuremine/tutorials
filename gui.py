@@ -33,7 +33,8 @@ class MarketDataGui(signals.MarketSignals):
         self.proc = None
                 
     def __del__(self):
-        self.proc.join()
+        if self.proc:
+            self.proc.join()
 
     def _process(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         def prices_update(x, ids):

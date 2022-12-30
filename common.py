@@ -94,7 +94,7 @@ class OrderStateTable(AbstractOrderContainer):
         side: Side
         info: Any
         rejected: bool
-        requests: List[OrderStateTable.Request]
+        requests: List[Any] #TODO: List[OrderStateTable.Request]
 
     def __init__(self):
         self.orders = defaultdict(OrderStateTable.Order)
