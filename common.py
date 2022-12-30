@@ -393,63 +393,64 @@ class StrategyOrderUpdater:
         key = (upd["strg"], specdata.strgOrdID)
         getattr(self, msgdata.which())(key, **specdata.to_dict())
     
-    def new(self, key, strgOrdID, accountID, securityId, venueID, orderType, quantity, orderSide, **kwargs):
+    def new(self, key, accountID, securityId, venueID, orderType, quantity, orderSide, **kwargs):
         px = None if 'market' in orderType else orderType['limit']
         side = Side.BID if orderSide == 'buy' else Side.ASK
-        self.book.place(key=key, imnt=securityId, venue=venueID, aacount=accountID,
+        self.book.place(key=key, imnt=securityId, venue=venueID, account=accountID,
                         strg=key[0], px=px, qty=quantity, side=side, info=kwargs)
 
-    def cancel(self, ordkey, book, **kwargs):
-        pass
+    def cancel(self, key, **kwargs):
+        self.book.cancel(key=key, leaves=0)
 
-    def replace(self, ordkey, book, price, quantity, **kwargs):
-        pass
+    def replace(self, key, price, quantity, **kwargs):
+        self.book.replace(key=key, px=price, qty=quantity)
 
-    def exec(self, ordkey, book, data, **execargs):
+    def exec(self, key, data, **execargs):
         for exectype, execdata in data.items():
             if execdata is None:
-                getattr(self, exectype)(ordkey, book, **execargs)
+                getattr(self, exectype)(key, **execargs)
             else:
-                getattr(self, exectype)(ordkey, book, **execargs, **execdata)
+                getattr(self, exectype)(key, **execargs, **execdata)
 
-    def placed(self, ordkey, book, orderType, orderQuantity, **kwargs):
-        pass
+    def placed(self, key, **kwargs):
+        self.book.placed(key=key)
 
-    def replaced(self, ordkey, book, orderType, orderQuantity, **kwargs):
-        pass
+    def replaced(self, key, **kwargs):
+        self.book.replaced(key=key)
 
-    def partiallyFilled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
-        book.cancel(key=ordkey, qty=lastQuantity, side=orderSide, info=kwargs)
+    def partiallyFilled(self, key, lastQuantity, leaves, **kwargs):
+        self.book.filled(key=key, qty=lastQuantity-leaves)
 
-    def filled(self, ordkey, book, orderSide, lastQuantity, lastPrice, **kwargs):
-        book.cancel(key=ordkey, qty=lastQuantity, side=orderSide, info=kwargs)
+    def filled(self, key, lastQuantity, leaves, **kwargs):
+        #TODO: Is this ok?
+        self.book.filled(key=key, qty=0)
 
-    def failed(self, ordkey, book, **kwargs):
+    def failed(self, key, book, **kwargs):
+        #TODO: what to do on failed? Should add new method on rejected? 
         if kwargs["type"] != "place":
             # No effect
             return
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+        self.book.canceled(key=key, leaves=0)
+
+    def rejected(self, key, reason, **kwargs):
+        self.book.rejected(key=key, reason=reason)
 
     # No effect
-    def rejected(self, ordkey, book, reason, **kwargs):
-        pass
+    def cancelRej(self, key, reason, **kwargs):
+        self.book.rejected(key=key, reason=reason)
 
     # No effect
-    def cancelRej(self, ordkey, book, **kwargs):
-        pass
+    def replaceRej(self, key, reason, **kwargs):
+        self.book.rejected(key=key, reason=reason)
 
-    # No effect
-    def replaceRej(self, ordkey, book, **kwargs):
-        pass
+    def doneForDay(self, key, leaves, **kwargs):
+        self.book.cancel(key=key, leaves=leaves)
 
-    def doneForDay(self, ordkey, book, orderSide, leaves, **kwargs):
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+    def canceled(self, key, leaves, **kwargs):
+        self.book.canceled(key=key, leaves=leaves)
 
-    def canceled(self, ordkey, book, orderSide, leaves, **kwargs):
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
-
-    def expired(self, ordkey, book, orderSide, leaves, **kwargs):
-        book.cancel(key=ordkey, qty=leaves, side=orderSide, info=kwargs)
+    def expired(self, key, leaves, **kwargs):
+        self.book.canceled(key=key, leaves=0)
 
     # No effect
     def pendingNew(self, **kwargs):
