@@ -166,6 +166,8 @@ if args.init:
 elif not os.path.isfile(cfg['state_ytp']):
     print(f"yamal file {cfg['state_ytp']} does not exist. Please provide a valid yamal file for the market symbology.")
     exit(1)
+else:
+    seqref = ytp.sequence(cfg['state_ytp'])
 
 if args.no_gui:
     exit()
