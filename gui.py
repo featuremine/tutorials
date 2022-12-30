@@ -148,8 +148,6 @@ class Orders(object):
 ## Main
 parser = argparse.ArgumentParser()
 parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
-parser.add_argument("--init", help="initialize OMS from the configuration", action='store_true')
-parser.add_argument("--no-gui", help="initialize OMS from the configuration", action='store_true')
 args = parser.parse_args()
 
 if not os.path.isfile(args.cfg):
@@ -158,19 +156,9 @@ if not os.path.isfile(args.cfg):
 
 cfg = json.load(open(args.cfg))
 
-if args.init:
-    seqref = ytp.sequence(cfg['state_ytp'])
-    peerref = seqref.peer(cfg['peer'])
-    builder = reference.ReferenceBuilder(peerref, cfg)
-    builder.write()
-elif not os.path.isfile(cfg['state_ytp']):
+if not os.path.isfile(cfg['state_ytp']):
     print(f"yamal file {cfg['state_ytp']} does not exist. Please provide a valid yamal file for the market symbology.")
     exit(1)
-else:
-    seqref = ytp.sequence(cfg['state_ytp'])
-
-if args.no_gui:
-    exit()
 
 if not os.path.isfile(cfg['price_ytp']):
     print(f"yamal file {cfg['price_ytp']} does not exist. Please provide a valid yamal file for the market data.")
@@ -350,6 +338,7 @@ with expansion_bar('orders event list'):
         table_order_events = create_orders_table(table_options)
 
 ## Market Data
+seqref = ytp.sequence(cfg['state_ytp'])
 refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
 seqmkt = ytp.sequence(cfg['price_ytp'])
 peermkt = seqmkt.peer(cfg['peer'])
