@@ -1,19 +1,9 @@
-import argparse
-from reference import ReferenceBuilder, ReferenceData
-import json
-from typing import Dict, List, Tuple, NamedTuple, Optional, Callable, Any
+from typing import List, NamedTuple, Any
 from enum import Enum
-from datetime import timedelta
-import queue
 from collections import defaultdict
-import functools
 from bisect import insort, bisect_left
-from logging import getLogger
-from datetime import timedelta
 from weakref import WeakValueDictionary
 
-from yamal import ytp
-import extractor
 from conveyor.utils import schemas
 
 capnp_spec = schemas.strategy.ManagerMessage
@@ -39,13 +29,13 @@ class AbstractOrderContainer(object):
     def placed(self, key):
         raise NotImplementedError('not implemented')
 
-    def filled(self, key, qty):
+    def filled(self, key, trdpx, qty):
         raise NotImplementedError('not implemented')
 
     def canceled(self, key, leaves):
         raise NotImplementedError('not implemented')
 
-    def replaced(self, key):
+    def replaced(self, key, px, qty):
         raise NotImplementedError('not implemented')
 
     def rejected(self, key, reason):
@@ -121,7 +111,7 @@ class OrderStateTable(AbstractOrderContainer):
         assert order.requests and order.requests[0] is OrderStateTable.Place, "was not expecting place"
         del order.requests[0]
 
-    def filled(self, key, qty):
+    def filled(self, key, trdpx, qty):
         order = self.orders[key]
         order.left -= qty
         order.filled += qty
@@ -135,7 +125,7 @@ class OrderStateTable(AbstractOrderContainer):
         order.canceled += oldleft - leaves
 
     # TODO might get replace px and qty on the message. Need to check they match our request
-    def replaced(self, key):
+    def replaced(self, key, px, qty):
         order = self.orders[key]
         assert order.requests and order.requests[0] is OrderStateTable.Replace, "was not expecting place"
         req = order.requests.pop(0)
@@ -403,7 +393,9 @@ class StrategyOrderUpdater:
         self.book.cancel(key=key, leaves=0)
 
     def replace(self, key, price, quantity, **kwargs):
-        self.book.replace(key=key, px=price, qty=quantity)
+        px = price['price'] if 'price' in price else None
+        qt = quantity['quantity'] if 'quantity' in quantity else None
+        self.book.replace(key=key, px=price, qty=qt)
 
     def exec(self, key, data, **execargs):
         for exectype, execdata in data.items():
@@ -418,12 +410,11 @@ class StrategyOrderUpdater:
     def replaced(self, key, **kwargs):
         self.book.replaced(key=key)
 
-    def partiallyFilled(self, key, lastQuantity, leaves, **kwargs):
-        self.book.filled(key=key, qty=lastQuantity-leaves)
+    def partiallyFilled(self, key, lastPrice, lastQuantity, leaves, **kwargs):
+        self.book.filled(key=key, trdpx=lastPrice, qty=lastQuantity)
 
-    def filled(self, key, lastQuantity, leaves, **kwargs):
-        #TODO: Is this ok?
-        self.book.filled(key=key, qty=0)
+    def filled(self, key, lastPrice, lastQuantity, leaves, **kwargs):
+        self.book.filled(key=key, trdpx=lastPrice, qty=lastQuantity)
 
     def failed(self, key, book, **kwargs):
         #TODO: what to do on failed? Should add new method on rejected? 
