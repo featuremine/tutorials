@@ -14,11 +14,11 @@
         {"identifier": 1001, "venueID": 1001, "venueAccount": "account-1001-1001"}
     ],
     "securityDefinitions": [
-        {"identifier": 2001, "symbol": "BTC-USD", "instrumentType": "equity", "currencyId": 1001, "assetClass": {"equity": {}}},
-        {"identifier": 2002, "symbol": "ETH-USD", "instrumentType": "equity", "currencyId": 1001, "assetClass": {"equity": {}}},
-        {"identifier": 2003, "symbol": "DOGE-USD", "instrumentType": "equity", "currencyId": 1001, "assetClass": {"equity": {}}},
-        {"identifier": 2004, "symbol": "USDT-USD", "instrumentType": "equity", "currencyId": 1001, "assetClass": {"equity": {}}},
-        {"identifier": 1001, "symbol": "USD", "instrumentType": "currency", "currencyId": 1001, "assetClass": {"currency": {}}}
+        {"identifier": 2001, "symbol": "BTC-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 2002, "symbol": "ETH-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 2003, "symbol": "DOGE-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 2004, "symbol": "USDT-USD", "instrumentType": "equity", "quoteCurrency": 1001, "assetClass": {"equity": {}}},
+        {"identifier": 1001, "symbol": "USD", "instrumentType": "currency", "quoteCurrency": 1001, "assetClass": {"currency": {}}}
     ],
     "venueSecurityAttributes": [
         {"venueID": 1001, "securityId": 2001, "scalingFactor": 1.0, "symbol": "BTC-USD", "idSource": "1001", "securityID": "BTC-USD.ID", "securityExch": "1001"},
