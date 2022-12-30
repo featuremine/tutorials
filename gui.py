@@ -313,9 +313,14 @@ if __name__ == '__main__':
 
     refdata.add_callback(mktSubscribe)
 
-    ordermap = {}
+    orders = OrderStateTable()
+    updater = StrategyOrderUpdater(orders)
+    tradeinfos = defaultdict(TradingInfo)
     def order_update(requests, responses):
         pass
+        ord = updater.update(msg)
+        info = tradeinfos[TradingKey(imnt, venue, acc)]
+        info.updater(msg)
 
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
