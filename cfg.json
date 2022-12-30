@@ -28,7 +28,7 @@
     ],
     "price_ytp": "ore_coinbase_l2.ytp",
     "strategy_ytp": "orders.ytp",
-    "strategy_prefix": "strgs/",
+    "strategy_prefix": "strgs",
     "oms_name":"oms1",
     "client_name":"client1"
 }
