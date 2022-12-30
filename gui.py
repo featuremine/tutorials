@@ -1,4 +1,5 @@
 from typing import Dict, Tuple, Optional, NamedTuple
+from collections import defaultdict
 from nicegui import ui
 import argparse
 import json, time
@@ -276,9 +277,12 @@ if __name__ == '__main__':
     peermkt = seqmkt.peer(cfg['peer'])
     mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt, sample=timedelta(milliseconds=10))
 
+    strg_pfx = cfg['strategy_prefix']
+    oms_name = cfg['oms_name']
+    peerstrg_name = cfg['peer']
     seqstrg = ytp.sequence(cfg['strategy_ytp'])
-    peerstrg = seqstrg.peer(cfg['peer'])
-    outch = peerstrg.channel(time_ns(), f"{cfg['strategy_prefix']}{cfg['oms_name']}/{cfg['peer']}")
+    peerstrg = seqstrg.peer(peerstrg_name)
+    outch = peerstrg.channel(time_ns(), f"{strg_pfx}/{oms_name}/{peerstrg_name}")
     outstream = peerstrg.stream(outch)
 
     def update_ui(delta):
@@ -316,10 +320,15 @@ if __name__ == '__main__':
     orders = OrderStateTable()
     updater = StrategyOrderUpdater(orders)
     tradeinfos = defaultdict(TradingInfo)
-    def order_update(requests, responses):
-        pass
-        ord = updater.update(msg)
-        info = tradeinfos[TradingKey(imnt, venue, acc)]
+
+    strg_pfx_len = len(strg_pfx)
+    oms_name_len = len(oms_name)
+    def order_update(peer, channel, time, data):
+        rest = channel.name()[strg_pfx_len:]
+        strg = rest[oms_name_len + 1:] if rest.startswith(oms_name) else rest[:-oms_name_len - 1]
+        msg = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
+        ord = updater(msg)
+        info = tradeinfos[TradingKey(imnt=ord.imnt, venue=ord.venue, account=ord.account)]
         info.updater(msg)
 
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
