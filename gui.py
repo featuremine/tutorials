@@ -11,7 +11,7 @@ import reference
 import signals
 import copy
 
-from common import ManagerMessageWriter, StrategyOrderUpdater, OrderStateTable
+from common import ManagerMessageWriter, StrategyOrderUpdater, OrderStateTable, Side
 
 from yamal import ytp
 import extractor
@@ -223,7 +223,6 @@ if __name__ == '__main__':
                     'headerClass': 'font-bold'
                 }, 
                 'columnDefs': [
-                    {'headerName': 'Order', 'field': 'order'},
                     {'headerName': 'Account', 'field': 'account'},
                     {'headerName': 'Security', 'field': 'security'},
                     {'headerName': 'Venue', 'field': 'venue'},
@@ -334,7 +333,23 @@ if __name__ == '__main__':
             strg = rest[:-oms_name_len - 1]
             snd = False
         ord = updater({"strg": strg, "msg": schemas.strategy.ManagerMessage.from_bytes_packed(data)})
-
+        table_entry = {
+            'enabled': False,
+            'account': ord.account,
+            'security': ord.imnt,
+            'venue': ord.venue,
+            'side': 'buy' if ord.side == Side.BID else 'sell',
+            'price': ord.px,
+            'quantity': ord.qty
+        }
+        if isinstance(ord.requests[-1], OrderStateTable.Place):
+            table_entry['type'] = 'new'
+        elif isinstance(ord.requests[-1], OrderStateTable.Cancel):
+            table_entry['type'] = 'cancel'
+        elif isinstance(ord.requests[-1], OrderStateTable.Replace):
+            table_entry['type'] = 'replace'
+        table_order_events.options['rowData'].append(table_entry)
+                              
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
     ## Update UI
