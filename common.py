@@ -99,24 +99,29 @@ class OrderStateTable(AbstractOrderContainer):
         order.requests.append(OrderStateTable.Place(px=px, qty=qty))
         self.orders[key] = order
         self.sided[side.value][key] = order
+        return order
 
     def cancel(self, key, leaves):
         order = self.orders[key]
         order.requests.append(OrderStateTable.Cancel(leaves=leaves))
+        return order
 
     def replace(self, key, px, qty):
         order = self.orders[key]
         order.requests.append(OrderStateTable.Replace(px=px, qty=qty))
+        return order
 
     def placed(self, key):
         order = self.orders[key]
         assert order.requests and order.requests[0] is OrderStateTable.Place, "was not expecting place"
         del order.requests[0]
+        return order
 
     def filled(self, key, trdpx, qty):
         order = self.orders[key]
         order.left -= qty
         order.filled += qty
+        return order
 
     def canceled(self, key, leaves):
         order = self.orders[key]
@@ -125,6 +130,7 @@ class OrderStateTable(AbstractOrderContainer):
         oldleft = order.left
         order.left = leaves
         order.canceled += oldleft - leaves
+        return order
 
     # TODO might get replace px and qty on the message. Need to check they match our request
     def replaced(self, key, px, qty):
@@ -133,6 +139,7 @@ class OrderStateTable(AbstractOrderContainer):
         req = order.requests.pop(0)
         order.px = req.px
         order.qty = req.qty
+        return order
 
     def rejected(self, key, reason):
         order = self.orders[key]
@@ -140,6 +147,7 @@ class OrderStateTable(AbstractOrderContainer):
         req = order.requests.pop(0)
         if req is OrderStateTable.Place:
             order.failed = True
+        return order
 
     def __getitem__(self, key):
         return self.orders[key]
@@ -383,67 +391,67 @@ class StrategyOrderUpdater:
         if not hasattr(specdata, 'strgOrdID'):
             return
         key = (upd["strg"], specdata.strgOrdID)
-        getattr(self, msgdata.which())(key, **specdata.to_dict())
+        return getattr(self, msgdata.which())(key, **specdata.to_dict())
     
     def new(self, key, accountID, securityId, venueID, orderType, quantity, orderSide, **kwargs):
         px = None if 'market' in orderType else orderType['limit']
         side = Side.BID if orderSide == 'buy' else Side.ASK
-        self.book.place(key=key, imnt=securityId, venue=venueID, account=accountID,
-                        strg=key[0], px=px, qty=quantity, side=side, info=kwargs)
+        return self.book.place(key=key, imnt=securityId, venue=venueID, account=accountID,
+                               strg=key[0], px=px, qty=quantity, side=side, info=kwargs)
 
     def cancel(self, key, **kwargs):
-        self.book.cancel(key=key, leaves=0)
+        return self.book.cancel(key=key, leaves=0)
 
     def replace(self, key, price, quantity, **kwargs):
         px = price['price'] if 'price' in price else None
         qt = quantity['quantity'] if 'quantity' in quantity else None
-        self.book.replace(key=key, px=price, qty=qt)
+        return self.book.replace(key=key, px=price, qty=qt)
 
     def exec(self, key, data, **execargs):
         for exectype, execdata in data.items():
             if execdata is None:
-                getattr(self, exectype)(key, **execargs)
+                return getattr(self, exectype)(key, **execargs)
             else:
-                getattr(self, exectype)(key, **execargs, **execdata)
+                return getattr(self, exectype)(key, **execargs, **execdata)
 
     def placed(self, key, **kwargs):
-        self.book.placed(key=key)
+        return self.book.placed(key=key)
 
     def replaced(self, key, **kwargs):
-        self.book.replaced(key=key)
+        return self.book.replaced(key=key)
 
     def partiallyFilled(self, key, lastPrice, lastQuantity, leaves, **kwargs):
-        self.book.filled(key=key, trdpx=lastPrice, qty=lastQuantity)
+        return self.book.filled(key=key, trdpx=lastPrice, qty=lastQuantity)
 
     def filled(self, key, lastPrice, lastQuantity, leaves, **kwargs):
-        self.book.filled(key=key, trdpx=lastPrice, qty=lastQuantity)
+        return self.book.filled(key=key, trdpx=lastPrice, qty=lastQuantity)
 
     def failed(self, key, book, **kwargs):
         #TODO: what to do on failed? Should add new method on rejected? 
         if kwargs["type"] != "place":
             # No effect
-            return
-        self.book.canceled(key=key, leaves=0)
+            return None
+        return self.book.canceled(key=key, leaves=0)
 
     def rejected(self, key, reason, **kwargs):
-        self.book.rejected(key=key, reason=reason)
+        return self.book.rejected(key=key, reason=reason)
 
     # No effect
     def cancelRej(self, key, reason, **kwargs):
-        self.book.rejected(key=key, reason=reason)
+        return self.book.rejected(key=key, reason=reason)
 
     # No effect
     def replaceRej(self, key, reason, **kwargs):
-        self.book.rejected(key=key, reason=reason)
+        return self.book.rejected(key=key, reason=reason)
 
     def doneForDay(self, key, leaves, **kwargs):
-        self.book.cancel(key=key, leaves=leaves)
+        return self.book.cancel(key=key, leaves=leaves)
 
     def canceled(self, key, leaves, **kwargs):
-        self.book.canceled(key=key, leaves=leaves)
+        return self.book.canceled(key=key, leaves=leaves)
 
     def expired(self, key, leaves, **kwargs):
-        self.book.canceled(key=key, leaves=0)
+        return self.book.canceled(key=key, leaves=0)
 
     # No effect
     def pendingNew(self, **kwargs):
