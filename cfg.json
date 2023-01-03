@@ -1,6 +1,6 @@
 {
     "state_ytp": "symb.ytp",
-    "peer": "setup-peer",
+    "peer": "gui1",
     "venue_channel": "venu",
     "symbology_channel": "symb",
     "risk_channel": "risk",

@@ -259,6 +259,8 @@ if __name__ == '__main__':
                     {'headerName': 'Account', 'field': 'account'},
                     {'headerName': 'Security', 'field': 'security'},
                     {'headerName': 'Venue', 'field': 'venue'},
+                    {'headerName': 'Strategy', 'field': 'strg'},
+                    {'headerName': 'OMS', 'field': 'oms'},
                     {'headerName': 'Side', 'field': 'side'},
                     {'headerName': 'Price', 'field': 'price'},
                     {'headerName': 'Quantity', 'field': 'quantity'},
@@ -366,6 +368,8 @@ if __name__ == '__main__':
             'account': ord.info['accountID'],
             'security': ord.info['securityId'],
             'venue': ord.info['venueID'],
+            'strg': strg,
+            'oms': oms,
             'side': 'buy' if ord.side == Side.BID else 'sell',
             'price': ord.px,
             'quantity': ord.qty
