@@ -27,20 +27,25 @@ def is_number(s):
     except ValueError:
         return False
 
-class MarketDataGui(signals.MarketSignals):
-    def __init__(self, seq, peer, prefix: str="ore/imnts/", sample: Optional[timedelta]=None) -> None:
-        graph = extractor.system.comp_graph()
-        graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
-        components = {"graph": graph, "systime": time_ns}
-        super().__init__(components, peer,  prefix, sample)
+class MarketDataGui(object):
+    def __init__(self, cfg, sample: Optional[timedelta]=None) -> None:
+        self.cfg = cfg
+        self.sample = sample
         self.prices = multiprocessing.Manager().dict()
         self.proc = None
-                
+        
     def __del__(self):
         if self.proc:
             self.proc.join()
 
     def _process(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
+        graph = extractor.system.comp_graph()
+        seq = ytp.sequence(self.cfg['price_ytp'])
+        peer = seq.peer(self.cfg['peer'])
+        graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
+        components = {"graph": graph, "systime": time_ns}
+        sig = signals.MarketSignals(components, peer, 'ore/imnts/', self.sample)
+
         def prices_update(x, ids):
             self.prices[ids] = {
                 'bidqty': str(x[0].bidqty),
@@ -49,12 +54,12 @@ class MarketDataGui(signals.MarketSignals):
                 'askpx': str(x[0].askprice),
             }
         
-        super().process(imnts)
+        sig.process(imnts)
         
-        for ids, quote in self.quotes.items():
-            self.graph.callback(quote, functools.partial(prices_update, ids=ids))
+        for ids, quote in sig.quotes.items():
+            graph.callback(quote, functools.partial(prices_update, ids=ids))
 
-        self.graph.stream_ctx().run_live()
+        graph.stream_ctx().run_live()
 
     def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str,str]]) -> None:
         if self.proc:
@@ -272,9 +277,8 @@ if __name__ == '__main__':
     ## Market Data
     seqref = ytp.sequence(cfg['state_ytp'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
-    seqmkt = ytp.sequence(cfg['price_ytp'])
-    peermkt = seqmkt.peer(cfg['peer'])
-    mrkdata = MarketDataGui(seq=seqmkt, peer=peermkt, sample=timedelta(milliseconds=10))
+
+    mrkdata = MarketDataGui(cfg=cfg, sample=timedelta(milliseconds=10))
 
     strg_pfx = cfg['strategy_prefix']
     oms_name = cfg['oms_name']
@@ -342,13 +346,13 @@ if __name__ == '__main__':
             'price': ord.px,
             'quantity': ord.qty
         }
-        if isinstance(ord.requests[-1], OrderStateTable.Place):
-            table_entry['type'] = 'new'
-        elif isinstance(ord.requests[-1], OrderStateTable.Cancel):
-            table_entry['type'] = 'cancel'
-        elif isinstance(ord.requests[-1], OrderStateTable.Replace):
-            table_entry['type'] = 'replace'
-        table_order_events.options['rowData'].append(table_entry)
+        # if isinstance(ord.requests[-1], OrderStateTable.Place):
+        #     table_entry['type'] = 'new'
+        # elif isinstance(ord.requests[-1], OrderStateTable.Cancel):
+        #     table_entry['type'] = 'cancel'
+        # elif isinstance(ord.requests[-1], OrderStateTable.Replace):
+        #     table_entry['type'] = 'replace'
+        # table_order_events.options['rowData'].append(table_entry)
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
