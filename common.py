@@ -98,6 +98,10 @@ class OrderStateTable(AbstractOrderContainer):
             self.rejected = rejected
             self.requests = requests
 
+        @property
+        def done(self) -> bool:
+            return self.rejected or self.left == 0
+
     def __init__(self):
         self.orders = defaultdict(OrderStateTable.Order)
         self.sided = (WeakValueDictionary(), WeakValueDictionary())
@@ -348,6 +352,7 @@ class ManagerMessageWriter:
         }
 
     _place = CapnpMessageWriter('strg', 'new')
+    _cancel = CapnpMessageWriter('strg', 'cancel')
 
     def __init__(self, systime: SystemTime, ctx: dict={}):
         self.systime = systime
@@ -373,6 +378,9 @@ class ManagerMessageWriter:
                   tag=tag,
                   **rest,
                   **self.ctx)
+
+    def cancel(self, strgOrdID, **rest):
+        self.send(builder=ManagerMessageWriter._cancel, strgOrdID=strgOrdID, **rest, **self.ctx)
 
     def placed(self, px, qty, side, info):
         CapnpMessageWriter.send_message(self.strg_placed, info['strgOrdID'], info['accountID'], info['securityId'], info['venueID'], side, str(self.execid), px, qty, time_ns(), "SimulatorFM")

@@ -123,6 +123,7 @@ if __name__ == '__main__':
     g_ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{g_oms_name}/{g_strg_name}")
     g_ord_stream = peerstrg.stream(g_ord_ch)
     g_writer = ManagerMessageWriter(systime=systime, ctx={'stream': g_ord_stream})
+    e_writer = ManagerMessageWriter(systime=systime)
 
     strg_ord_ids = StrgOrdIds(1000)
 
@@ -245,18 +246,19 @@ if __name__ == '__main__':
             ui.button('sell', on_click=lambda: parse_order('sell')).style('width:10em;')
 
 
-    selected = []
+    selected = set()
 
     table_options = {
                 'defaultColDef': {
                     'minWidth': 100,
+                    'maxHeight': 800,
                     'filter': True,
                     'resizable': True,
                     'cellStyle': {'display': 'flex ','justify-content': 'center'},
                     'headerClass': 'font-bold'
                 }, 
                 'columnDefs': [
-                    {'headerName': 'Order', 'field': 'order'},
+                    {'headerName': 'ID', 'field': 'id'},
                     {'headerName': 'Account', 'field': 'account'},
                     {'headerName': 'Security', 'field': 'security'},
                     {'headerName': 'Venue', 'field': 'venue'},
@@ -265,6 +267,7 @@ if __name__ == '__main__':
                     {'headerName': 'Side', 'field': 'side'},
                     {'headerName': 'Price', 'field': 'price'},
                     {'headerName': 'Quantity', 'field': 'quantity'},
+                    {'headerName': 'Status', 'field': 'done'},
                 ],
                 'rowData': [],
             }
@@ -280,14 +283,12 @@ if __name__ == '__main__':
             with ui.column():
                 def cancel_orders(b):
                     global selected
-                    indices = [i for i, x in enumerate(selected) if x]
-                    for i in sorted(indices, reverse=True):
-                        orders.send(orders.cancel(orderid=table_orders.options['rowData'][i]['order']))
-                        table_orders.options['rowData'].pop(i)
-                    if indices:
-                        table_orders.update()
-                        selected = [ x for i,x in enumerate(selected) if not x]
-
+                    for i in selected:
+                        row = table_orders.options['rowData'][i]
+                        ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{row['oms']}/{row['strg']}")
+                        ord_stream = peerstrg.stream(ord_ch)
+                        e_writer.cancel(stream=ord_stream, strgOrdID=row['id'])
+                        
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
                     
         with padded_row():
@@ -296,7 +297,10 @@ if __name__ == '__main__':
             table_orders = create_orders_table(opt)
                     
             def handle_change(sender, msg):
-                selected[msg['rowIndex']] = msg['value']
+                if msg['value']:
+                    selected.add(msg['rowIndex'])
+                else:
+                    selected.remove(msg['rowIndex'])
 
             table_orders.view.on('cellValueChanged', handle_change)
 
@@ -365,7 +369,7 @@ if __name__ == '__main__':
         table_entry = {
             'enabled': False,
             'type': msgdata.which(),
-            'order': ord.info['strgOrdID'],
+            'id': ord.info['strgOrdID'],
             'account': ord.info['accountID'],
             'security': ord.info['securityId'],
             'venue': ord.info['venueID'],
@@ -373,7 +377,8 @@ if __name__ == '__main__':
             'oms': oms,
             'side': 'buy' if ord.side == Side.BID else 'sell',
             'price': ord.px,
-            'quantity': ord.qty
+            'quantity': ord.qty,
+            'done': 'done' if ord.done else 'active'
         }
         table_orders.options['rowData'].append(table_entry)
         table_orders.update()
