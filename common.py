@@ -16,6 +16,22 @@ class SystemTime(object):
     def __call__(self) -> Any:
         raise NotImplementedError('not implemented')
 
+class StrgOrdIds(object):
+    def __init__(self, start) -> None:
+        self.id = start
+        self.known = set()
+    
+    def add(self, id: int) -> None:
+        self.known.add(id)
+
+    def __call__(self) -> int:
+        while True:
+            self.id += 1
+            if not self.id in self.known:
+                break
+        self.known.add(self.id)
+        return self.id
+
 class AbstractOrderContainer(object):
     def place(self, key, px: float, qty: int, side: Side, info: Any):
         raise NotImplementedError('not implemented')
@@ -57,18 +73,15 @@ class AbstractOrderContainer(object):
         raise NotImplementedError('not implemented')
 
 class OrderStateTable(AbstractOrderContainer):
-    class Request(NamedTuple):
-        pass
-
-    class Place(Request):
+    class Place(NamedTuple):
         px: float
         qty: int
 
-    class Replace(Request):
+    class Replace(NamedTuple):
         px: float
         qty: int
 
-    class Cancel(Request):
+    class Cancel(NamedTuple):
         leaves: int
 
     class Order(object):
@@ -336,20 +349,19 @@ class ManagerMessageWriter:
 
     _place = CapnpMessageWriter('strg', 'new')
 
-    def __init__(self, systime, stream, ctx):
+    def __init__(self, systime: SystemTime, ctx: dict={}):
         self.systime = systime
-        self.stream = stream
         self.ctx = ctx
 
-    def send(self, builder, **rest):
+    def send(self, builder, stream, **rest):
         msg = capnp_spec.new_message()
         msg_dict = builder(**rest)
         msg.from_dict(msg_dict)
         encoded_response = msg.to_bytes_packed()
-        self.stream.write(self.systime(), encoded_response)
+        stream.write(self.systime(), encoded_response)
 
     def place(self, strgOrdID, orderSide, px, quantity, maxFloor, minQty, timeInForce, algorithm, tag, **rest):
-        self.send(ManagerMessageWriter._place,
+        self.send(builder=ManagerMessageWriter._place,
                   strgOrdID=strgOrdID,
                   orderSide=orderSide,
                   orderType={'market': None} if px is None else {'limit': px},

@@ -11,14 +11,12 @@ import reference
 import signals
 import copy
 
-from common import ManagerMessageWriter, StrategyOrderUpdater, OrderStateTable, Side
+from common import SystemTime, StrgOrdIds, ManagerMessageWriter, StrategyOrderUpdater, OrderStateTable, Side
 
 from yamal import ytp
 import extractor
 from conveyor.utils import schemas
 
-def time_ns():
-    return int(time.time() * 1000000000)
 
 def is_number(s):
     try:
@@ -26,6 +24,10 @@ def is_number(s):
         return True
     except ValueError:
         return False
+
+class GuiSysTime(SystemTime):
+    def __call__(self) -> int:
+        return int(time.time() * 1000000000)
 
 class MarketDataGui(object):
     def __init__(self, cfg, sample: Optional[timedelta]=None) -> None:
@@ -43,7 +45,9 @@ class MarketDataGui(object):
         seq = ytp.sequence(self.cfg['price_ytp'])
         peer = seq.peer(self.cfg['peer'])
         graph.features.ytp_sequence(seq, timedelta(milliseconds=1))
-        components = {"graph": graph, "systime": time_ns}
+        systime = GuiSysTime()
+
+        components = {"graph": graph, "systime": systime}
         sig = signals.MarketSignals(components, peer, 'ore/imnts/', self.sample)
 
         def prices_update(x, ids):
@@ -101,6 +105,26 @@ if __name__ == '__main__':
     if not os.path.isfile(cfg['price_ytp']):
         print(f"yamal file {cfg['price_ytp']} does not exist. Please provide a valid yamal file for the market data.")
         exit(1)
+
+    ## Market Data
+    seqref = ytp.sequence(cfg['state_ytp'])
+    refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
+
+    systime = GuiSysTime()
+
+    mrkdata = MarketDataGui(cfg=cfg, sample=timedelta(milliseconds=10))
+
+    strg_pfx = cfg['strategy_prefix']
+    g_oms_name = cfg['oms_name']
+    g_strg_name = cfg['peer']
+
+    seqstrg = ytp.sequence(cfg['strategy_ytp'])
+    peerstrg = seqstrg.peer(g_strg_name)
+    g_ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{g_oms_name}/{g_strg_name}")
+    g_ord_stream = peerstrg.stream(g_ord_ch)
+    g_writer = ManagerMessageWriter(systime=systime, ctx={'stream': g_ord_stream})
+
+    strg_ord_ids = StrgOrdIds(1000)
 
     ## UI
     def padded_row():
@@ -208,11 +232,14 @@ if __name__ == '__main__':
                 elif not is_number(pricein.value):
                     ui.notify('please select a valid price')
                     return
-                    
-                orders.send(orders.limit(
-                    accid=int(selectAccount.value), secid=int(selectSecurity.value),
-                    venid=int(selectMarket.value), side=side, ordpx=float(pricein.value),
-                    qty=float(qtyin.value)))
+
+                px = float(pricein.value) if pricein.value else None
+                g_writer.place(accountID=int(selectAccount.value), \
+                               securityId=int(selectSecurity.value), venueID=int(selectMarket.value), \
+                               strgOrdID=strg_ord_ids(), orderSide=side, px=px, \
+                               quantity=float(qtyin.value), maxFloor=None, minQty=None, \
+                               timeInForce='day', algorithm=None, tag='')
+
                 ui.notify('An order was sent')
             ui.button('buy', on_click=lambda: parse_order('buy')).style('width:10em;').props('color=green')
             ui.button('sell', on_click=lambda: parse_order('sell')).style('width:10em;')
@@ -275,20 +302,6 @@ if __name__ == '__main__':
             table_options['columnDefs'].insert(0, {'headerName': 'Type', 'field': 'type'})
             table_order_events = create_orders_table(table_options)
 
-    ## Market Data
-    seqref = ytp.sequence(cfg['state_ytp'])
-    refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
-
-    mrkdata = MarketDataGui(cfg=cfg, sample=timedelta(milliseconds=10))
-
-    strg_pfx = cfg['strategy_prefix']
-    oms_name = cfg['oms_name']
-    peerstrg_name = cfg['peer']
-    seqstrg = ytp.sequence(cfg['strategy_ytp'])
-    peerstrg = seqstrg.peer(peerstrg_name)
-    outch = peerstrg.channel(time_ns(), f"{strg_pfx}/{oms_name}/{peerstrg_name}")
-    outstream = peerstrg.stream(outch)
-
     def update_ui(delta):
         if delta.accounts:
             selectAccount.options.extend(delta.accounts)
@@ -325,12 +338,10 @@ if __name__ == '__main__':
     updater = StrategyOrderUpdater(orders)
     tradeinfos = defaultdict(TradingInfo)
 
-    strg_pfx_len = len(strg_pfx)
-    oms_name_len = len(oms_name)
+    strg_pfx_len = len(strg_pfx) + 1
     def order_update(peer, channel, time, data):
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
-        rest = channel.name()[strg_pfx_len + 1:]
-        first, _, second = rest.partition('/')
+        first, _, second = channel.name()[strg_pfx_len:].partition('/')
         msgtype = msg.message.which()
         if msgtype == 'strg':
             strg = second
@@ -344,6 +355,10 @@ if __name__ == '__main__':
             "oms": oms,
             "msg": msg
             })
+        if ord is None:
+            return
+        if strg == g_strg_name and oms == g_oms_name:
+            strg_ord_ids.add(ord.info['strgOrdID'])
         table_entry = {
             'enabled': False,
             'type': msgdata.which(),
@@ -355,7 +370,8 @@ if __name__ == '__main__':
             'price': ord.px,
             'quantity': ord.qty
         }
-        table_order_events.options['rowData'].append(table_entry)
+        table_orders.options['rowData'].append(table_entry)
+        table_orders.update()
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
@@ -367,4 +383,3 @@ if __name__ == '__main__':
     t = ui.timer(interval=0.01, callback=update_elements)
 
     ui.run(title='Featuremine orders', reload=False, show=False)
-
