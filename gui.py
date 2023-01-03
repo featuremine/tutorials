@@ -324,8 +324,15 @@ if __name__ == '__main__':
     strg_pfx_len = len(strg_pfx)
     oms_name_len = len(oms_name)
     def order_update(peer, channel, time, data):
-        rest = channel.name()[strg_pfx_len:]
-        strg = rest[oms_name_len + 1:] if rest.startswith(oms_name) else rest[:-oms_name_len - 1]
+        rest = channel.name()[strg_pfx_len + 1:]
+        if rest.startswith(oms_name):
+            strg = rest[oms_name_len + 1:]
+            snd = True
+        else:
+            if rest[-oms_name_len:] != oms_name:
+                return
+            strg = rest[:-oms_name_len - 1]
+            snd = False
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
         ord = updater(msg)
         info = tradeinfos[TradingKey(imnt=ord.imnt, venue=ord.venue, account=ord.account)]
