@@ -247,31 +247,14 @@ if __name__ == '__main__':
 
 
     selected = set()
-
-    table_options = {
-                'defaultColDef': {
+    column_defs = {
                     'minWidth': 100,
                     'maxHeight': 800,
                     'filter': True,
                     'resizable': True,
                     'cellStyle': {'display': 'flex ','justify-content': 'center'},
                     'headerClass': 'font-bold'
-                }, 
-                'columnDefs': [
-                    {'headerName': 'ID', 'field': 'id'},
-                    {'headerName': 'Account', 'field': 'account'},
-                    {'headerName': 'Security', 'field': 'security'},
-                    {'headerName': 'Venue', 'field': 'venue'},
-                    {'headerName': 'Strategy', 'field': 'strg'},
-                    {'headerName': 'OMS', 'field': 'oms'},
-                    {'headerName': 'Side', 'field': 'side'},
-                    {'headerName': 'Price', 'field': 'price'},
-                    {'headerName': 'Quantity', 'field': 'quantity'},
-                    {'headerName': 'Status', 'field': 'done'},
-                ],
-                'rowData': [],
-            }
-
+                }
     def create_orders_table(options):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
         for col_def in t.view.options.columnDefs:
@@ -292,9 +275,24 @@ if __name__ == '__main__':
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
                     
         with padded_row():
-            opt = copy.deepcopy(table_options)
-            opt['columnDefs'].insert(0, {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'})
-            table_orders = create_orders_table(opt)
+            table_options = {
+                'defaultColDef': column_defs, 
+                'columnDefs': [
+                    {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'},
+                    {'headerName': 'ID', 'field': 'id'},
+                    {'headerName': 'Account', 'field': 'account'},
+                    {'headerName': 'Security', 'field': 'security'},
+                    {'headerName': 'Venue', 'field': 'venue'},
+                    {'headerName': 'Strategy', 'field': 'strg'},
+                    {'headerName': 'OMS', 'field': 'oms'},
+                    {'headerName': 'Side', 'field': 'side'},
+                    {'headerName': 'Price', 'field': 'price'},
+                    {'headerName': 'Quantity', 'field': 'quantity'},
+                    {'headerName': 'Status', 'field': 'done'},
+                ],
+                'rowData': [],
+            }
+            table_orders = create_orders_table(table_options)
                     
             def handle_change(sender, msg):
                 if msg['value']:
@@ -306,7 +304,23 @@ if __name__ == '__main__':
 
     with expansion_bar('orders event list'):                
         with padded_row():
-            table_options['columnDefs'].insert(0, {'headerName': 'Type', 'field': 'type'})
+            table_options = {
+                'defaultColDef': column_defs, 
+                'columnDefs': [
+                    {'headerName': 'Type', 'field': 'type'},
+                    {'headerName': 'ID', 'field': 'id'},
+                    {'headerName': 'Account', 'field': 'account'},
+                    {'headerName': 'Security', 'field': 'security'},
+                    {'headerName': 'Venue', 'field': 'venue'},
+                    {'headerName': 'Strategy', 'field': 'strg'},
+                    {'headerName': 'OMS', 'field': 'oms'},
+                    {'headerName': 'Side', 'field': 'side'},
+                    {'headerName': 'Price', 'field': 'price'},
+                    {'headerName': 'Quantity', 'field': 'quantity'},
+                    {'headerName': 'Status', 'field': 'done'},
+                ],
+                'rowData': [],
+            }
             table_order_events = create_orders_table(table_options)
 
     def update_ui(delta):
