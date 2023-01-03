@@ -17,7 +17,7 @@ class SystemTime(object):
         raise NotImplementedError('not implemented')
 
 class AbstractOrderContainer(object):
-    def place(self, key, imnt: int, venue: int, account: int, strg: str, px: float, qty: int, side: Side, info: Any):
+    def place(self, key, px: float, qty: int, side: Side, info: Any):
         raise NotImplementedError('not implemented')
 
     def cancel(self, key, leaves):
@@ -75,10 +75,6 @@ class OrderStateTable(AbstractOrderContainer):
         def __init__(self, px: float, qty: int,
                      left: int, side: Side, info: Any, filled: int = 0, canceled: int = 0, 
                      rejected: bool = False, requests: List[Any] = []):
-            self.imnt = imnt
-            self.venue = venue
-            self.account = account
-            self.strg = strg
             self.px = px
             self.qty = qty
             self.left = left
@@ -93,9 +89,8 @@ class OrderStateTable(AbstractOrderContainer):
         self.orders = defaultdict(OrderStateTable.Order)
         self.sided = (WeakValueDictionary(), WeakValueDictionary())
     
-    def place(self, key, imnt: int, venue: int, account: int, strg: str, px: float, qty: int, side: Side, info: Any):
-        order = OrderStateTable.Order(imnt=imnt, venue=venue, account=account, strg=strg,
-                                      px=px, qty=qty, left=qty, side=side, info=info)
+    def place(self, key, px: float, qty: int, side: Side, info: Any):
+        order = OrderStateTable.Order(px=px, qty=qty, left=qty, side=side, info=info)
         order.requests.append(OrderStateTable.Place(px=px, qty=qty))
         self.orders[key] = order
         self.sided[side.value][key] = order
@@ -398,7 +393,7 @@ class StrategyOrderUpdater:
         side = Side.BID if orderSide == 'buy' else Side.ASK
         info = {
             **kwargs,
-            'strg': key[0]
+            'strg': key[0],
             'oms': key[1]
         }
         return self.book.place(key=key, px=px, qty=quantity, side=side, info=kwargs)
