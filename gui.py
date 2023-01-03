@@ -251,6 +251,7 @@ if __name__ == '__main__':
                 'defaultColDef': {
                     'minWidth': 100,
                     'filter': True,
+                    'resizable': True,
                     'cellStyle': {'display': 'flex ','justify-content': 'center'},
                     'headerClass': 'font-bold'
                 }, 
