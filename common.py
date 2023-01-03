@@ -60,15 +60,15 @@ class OrderStateTable(AbstractOrderContainer):
     class Request(NamedTuple):
         pass
 
-    class Place(NamedTuple, Request):
+    class Place(Request):
         px: float
         qty: int
 
-    class Replace(NamedTuple, Request):
+    class Replace(Request):
         px: float
         qty: int
 
-    class Cancel(NamedTuple, Request):
+    class Cancel(Request):
         leaves: int
 
     class Order(object):
