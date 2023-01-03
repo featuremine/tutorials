@@ -327,16 +327,20 @@ if __name__ == '__main__':
     strg_pfx_len = len(strg_pfx)
     oms_name_len = len(oms_name)
     def order_update(peer, channel, time, data):
+        msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
         rest = channel.name()[strg_pfx_len + 1:]
-        if rest.startswith(oms_name):
-            strg = rest[oms_name_len + 1:]
-            snd = True
+        first, _, second = rest.partition('/')
+        if msg.message.which() == 'strg':
+            strg = second
+            oms = first
         else:
-            if rest[-oms_name_len:] != oms_name:
-                return
-            strg = rest[:-oms_name_len - 1]
-            snd = False
-        ord = updater({"strg": strg, "msg": schemas.strategy.ManagerMessage.from_bytes_packed(data)})
+            strg = first
+            oms = second
+        ord = updater({
+            "strg": strg,
+            "oms": oms,
+            "msg": msg
+            })
         table_entry = {
             'enabled': False,
             'account': ord.account,

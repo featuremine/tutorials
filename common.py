@@ -72,7 +72,7 @@ class OrderStateTable(AbstractOrderContainer):
         leaves: int
 
     class Order(object):
-        def __init__(self, imnt: int, venue: int, account: int, strg: str, px: float, qty: int,
+        def __init__(self, px: float, qty: int,
                      left: int, side: Side, info: Any, filled: int = 0, canceled: int = 0, 
                      rejected: bool = False, requests: List[Any] = []):
             self.imnt = imnt
@@ -390,14 +390,18 @@ class StrategyOrderUpdater:
         specdata = getattr(msgdata, msgdata.which())
         if not hasattr(specdata, 'strgOrdID'):
             return
-        key = (upd["strg"], specdata.strgOrdID)
+        key = (upd["strg"], upd["oms"], specdata.strgOrdID)
         return getattr(self, msgdata.which())(key, **specdata.to_dict())
     
-    def new(self, key, accountID, securityId, venueID, orderType, quantity, orderSide, **kwargs):
+    def new(self, key, orderType, quantity, orderSide, **kwargs):
         px = None if 'market' in orderType else orderType['limit']
         side = Side.BID if orderSide == 'buy' else Side.ASK
-        return self.book.place(key=key, imnt=securityId, venue=venueID, account=accountID,
-                               strg=key[0], px=px, qty=quantity, side=side, info=kwargs)
+        info = {
+            **kwargs,
+            'strg': key[0]
+            'oms': key[1]
+        }
+        return self.book.place(key=key, px=px, qty=quantity, side=side, info=kwargs)
 
     def cancel(self, key, **kwargs):
         return self.book.cancel(key=key, leaves=0)
