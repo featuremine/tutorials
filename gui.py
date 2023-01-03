@@ -333,10 +333,7 @@ if __name__ == '__main__':
                 return
             strg = rest[:-oms_name_len - 1]
             snd = False
-        msg = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
-        ord = updater(msg)
-        info = tradeinfos[TradingKey(imnt=ord.imnt, venue=ord.venue, account=ord.account)]
-        info.updater(msg)
+        ord = updater({"strg": strg, "msg": schemas.strategy.ManagerMessage.from_bytes_packed(data)})
 
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 

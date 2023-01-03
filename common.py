@@ -1,5 +1,5 @@
 from typing import List, NamedTuple, Any
-from enum import Enum
+from enum import IntEnum
 from collections import defaultdict
 from bisect import insort, bisect_left
 from weakref import WeakValueDictionary
@@ -8,7 +8,7 @@ from conveyor.utils import schemas
 
 capnp_spec = schemas.strategy.ManagerMessage
 
-class Side(Enum):
+class Side(IntEnum):
     BID = 0
     ASK = 1
 
@@ -60,15 +60,15 @@ class OrderStateTable(AbstractOrderContainer):
     class Request(NamedTuple):
         pass
 
-    class Place(Request):
+    class Place(NamedTuple, Request):
         px: float
         qty: int
 
-    class Replace(Request):
+    class Replace(NamedTuple, Request):
         px: float
         qty: int
 
-    class Cancel(Request):
+    class Cancel(NamedTuple, Request):
         leaves: int
 
     class Order(NamedTuple):
@@ -79,12 +79,12 @@ class OrderStateTable(AbstractOrderContainer):
         px: float
         qty: int
         left: int
-        filled: int
-        canceled: int
         side: Side
         info: Any
-        rejected: bool
-        requests: List[Any] #TODO: List[OrderStateTable.Request]
+        filled: int = 0
+        canceled: int = 0
+        rejected: bool = False
+        requests: List[Any] = [] #TODO: List[OrderStateTable.Request]
 
     def __init__(self):
         self.orders = defaultdict(OrderStateTable.Order)
@@ -92,11 +92,10 @@ class OrderStateTable(AbstractOrderContainer):
     
     def place(self, key, imnt: int, venue: int, account: int, strg: str, px: float, qty: int, side: Side, info: Any):
         order = OrderStateTable.Order(imnt=imnt, venue=venue, account=account, strg=strg,
-                                      px=px, qty=qty, left=qty, side=side, info=info,
-                                      status=OrderStateTable.Status.UNACKED)
+                                      px=px, qty=qty, left=qty, side=side, info=info)
         order.requests.append(OrderStateTable.Place(px=px, qty=qty))
         self.orders[key] = order
-        self.sided[side][key] = order
+        self.sided[side.value][key] = order
 
     def cancel(self, key, leaves):
         order = self.orders[key]
