@@ -317,7 +317,6 @@ if __name__ == '__main__':
                     {'headerName': 'Side', 'field': 'side'},
                     {'headerName': 'Price', 'field': 'price'},
                     {'headerName': 'Quantity', 'field': 'quantity'},
-                    {'headerName': 'Status', 'field': 'done'},
                 ],
                 'rowData': [],
             }
@@ -394,8 +393,14 @@ if __name__ == '__main__':
             'quantity': ord.qty,
             'done': 'done' if ord.done else 'active'
         }
+        #TODO: only append if it is not on the table
         table_orders.options['rowData'].append(table_entry)
         table_orders.update()
+        
+        #TODO: For the events only show the data of the event, not the order
+        #Ex : If it is a cancel event, we do not show the price or qty.
+        table_order_events.options['rowData'].append(table_entry)
+        table_order_events.update()
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
