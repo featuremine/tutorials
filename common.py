@@ -71,24 +71,27 @@ class OrderStateTable(AbstractOrderContainer):
     class Cancel(NamedTuple, Request):
         leaves: int
 
-    class Order(NamedTuple):
-        imnt: int
-        venue: int
-        account: int
-        strg: str
-        px: float
-        qty: int
-        left: int
-        side: Side
-        info: Any
-        filled: int = 0
-        canceled: int = 0
-        rejected: bool = False
-        requests: List[Any] = [] #TODO: List[OrderStateTable.Request]
+    class Order(object):
+        def __init__(self, imnt: int, venue: int, account: int, strg: str, px: float, qty: int,
+                     left: int, side: Side, info: Any, filled: int = 0, canceled: int = 0, 
+                     rejected: bool = False, requests: List[Any] = []):
+            self.imnt = imnt
+            self.venue = venue
+            self.account = account
+            self.strg = strg
+            self.px = px
+            self.qty = qty
+            self.left = left
+            self.side = side
+            self.info = info
+            self.filled = filled
+            self.canceled = canceled
+            self.rejected = rejected
+            self.requests = requests
 
     def __init__(self):
         self.orders = defaultdict(OrderStateTable.Order)
-        self.sided = (WeakValueDictionary, WeakValueDictionary)
+        self.sided = (WeakValueDictionary(), WeakValueDictionary())
     
     def place(self, key, imnt: int, venue: int, account: int, strg: str, px: float, qty: int, side: Side, info: Any):
         order = OrderStateTable.Order(imnt=imnt, venue=venue, account=account, strg=strg,
