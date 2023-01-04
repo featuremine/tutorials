@@ -273,6 +273,22 @@ if __name__ == '__main__':
                         e_writer.cancel(stream=ord_stream, strgOrdID=row['id'])
                         
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
+            
+            def select_all(sel):
+                global table_orders, selected
+                if not sel:
+                    selected.clear()
+                for idx, o in enumerate(table_orders.options['rowData']):
+                    o['enabled'] = sel
+                    if sel:
+                        selected.add(idx)
+                table_orders.update()
+
+            with ui.column():
+                ui.button('Select All', on_click=lambda: select_all(True)).style('width:10em').props('color=blue')
+                
+            with ui.column():
+                ui.button('Clear All', on_click=lambda: select_all(False)).style('width:10em').props('color=blue')
                     
         with padded_row():
             table_options = {
