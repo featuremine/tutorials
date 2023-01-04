@@ -147,8 +147,11 @@ if __name__ == '__main__':
             filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
         if selectSecurity.value:
             filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
-        filterValues = await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
         table_orders.update()
+        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        table_order_events.update()
+        
 
     UNAVAILABLE = '-'
 
