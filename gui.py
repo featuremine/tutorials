@@ -153,10 +153,9 @@ if __name__ == '__main__':
             filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
             filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
 
-        await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
-        table_orders.update()
-        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
-        table_order_events.update()
+        for t in [table_orders, table_order_events]:
+            await t.view.run_api(f"setFilterModel({filtercmd})", t.view.pages[0])
+            t.update()
         
 
     UNAVAILABLE = '-'
