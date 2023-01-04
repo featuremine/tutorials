@@ -474,6 +474,7 @@ class StrategyOrderUpdater:
 
     # No effect
     def pendingNew(self, **kwargs):
+        #TODO find order information and return it
         pass
 
     # No effect
@@ -496,3 +497,101 @@ class StrategyOrderUpdater:
     def status(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
         pass
 
+
+class OrderEventDetails:
+    class Details(NamedTuple):
+        tp: str
+        px: float
+        qt: float
+        reason: str = ""
+
+    def __call__(self, msg: dict):
+        msgdata = getattr(msg.message, msg.message.which())
+        specdata = getattr(msgdata, msgdata.which())
+        if not hasattr(specdata, 'strgOrdID'):
+            return
+        return getattr(self, msgdata.which())(**specdata.to_dict())
+
+    def new(self, orderType, quantity, orderSide, **kwargs):
+        px = None if 'market' in orderType else orderType['limit']
+        return OrderEventDetails.Details(tp='new', px=px, qt=quantity)
+
+    def cancel(self, **kwargs):
+        return OrderEventDetails.Details(tp='cancel', px=None, qt=None)
+
+    def replace(self, price, quantity, **kwargs):
+        px = price['price'] if 'price' in price else None
+        qt = quantity['quantity'] if 'quantity' in quantity else None
+        return OrderEventDetails.Details(tp='replace', px=px, qt=qt)
+
+    def exec(self, data, **execargs):
+        for exectype, execdata in data.items():
+            if execdata is None:
+                return getattr(self, exectype)(**execargs)
+            else:
+                return getattr(self, exectype)(**execargs, **execdata)
+
+    def placed(self, orderType, orderQuantity, **kwargs):
+        px = None if 'market' in orderType else orderType['limit']
+        return OrderEventDetails.Details(tp='placed', px=px, qt=orderQuantity)
+
+    def replaced(self, orderType, orderQuantity, **kwargs):
+        px = None if 'market' in orderType else orderType['limit']
+        return OrderEventDetails.Details(tp='replaced', px=px, qt=orderQuantity)
+
+    def partiallyFilled(self, lastPrice, lastQuantity, **kwargs):
+        return OrderEventDetails.Details(tp='partial fill', px=lastPrice, qt=lastQuantity)
+
+    def filled(self, lastPrice, lastQuantity, **kwargs):
+        return OrderEventDetails.Details(tp='fill', px=lastPrice, qt=lastQuantity)
+
+    def failed(self, **kwargs):
+        reason = f'failed to {kwargs["type"]} with error: {kwargs["reason"]}'
+        return OrderEventDetails.Details(tp='failed', px=None, qt=None, reason=reason)
+
+    def rejected(self, reason, **kwargs):
+        txt = f'order rejected with reason: {reason}'
+        return OrderEventDetails.Details(tp='rejected', px=None, qt=None, reason=txt)
+
+    # No effect
+    def cancelRej(self, reason, **kwargs):
+        txt = f'cancel rejected with reason: {reason}'
+        return OrderEventDetails.Details(tp='cancel rejected', px=None, qt=None, reason=txt)
+
+    # No effect
+    def replaceRej(self, key, reason, **kwargs):
+        txt = f'replace rejected with reason: {reason}'
+        return OrderEventDetails.Details(tp='replace rejected', px=None, qt=None, reason=txt)
+
+    def doneForDay(self, leaves, **kwargs):
+        return OrderEventDetails.Details(tp='done for day', px=None, qt=leaves)
+
+    def canceled(self, leaves, **kwargs):
+        return OrderEventDetails.Details(tp='canceled', px=None, qt=leaves)
+
+    def expired(self, key, leaves, **kwargs):
+        return OrderEventDetails.Details(tp='expired', px=None, qt=leaves)
+
+    # No effect
+    def pendingNew(self, **kwargs):
+        return OrderEventDetails.Details(tp='pending new', px=None, qt=None)
+
+    # No effect
+    def pendingCancel(self, **kwargs):
+        return OrderEventDetails.Details(tp='pending cancel', px=None, qt=None)
+
+    # No effect
+    def pendingReplace(self, **kwargs):
+        return OrderEventDetails.Details(tp='pending replace', px=None, qt=None)
+
+    def correction(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID, **kwargs):
+        return OrderEventDetails.Details(tp='correction', px=avgPx, qt=cumQty)
+
+    def bust(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, lastQuantity, execRefID, **kwargs):
+        return OrderEventDetails.Details(tp='bust', px=avgPx, qt=cumQty)
+
+    def restated(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
+        return OrderEventDetails.Details(tp='restated', px=avgPx, qt=cumQty)
+
+    def status(self, ordkey, book, receiveTime, cumQty, leaves, avgPx, **kwargs):
+        return OrderEventDetails.Details(tp='status', px=avgPx, qt=cumQty)

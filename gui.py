@@ -11,7 +11,8 @@ import reference
 import signals
 import copy
 
-from common import SystemTime, StrgOrdIds, ManagerMessageWriter, StrategyOrderUpdater, OrderStateTable, Side
+from common import SystemTime, StrgOrdIds, ManagerMessageWriter
+from common import StrategyOrderUpdater, OrderStateTable, Side, OrderEventDetails
 
 from yamal import ytp
 import extractor
@@ -111,6 +112,7 @@ if __name__ == '__main__':
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
 
     systime = GuiSysTime()
+    oe_details = OrderEventDetails()
 
     mrkdata = MarketDataGui(cfg=cfg, sample=timedelta(milliseconds=10))
 
@@ -333,6 +335,7 @@ if __name__ == '__main__':
                     {'headerName': 'Side', 'field': 'side'},
                     {'headerName': 'Price', 'field': 'price'},
                     {'headerName': 'Quantity', 'field': 'quantity'},
+                    {'headerName': 'Reason', 'field': 'reason'},
                 ],
                 'rowData': [],
             }
@@ -385,62 +388,39 @@ if __name__ == '__main__':
         else:
             strg = first
             oms = second
-        msgdata = getattr(msg.message, msgtype)
         ord = updater({
             "strg": strg,
             "oms": oms,
             "msg": msg
             })
-        if ord is None or 'strgOrdID' not in ord.info:
+        if ord is None:
             return
 
         if strg == g_strg_name and oms == g_oms_name:
             strg_ord_ids.add(ord.info['strgOrdID'])
 
-        new_order = True
-        for o in table_orders.options['rowData']:
-            if o['id'] == ord.info['strgOrdID']:
-                new_order = False
-                break
+        # new_order = True
+        # for o in table_orders.options['rowData']:
+        #     if o['id'] == ord.info['strgOrdID']:
+        #         new_order = False
+        #         break
 
-        if new_order:
-            table_entry = {
-                'enabled': False,
-                'type': msgdata.which(),
-                'id': ord.info['strgOrdID'],
-                'account': ord.info['accountID'],
-                'security': ord.info['securityId'],
-                'venue': ord.info['venueID'],
-                'strg': strg,
-                'oms': oms,
-                'side': 'buy' if ord.side == Side.BID else 'sell',
-                'price': ord.px,
-                'quantity': ord.qty,
-                'done': 'done' if ord.done else 'active'
-            }
-            table_orders.options['rowData'].append(table_entry)
-            table_orders.update()
-            table_order_events.options['rowData'].append(table_entry)
-        else: 
-            for o in table_orders.options['rowData']:
-                if o['id'] == ord.info['strgOrdID']:
-                    #TODO: change order status if necessary
-                    pass
-            # TODO: fill this entry with proper values
-            table_event_entry = {
-                'type': msgdata.which(),
-                'id': ord.info['strgOrdID'],
-                'account': ord.info['accountID'],
-                'security': ord.info['securityId'],
-                'venue': ord.info['venueID'],
-                'strg': strg,
-                'oms': oms,
-                'side': '',
-                'price': '',
-                'quantity': ''
-            }
-            table_order_events.options['rowData'].append(table_event_entry)
-                        
+        tp, px, qt, reason = oe_details(msg)
+        ref = refdata.state
+        table_event_entry = {
+            'type': tp,
+            'id': ord.info['strgOrdID'],
+            'account': ord.info['accountID'],
+            'security': ref.securities[ord.info['securityId']].symbol,
+            'venue': ref.venuesNames[ord.info['venueID']].label,
+            'strg': strg,
+            'oms': oms,
+            'side': 'buy' if ord.side == Side.BID else 'sell',
+            'price': '-' if px is None else px,
+            'quantity': '-' if qt is None else qt,
+            'reason': reason
+        }
+        table_order_events.options['rowData'].append(table_event_entry)
         table_order_events.update()
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
