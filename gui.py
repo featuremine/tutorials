@@ -129,6 +129,8 @@ if __name__ == '__main__':
 
     strg_ord_ids = StrgOrdIds(1000)
 
+    order_row = {}
+    
     ## UI
     def padded_row():
         return ui.row().style('margin:1em;')
@@ -398,15 +400,31 @@ if __name__ == '__main__':
 
         if strg == g_strg_name and oms == g_oms_name:
             strg_ord_ids.add(ord.info['strgOrdID'])
+            
+        ref = refdata.state
 
-        # new_order = True
-        # for o in table_orders.options['rowData']:
-        #     if o['id'] == ord.info['strgOrdID']:
-        #         new_order = False
-        #         break
+        table_orders_entry = {
+            'enabled': False,
+            'id': ord.info['strgOrdID'],
+            'account': ord.info['accountID'],
+            'security': ref.securities[ord.info['securityId']].symbol,
+            'venue': ref.venuesNames[ord.info['venueID']].label,
+            'strg': strg,
+            'oms': oms,
+            'side': 'buy' if ord.side == Side.BID else 'sell',
+            'price': '-' if ord.px is None else ord.px,
+            'quantity': ord.qty,
+            'done': ord.done
+        }
+        key = (strg, oms, ord.info['strgOrdID'])
+        if key in order_row:
+            table_orders.options['rowData'][order_row[key]] = table_orders_entry
+        else:
+            order_row[key] = len(table_orders.options['rowData'])
+            table_orders.options['rowData'].append(table_orders_entry)
+        table_orders.update()
 
         tp, px, qt, reason = oe_details(msg)
-        ref = refdata.state
         table_event_entry = {
             'type': tp,
             'id': ord.info['strgOrdID'],
