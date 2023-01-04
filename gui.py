@@ -147,6 +147,8 @@ if __name__ == '__main__':
             filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
         if selectSecurity.value:
             filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
+        if activecheckbox.value:
+            filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
         await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
         table_orders.update()
         await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
@@ -310,6 +312,10 @@ if __name__ == '__main__':
                 
             with ui.column():
                 ui.button('Clear All', on_click=lambda: select_all(False)).style('width:10em').props('color=blue')
+                
+            with ui.column():
+                activecheckbox = ui.checkbox('active', on_change=update_filters)
+                    
                     
         with padded_row():
             table_options = {
