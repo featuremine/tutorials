@@ -138,6 +138,18 @@ if __name__ == '__main__':
     def expansion_bar(name):
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
+    async def update_filters():
+        filtercmd = {}
+        ref = refdata.state
+        if selectAccount.value:
+            filtercmd['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
+        if selectMarket.value:
+            filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
+        if selectSecurity.value:
+            filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
+        filterValues = await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        table_orders.update()
+
     UNAVAILABLE = '-'
 
     with ui.header().style('background-color: #3874c8').props('elevated'):
@@ -146,7 +158,7 @@ if __name__ == '__main__':
                 ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
                 ui.label('Featuremine Trading GUI')
         with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
-            selectAccount = ui.select([]).style('width:10em;height:1em;').props(add='borderless label=Account')
+            selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account')
 
     def update_prices():
         p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
@@ -162,15 +174,16 @@ if __name__ == '__main__':
         with padded_row():
             with ui.column():
                 with ui.row():
-                    def update_select_securities(market):
+                    async def update_select_securities(market):
                         selectSecurity.value = None
                         selectSecurity.options = {}
-                        for sid in refdata.state.venuesSecurities.get(market, []):
+                        for sid in refdata.state.venuesSecurities.get(market.value, []):
                             selectSecurity.options[sid] = refdata.state.securities[sid].symbol
                         selectSecurity.update()
+                        await update_filters()
 
-                    selectMarket = ui.select({}, on_change=lambda s: update_select_securities(s.value)).style('width:10em;').props(add='label=Market')
-                    selectSecurity = ui.select({}, on_change=update_prices).style('width:10em;').props(add='label=Instrument')
+                    selectMarket = ui.select({}, on_change=update_select_securities).style('width:10em;').props(add='label=Market')
+                    selectSecurity = ui.select({}, on_change=update_filters).style('width:10em;').props(add='label=Instrument')
                     
             with ui.column():
                 with ui.row().style('align-items:center;'):
