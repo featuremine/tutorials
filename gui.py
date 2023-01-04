@@ -415,7 +415,7 @@ if __name__ == '__main__':
             'side': 'buy' if ord.side == Side.BID else 'sell',
             'price': '-' if ord.px is None else ord.px,
             'quantity': ord.qty,
-            'done': ord.done
+            'done': 'done' if ord.done else 'active'
         }
         key = (strg, oms, ord.info['strgOrdID'])
         if key in order_row:
