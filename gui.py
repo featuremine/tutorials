@@ -149,6 +149,10 @@ if __name__ == '__main__':
             filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
         if activecheckbox.value:
             filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
+        if not guiswitch.value:
+            filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
+            filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
+
         await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
         table_orders.update()
         await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
@@ -163,7 +167,9 @@ if __name__ == '__main__':
                 ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
                 ui.label('Featuremine Trading GUI')
         with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
-            selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account')
+            with ui.row():
+                guiswitch = ui.switch('All Orders', value=True, on_change=update_filters).classes('text-black').style('height:1em;').props(add='v-model=green color=green')  
+                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account')
 
     def update_prices():
         p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
