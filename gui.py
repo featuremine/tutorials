@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
         await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
         table_orders.update()
-        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
         table_order_events.update()
         
 
@@ -277,17 +277,26 @@ if __name__ == '__main__':
 
     selected = set()
     column_defs = {
+                    'cellClass': ['text-2xl', 'text-white-500'],
+                    'width': 165,
                     'minWidth': 100,
                     'maxHeight': 800,
                     'filter': True,
                     'resizable': True,
-                    'cellStyle': {'display': 'flex ','justify-content': 'center'},
+                    'cellStyle': {'display': 'flex','justify-content': 'center'},
                     'headerClass': 'font-bold'
                 }
     def create_orders_table(options):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
-        for col_def in t.view.options.columnDefs:
-            col_def.cellClass = ['text-2xl','text-white-500']
+        t.view.auto_size = False
+        async def table_auto_size():
+            try:
+                await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
+                t.update()
+            except:
+                pass
+                
+        ui.timer(interval=0.3, callback=table_auto_size)
         return t
         
     with expansion_bar('orders list'):
@@ -327,7 +336,7 @@ if __name__ == '__main__':
             table_options = {
                 'defaultColDef': column_defs, 
                 'columnDefs': [
-                    {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer'},
+                    {'headerName': '', 'field': 'enabled', 'cellRenderer': 'checkboxRenderer', 'suppressSizeToFit': True, 'width': 40, 'minWidth': 40},
                     {'headerName': 'ID', 'field': 'id'},
                     {'headerName': 'Account', 'field': 'account'},
                     {'headerName': 'Security', 'field': 'security'},
@@ -476,7 +485,6 @@ if __name__ == '__main__':
     def update_elements():
         refdata.poll()
         seqstrg.poll()
-
-    t = ui.timer(interval=0.01, callback=update_elements)
+    ui.timer(interval=0.01, callback=update_elements)
 
     ui.run(title='Featuremine orders', reload=False, show=False)
