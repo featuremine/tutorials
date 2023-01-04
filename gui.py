@@ -239,10 +239,11 @@ if __name__ == '__main__':
                     return
 
                 px = float(pricein.value) if pricein.value else None
+                qty = float(qtyin.value)/float(pricein.value) if notionalswitch.value else float(qtyin.value)
                 g_writer.place(accountID=int(selectAccount.value), \
                                securityId=int(selectSecurity.value), venueID=int(selectMarket.value), \
                                strgOrdID=strg_ord_ids(), orderSide=side, px=px, \
-                               quantity=float(qtyin.value), maxFloor=None, minQty=None, \
+                               quantity=qty, maxFloor=None, minQty=None, \
                                timeInForce='day', algorithm=None, tag='')
 
                 ui.notify('An order was sent')
