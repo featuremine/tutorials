@@ -377,9 +377,15 @@ if __name__ == '__main__':
             })
         if ord is None or 'strgOrdID' not in ord.info:
             return
-        new_order = not strg_ord_ids.exists(ord.info['strgOrdID'])
+
         if strg == g_strg_name and oms == g_oms_name:
             strg_ord_ids.add(ord.info['strgOrdID'])
+
+        new_order = True
+        for o in table_orders.options['rowData']:
+            if o['id'] == ord.info['strgOrdID']:
+                new_order = False
+                break
 
         if new_order:
             table_entry = {
