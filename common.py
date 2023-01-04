@@ -23,6 +23,9 @@ class StrgOrdIds(object):
     
     def add(self, id: int) -> None:
         self.known.add(id)
+        
+    def exists(self, id: int) -> bool:
+        return id in self.known
 
     def __call__(self) -> int:
         while True:

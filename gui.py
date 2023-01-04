@@ -375,31 +375,50 @@ if __name__ == '__main__':
             "oms": oms,
             "msg": msg
             })
-        if ord is None:
+        if ord is None or 'strgOrdID' not in ord.info:
             return
+        new_order = not strg_ord_ids.exists(ord.info['strgOrdID'])
         if strg == g_strg_name and oms == g_oms_name:
             strg_ord_ids.add(ord.info['strgOrdID'])
-        table_entry = {
-            'enabled': False,
-            'type': msgdata.which(),
-            'id': ord.info['strgOrdID'],
-            'account': ord.info['accountID'],
-            'security': ord.info['securityId'],
-            'venue': ord.info['venueID'],
-            'strg': strg,
-            'oms': oms,
-            'side': 'buy' if ord.side == Side.BID else 'sell',
-            'price': ord.px,
-            'quantity': ord.qty,
-            'done': 'done' if ord.done else 'active'
-        }
-        #TODO: only append if it is not on the table
-        table_orders.options['rowData'].append(table_entry)
-        table_orders.update()
-        
-        #TODO: For the events only show the data of the event, not the order
-        #Ex : If it is a cancel event, we do not show the price or qty.
-        table_order_events.options['rowData'].append(table_entry)
+
+        if new_order:
+            table_entry = {
+                'enabled': False,
+                'type': msgdata.which(),
+                'id': ord.info['strgOrdID'],
+                'account': ord.info['accountID'],
+                'security': ord.info['securityId'],
+                'venue': ord.info['venueID'],
+                'strg': strg,
+                'oms': oms,
+                'side': 'buy' if ord.side == Side.BID else 'sell',
+                'price': ord.px,
+                'quantity': ord.qty,
+                'done': 'done' if ord.done else 'active'
+            }
+            table_orders.options['rowData'].append(table_entry)
+            table_orders.update()
+            table_order_events.options['rowData'].append(table_entry)
+        else: 
+            for o in table_orders.options['rowData']:
+                if o['id'] == ord.info['strgOrdID']:
+                    #TODO: change order status if necessary
+                    pass
+            # TODO: fill this entry with proper values
+            table_event_entry = {
+                'type': msgdata.which(),
+                'id': ord.info['strgOrdID'],
+                'account': ord.info['accountID'],
+                'security': ord.info['securityId'],
+                'venue': ord.info['venueID'],
+                'strg': strg,
+                'oms': oms,
+                'side': '',
+                'price': '',
+                'quantity': ''
+            }
+            table_order_events.options['rowData'].append(table_event_entry)
+                        
         table_order_events.update()
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
