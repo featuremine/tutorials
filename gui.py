@@ -129,6 +129,11 @@ if __name__ == '__main__':
     def expansion_bar(name):
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
+    def input(label, placeholder, on_change):
+        i = ui.input(label=label, placeholder=placeholder, on_change=on_change).style('width:10em;')
+        i.view.disable_input_event = False
+        return i
+
     async def update_filters():
         filtercmd = {}
         ref = refdata.state
@@ -196,19 +201,19 @@ if __name__ == '__main__':
 
         def update_qty():
             if notionalswitch.value:
-                if is_number(qtyin.value) and is_number(pricein.value):
-                    qtyout.set_text("Quantity: {:.6f}".format(float(qtyin.value)/float(pricein.value)))
+                if is_number(qtyin.view.value) and is_number(pricein.view.value):
+                    qtyout.set_text("Quantity: {:.6f}".format(float(qtyin.view.value)/float(pricein.view.value)))
                 else:
                     qtyout.set_text(f"Quantity: -")
             else:
-                if is_number(qtyin.value) and is_number(pricein.value):
-                    qtyout.set_text("Notional: {:.6f}".format(float(qtyin.value)*float(pricein.value)))
+                if is_number(qtyin.view.value) and is_number(pricein.view.value):
+                    qtyout.set_text("Notional: {:.6f}".format(float(qtyin.view.value)*float(pricein.view.value)))
                 else:
                     qtyout.set_text(f"Notional: -")
 
         with padded_row():
             with ui.column():
-                pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;')
+                pricein = input(label='Price', placeholder='0.00', on_change=update_qty)
             with ui.column():
                 def update_askbid_checkbox(check):
                     if check.value:
@@ -227,7 +232,7 @@ if __name__ == '__main__':
                         qtyin.update()
                         update_qty()
                             
-                    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:10em;')
+                    qtyin = input(label='Quantity', placeholder='0.00', on_change=update_qty)
                     with ui.column():
                         qtyout = ui.label('Notional: -').style('width:10em;text-align:left;margin-top:2em;')
 
@@ -484,6 +489,7 @@ if __name__ == '__main__':
     def update_elements():
         refdata.poll()
         seqstrg.poll()
+        update_qty()
     ui.timer(interval=0.01, callback=update_elements)
 
     ui.run(title='Featuremine orders', reload=False, show=False)
