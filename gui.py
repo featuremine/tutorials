@@ -75,12 +75,8 @@ class MarketDataGui(object):
 
 class OrderKey(NamedTuple):
     strg: str
+    oms: str
     idx: int
-
-class TradingKey(NamedTuple):
-    imnt: int
-    venue: int
-    account: int
 
 class TradingInfo(NamedTuple):
     writer: ManagerMessageWriter
