@@ -78,11 +78,6 @@ class OrderKey(NamedTuple):
     oms: str
     idx: int
 
-class TradingInfo(NamedTuple):
-    writer: ManagerMessageWriter
-    updater: StrategyOrderUpdater
-    orders: OrderStateTable
-
 if __name__ == '__main__':
     ## Main
     parser = argparse.ArgumentParser()
@@ -420,7 +415,6 @@ if __name__ == '__main__':
 
     orders = OrderStateTable()
     updater = StrategyOrderUpdater(orders)
-    tradeinfos = defaultdict(TradingInfo)
 
     strg_pfx_len = len(strg_pfx) + 1
     def order_update(peer, channel, time, data):
