@@ -151,11 +151,11 @@ if __name__ == '__main__':
             filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
             filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
 
-        await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
         
         if activecheckbox.value:
             filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
-        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
+        await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
         
 
     UNAVAILABLE = '-'
@@ -289,12 +289,13 @@ if __name__ == '__main__':
         t.view.auto_size = False
         async def table_auto_size():
             try:
+                t.update()
+                await update_filters()
                 await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
                 await t.view.run_api("setDomLayout('autoHeight')", t.view.pages[0])
-                await update_filters()
             except:
                 pass
-                
+        
         ui.timer(interval=0.3, callback=table_auto_size)
         return t
         
