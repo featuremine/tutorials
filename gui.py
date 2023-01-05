@@ -316,11 +316,20 @@ if __name__ == '__main__':
                 global selected
                 if not sel:
                     selected.clear()
+                    for o in table_orders.options['rowData']:
+                        o['enabled'] = False
+                    return
+                
+                ref = refdata.state   
                 for idx, o in enumerate(table_orders.options['rowData']):
-                    o['enabled'] = sel
-                    if sel:
-                        selected.add(idx)
-                    #TODO: Only enable filtered values
+                    if (not selectAccount.value or o['account'] == selectAccount.value) and \
+                       (not selectMarket.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
+                       (not selectSecurity.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
+                       (guiswitch.value or (o['oms'] == g_oms_name and o['strg'] == g_strg_name)) and \
+                       (not activecheckbox.value or o['done'] == 'active'):
+                        o['enabled'] = sel
+                        if sel:
+                            selected.add(idx)
 
             with ui.column():
                 ui.button('Select All', on_click=lambda: select_all(True)).style('width:10em').props('color=blue')
