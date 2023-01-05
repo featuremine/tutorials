@@ -147,15 +147,15 @@ if __name__ == '__main__':
             filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
         if selectSecurity.value:
             filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
-        if activecheckbox.value:
-            filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
         if not guiswitch.value:
             filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
             filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
 
-        for t in [table_orders, table_order_events]:
-            await t.view.run_api(f"setFilterModel({filtercmd})", t.view.pages[0])
-            t.update()
+        await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        
+        if activecheckbox.value:
+            filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
+        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
         
 
     UNAVAILABLE = '-'
