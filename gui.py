@@ -291,7 +291,7 @@ if __name__ == '__main__':
         async def table_auto_size():
             try:
                 await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
-                t.update()
+                await update_filters()
             except:
                 pass
                 
@@ -312,14 +312,14 @@ if __name__ == '__main__':
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
             def select_all(sel):
-                global table_orders, selected
+                global selected
                 if not sel:
                     selected.clear()
                 for idx, o in enumerate(table_orders.options['rowData']):
                     o['enabled'] = sel
                     if sel:
                         selected.add(idx)
-                table_orders.update()
+                    #TODO: Only enable filtered values
 
             with ui.column():
                 ui.button('Select All', on_click=lambda: select_all(True)).style('width:10em').props('color=blue')
