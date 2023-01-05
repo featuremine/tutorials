@@ -279,7 +279,6 @@ if __name__ == '__main__':
                     'cellClass': ['text-2xl', 'text-white-500'],
                     'width': 165,
                     'minWidth': 100,
-                    'maxHeight': 800,
                     'filter': True,
                     'resizable': True,
                     'cellStyle': {'display': 'flex','justify-content': 'center'},
@@ -291,6 +290,7 @@ if __name__ == '__main__':
         async def table_auto_size():
             try:
                 await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
+                await t.view.run_api("setDomLayout('autoHeight')", t.view.pages[0])
                 await update_filters()
             except:
                 pass
