@@ -132,6 +132,7 @@ if __name__ == '__main__':
     def input(label, placeholder, on_change):
         i = ui.input(label=label, placeholder=placeholder, on_change=on_change).style('width:10em;')
         i.view.disable_input_event = False
+        i.view.on('input', lambda x, y: update_qty())
         return i
 
     async def update_filters():
@@ -489,7 +490,6 @@ if __name__ == '__main__':
     def update_elements():
         refdata.poll()
         seqstrg.poll()
-        update_qty()
     ui.timer(interval=0.01, callback=update_elements)
 
     ui.run(title='Featuremine orders', reload=False, show=False)
