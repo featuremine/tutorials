@@ -138,11 +138,11 @@ if __name__ == '__main__':
     async def update_filters():
         filtercmd = {}
         ref = refdata.state
-        if selectAccount.value:
+        if selectAccount.value and selectAccount.view.value:
             filtercmd['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
-        if selectMarket.value:
+        if selectMarket.value and selectMarket.view.value:
             filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
-        if selectSecurity.value:
+        if selectSecurity.value and selectSecurity.view.value:
             filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
         if not guiswitch.value:
             filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
@@ -165,32 +165,30 @@ if __name__ == '__main__':
         with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
             with ui.row():
                 guiswitch = ui.switch('All Orders', value=True, on_change=update_filters).classes('text-black').style('height:1em;').props(add='v-model=green color=green')  
-                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account')
+                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account clearable')
 
     def update_prices():
-        p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
-                            {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
-        bidlabel.set_text(p['bidpx'])
-        asklabel.set_text(p['askpx'])
+        if not selectMarket.view.value or not selectSecurity.view.value:
+            bidpx = '-'
+            askpx = '-'
+        else:
+            p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
+                                {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
+            bidpx = p['bidpx']
+            askpx = p['askpx']
+        bidlabel.set_text(bidpx)
+        asklabel.set_text(askpx)
         if bidcheckbox.value:
-            pricein.set_value(p['bidpx'])
+            pricein.set_value(bidpx)
         elif askcheckbox.value:
-            pricein.set_value(p['askpx'])
+            pricein.set_value(askpx)
 
     with expansion_bar('orders BUY/SELL'):
         with padded_row():
             with ui.column():
                 with ui.row():
-                    async def update_select_securities(market):
-                        selectSecurity.value = None
-                        selectSecurity.options = {}
-                        for sid in refdata.state.venuesSecurities.get(market.value, []):
-                            selectSecurity.options[sid] = refdata.state.securities[sid].symbol
-                        selectSecurity.update()
-                        await update_filters()
-
-                    selectMarket = ui.select({}, on_change=update_select_securities).style('width:10em;').props(add='label=Market')
-                    selectSecurity = ui.select({}, on_change=update_filters).style('width:10em;').props(add='label=Instrument')
+                    selectMarket = ui.select({}).style('width:10em;').props(add='label=Market clearable')
+                    selectSecurity = ui.select({}, on_change=update_filters).style('width:10em;').props(add='label=Instrument clearable')
                     
             with ui.column():
                 with ui.row().style('align-items:center;'):
@@ -242,13 +240,13 @@ if __name__ == '__main__':
 
         with padded_row():
             def parse_order(side):
-                if not selectAccount.value:
+                if not selectAccount.view.value:
                     ui.notify('please select an account')
                     return
-                elif not selectMarket.value:
+                elif not selectMarket.view.value:
                     ui.notify('please select a market')
                     return
-                elif not selectSecurity.value:
+                elif not selectSecurity.view.value:
                     ui.notify('please select a security')
                     return
                 elif not is_number(qtyin.value):
@@ -319,9 +317,9 @@ if __name__ == '__main__':
                 
                 ref = refdata.state   
                 for idx, o in enumerate(table_orders.options['rowData']):
-                    if (not selectAccount.value or o['account'] == selectAccount.value) and \
-                       (not selectMarket.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
-                       (not selectSecurity.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
+                    if (not selectAccount.view.value or o['account'] == selectAccount.value) and \
+                       (not selectMarket.view.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
+                       (not selectSecurity.view.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
                        (guiswitch.value or (o['oms'] == g_oms_name and o['strg'] == g_strg_name)) and \
                        (not activecheckbox.value or o['done'] == 'active'):
                         o['enabled'] = sel
@@ -397,11 +395,12 @@ if __name__ == '__main__':
         if delta.venuesNames:
             selectMarket.update()
         
-        where = delta.venuesSecurities.get(selectMarket.value, [])
-        for sid in where:
-            selectSecurity.options[sid] = delta.securities[sid].symbol
-        if where:
-            selectSecurity.update()
+        if selectMarket.view.value:
+            where = delta.venuesSecurities.get(selectMarket.value, [])
+            for sid in where:
+                selectSecurity.options[sid] = delta.securities[sid].symbol
+            if where:
+                selectSecurity.update()
         
         update_prices()
 
@@ -487,9 +486,25 @@ if __name__ == '__main__':
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
     ## Update UI
+    selectSecurityOn = False
+    def update_select_securities(market_sel):
+        global selectSecurityOn
+        selectSecurity.value = None
+        selectSecurity.options = {}
+        if market_sel:
+            for sid in refdata.state.venuesSecurities.get(selectMarket.value, []):
+                selectSecurity.options[sid] = refdata.state.securities[sid].symbol
+        selectSecurity.update()
+        selectSecurityOn = market_sel
+        
     def update_elements():
         refdata.poll()
         seqstrg.poll()
+        if not selectSecurityOn and selectMarket.view.value:
+            update_select_securities(selectMarket.view.value)
+        elif not selectMarket.view.value:
+            update_select_securities(selectMarket.view.value)
+            
     ui.timer(interval=0.01, callback=update_elements)
 
     ui.run(title='Featuremine orders', reload=False, show=False)
