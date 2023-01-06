@@ -486,24 +486,26 @@ if __name__ == '__main__':
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
     ## Update UI
-    selectSecurityOn = False
+    selectedMarket = None
     def update_select_securities(market_sel):
-        global selectSecurityOn
+        global selectedMarket
         selectSecurity.value = None
         selectSecurity.options = {}
         if market_sel:
-            for sid in refdata.state.venuesSecurities.get(selectMarket.value, []):
+            for sid in refdata.state.venuesSecurities.get(market_sel, []):
                 selectSecurity.options[sid] = refdata.state.securities[sid].symbol
         selectSecurity.update()
-        selectSecurityOn = market_sel
+        selectedMarket = market_sel
         
     def update_elements():
         refdata.poll()
         seqstrg.poll()
-        if not selectSecurityOn and selectMarket.view.value:
-            update_select_securities(True)
-        elif not selectMarket.view.value:
-            update_select_securities(False)
+        if not selectedMarket and selectMarket.view.value:
+            update_select_securities(selectMarket.value)
+        if selectedMarket and selectMarket.view.value and selectedMarket != selectMarket.value:
+            update_select_securities(selectMarket.value)
+        elif selectedMarket and not selectMarket.view.value:
+            update_select_securities(None)
             
     ui.timer(interval=0.01, callback=update_elements)
 
