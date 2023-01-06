@@ -501,9 +501,9 @@ if __name__ == '__main__':
         refdata.poll()
         seqstrg.poll()
         if not selectSecurityOn and selectMarket.view.value:
-            update_select_securities(selectMarket.view.value)
+            update_select_securities(True)
         elif not selectMarket.view.value:
-            update_select_securities(selectMarket.view.value)
+            update_select_securities(False)
             
     ui.timer(interval=0.01, callback=update_elements)
 
