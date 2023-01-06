@@ -129,30 +129,24 @@ if __name__ == '__main__':
     def expansion_bar(name):
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
-    def input(label, placeholder, on_change):
-        i = ui.input(label=label, placeholder=placeholder, on_change=on_change).style('width:10em;')
-        i.view.disable_input_event = False
-        i.view.on('input', lambda x, y: update_qty())
-        return i
-
     async def update_filters():
         filtercmd = {}
         ref = refdata.state
-        if selectAccount.value and selectAccount.view.value:
+        if selectAccount.value:
             filtercmd['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
-        if selectMarket.value and selectMarket.view.value:
+        if selectMarket.value:
             filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
-        if selectSecurity.value and selectSecurity.view.value:
+        if selectSecurity.value:
             filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
         if not guiswitch.value:
             filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
             filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
 
-        await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
+        # await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
         
-        if activecheckbox.value:
-            filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
-        await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        # if activecheckbox.value:
+        #     filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
+        # await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
         
 
     UNAVAILABLE = '-'
@@ -168,7 +162,7 @@ if __name__ == '__main__':
                 selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account clearable')
 
     def update_prices():
-        if not selectMarket.view.value or not selectSecurity.view.value:
+        if not selectMarket.value or not selectSecurity.value:
             bidpx = '-'
             askpx = '-'
         else:
@@ -187,7 +181,15 @@ if __name__ == '__main__':
         with padded_row():
             with ui.column():
                 with ui.row():
-                    selectMarket = ui.select({}).style('width:10em;').props(add='label=Market clearable')
+                    def on_market_select():
+                        print('on_market_select')
+                        print(selectMarket.value)
+                        selectSecurity.value = None
+                        selectSecurity.options = {}
+                        for sid in refdata.state.venuesSecurities.get(selectMarket.value, []):
+                            selectSecurity.options[sid] = refdata.state.securities[sid].symbol
+                        selectSecurity.update()
+                    selectMarket = ui.select({}, on_change=on_market_select).style('width:10em;').props(add='label=Market clearable')
                     selectSecurity = ui.select({}, on_change=update_filters).style('width:10em;').props(add='label=Instrument clearable')
                     
             with ui.column():
@@ -200,19 +202,19 @@ if __name__ == '__main__':
 
         def update_qty():
             if notionalswitch.value:
-                if is_number(qtyin.view.value) and is_number(pricein.view.value):
-                    qtyout.set_text("Quantity: {:.6f}".format(float(qtyin.view.value)/float(pricein.view.value)))
+                if is_number(qtyin.value) and is_number(pricein.value):
+                    qtyout.set_text("Quantity: {:.6f}".format(float(qtyin.value)/float(pricein.value)))
                 else:
                     qtyout.set_text(f"Quantity: -")
             else:
-                if is_number(qtyin.view.value) and is_number(pricein.view.value):
-                    qtyout.set_text("Notional: {:.6f}".format(float(qtyin.view.value)*float(pricein.view.value)))
+                if is_number(qtyin.value) and is_number(pricein.value):
+                    qtyout.set_text("Notional: {:.6f}".format(float(qtyin.value)*float(pricein.value)))
                 else:
                     qtyout.set_text(f"Notional: -")
 
         with padded_row():
             with ui.column():
-                pricein = input(label='Price', placeholder='0.00', on_change=update_qty)
+                pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;')
             with ui.column():
                 def update_askbid_checkbox(check):
                     if check.value:
@@ -227,11 +229,11 @@ if __name__ == '__main__':
             with ui.column():
                 with ui.row():
                     def switch_qty(notional):
-                        qtyin.view.label = 'Notional' if notional else 'Quantity'
+                        qtyin.label = 'Notional' if notional else 'Quantity'
                         qtyin.update()
                         update_qty()
                             
-                    qtyin = input(label='Quantity', placeholder='0.00', on_change=update_qty)
+                    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:10em;')
                     with ui.column():
                         qtyout = ui.label('Notional: -').style('width:10em;text-align:left;margin-top:2em;')
 
@@ -240,13 +242,13 @@ if __name__ == '__main__':
 
         with padded_row():
             def parse_order(side):
-                if not selectAccount.view.value:
+                if not selectAccount.value:
                     ui.notify('please select an account')
                     return
-                elif not selectMarket.view.value:
+                elif not selectMarket.value:
                     ui.notify('please select a market')
                     return
-                elif not selectSecurity.view.value:
+                elif not selectSecurity.value:
                     ui.notify('please select a security')
                     return
                 elif not is_number(qtyin.value):
@@ -281,17 +283,17 @@ if __name__ == '__main__':
                 }
     def create_orders_table(options):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
-        t.view.auto_size = False
-        async def table_auto_size():
-            try:
-                t.update()
-                await update_filters()
-                await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
-                await t.view.run_api("setDomLayout('autoHeight')", t.view.pages[0])
-            except:
-                pass
+        # t.view.auto_size = False
+        # async def table_auto_size():
+        #     try:
+        #         t.update()
+        #         await update_filters()
+        #         await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
+        #         await t.view.run_api("setDomLayout('autoHeight')", t.view.pages[0])
+        #     except:
+        #         pass
         
-        ui.timer(interval=0.3, callback=table_auto_size)
+        # ui.timer(interval=0.3, callback=table_auto_size)
         return t
         
     with expansion_bar('orders list'):
@@ -317,9 +319,9 @@ if __name__ == '__main__':
                 
                 ref = refdata.state   
                 for idx, o in enumerate(table_orders.options['rowData']):
-                    if (not selectAccount.view.value or o['account'] == selectAccount.value) and \
-                       (not selectMarket.view.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
-                       (not selectSecurity.view.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
+                    if (not selectAccount.value or o['account'] == selectAccount.value) and \
+                       (not selectMarket.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
+                       (not selectSecurity.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
                        (guiswitch.value or (o['oms'] == g_oms_name and o['strg'] == g_strg_name)) and \
                        (not activecheckbox.value or o['done'] == 'active'):
                         o['enabled'] = sel
@@ -356,13 +358,13 @@ if __name__ == '__main__':
             }
             table_orders = create_orders_table(table_options)
                     
-            def handle_change(sender, msg):
-                if msg['value']:
-                    selected.add(msg['rowIndex'])
-                else:
-                    selected.remove(msg['rowIndex'])
+            # def handle_change(sender, msg):
+            #     if msg['value']:
+            #         selected.add(msg['rowIndex'])
+            #     else:
+            #         selected.remove(msg['rowIndex'])
 
-            table_orders.view.on('cellValueChanged', handle_change)
+            # table_orders.view.on('cellValueChanged', handle_change)
 
     with expansion_bar('orders event list'):                
         with padded_row():
@@ -395,12 +397,11 @@ if __name__ == '__main__':
         if delta.venuesNames:
             selectMarket.update()
         
-        if selectMarket.view.value:
-            where = delta.venuesSecurities.get(selectMarket.value, [])
-            for sid in where:
-                selectSecurity.options[sid] = delta.securities[sid].symbol
-            if where:
-                selectSecurity.update()
+        where = delta.venuesSecurities.get(selectMarket.value, [])
+        for sid in where:
+            selectSecurity.options[sid] = delta.securities[sid].symbol
+        if where:
+            selectSecurity.update()
         
         update_prices()
 
@@ -486,26 +487,9 @@ if __name__ == '__main__':
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
     ## Update UI
-    selectedMarket = None
-    def update_select_securities(market_sel):
-        global selectedMarket
-        selectSecurity.value = None
-        selectSecurity.options = {}
-        if market_sel:
-            for sid in refdata.state.venuesSecurities.get(market_sel, []):
-                selectSecurity.options[sid] = refdata.state.securities[sid].symbol
-        selectSecurity.update()
-        selectedMarket = market_sel
-        
     def update_elements():
         refdata.poll()
         seqstrg.poll()
-        if not selectedMarket and selectMarket.view.value:
-            update_select_securities(selectMarket.value)
-        if selectedMarket and selectMarket.view.value and selectedMarket != selectMarket.value:
-            update_select_securities(selectMarket.value)
-        elif selectedMarket and not selectMarket.view.value:
-            update_select_securities(None)
             
     ui.timer(interval=0.01, callback=update_elements)
 
