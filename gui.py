@@ -142,6 +142,10 @@ if __name__ == '__main__':
             filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
             filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
 
+        #This resets the Filters:
+        table_orders.call_api_method('setFilterModel')
+        #This shows this warning on browser: "AG Grid: setFilterModel() - no column found for colId: 0":
+        table_orders.call_api_method('setFilterModel', "'account':{'filterType': 'text', 'type': 'equals', 'filter': '1001'")
         # await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
         
         # if activecheckbox.value:
@@ -182,8 +186,6 @@ if __name__ == '__main__':
             with ui.column():
                 with ui.row():
                     def on_market_select():
-                        print('on_market_select')
-                        print(selectMarket.value)
                         selectSecurity.value = None
                         selectSecurity.options = {}
                         for sid in refdata.state.venuesSecurities.get(selectMarket.value, []):
