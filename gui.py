@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, Optional, NamedTuple
 from collections import defaultdict
+from functools import partial
 from nicegui import ui
 import argparse
 import json, time
@@ -130,27 +131,24 @@ if __name__ == '__main__':
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
     async def update_filters():
-        filtercmd = {}
+        filter = {}
         ref = refdata.state
         if selectAccount.value:
-            filtercmd['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
+            filter['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
         if selectMarket.value:
-            filtercmd['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
+            filter['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
         if selectSecurity.value:
-            filtercmd['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
+            filter['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
         if not guiswitch.value:
-            filtercmd['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
-            filtercmd['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
+            filter['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
+            filter['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
 
-        #This resets the Filters:
-        table_orders.call_api_method('setFilterModel')
-        #This shows this warning on browser: "AG Grid: setFilterModel() - no column found for colId: 0":
-        table_orders.call_api_method('setFilterModel', "'account':{'filterType': 'text', 'type': 'equals', 'filter': '1001'")
-        # await table_order_events.view.run_api(f"setFilterModel({filtercmd})", table_order_events.view.pages[0])
+
+        await table_orders.call_api_method('setFilterModel', filter)
         
-        # if activecheckbox.value:
-        #     filtercmd['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
-        # await table_orders.view.run_api(f"setFilterModel({filtercmd})", table_orders.view.pages[0])
+        if activecheckbox.value:
+            filter['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
+        await table_order_events.call_api_method('setFilterModel', filter)
         
 
     UNAVAILABLE = '-'
@@ -285,6 +283,7 @@ if __name__ == '__main__':
                 }
     def create_orders_table(options):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
+
         # t.view.auto_size = False
         # async def table_auto_size():
         #     try:
@@ -359,7 +358,12 @@ if __name__ == '__main__':
                 'rowData': [],
             }
             table_orders = create_orders_table(table_options)
-                    
+            async def filter_update(msg):
+                print(msg)
+                filter = await table_orders.call_api_method('getFilterModel')
+                print(filter)
+
+            table_orders.on('filterChanged', filter_update)
             # def handle_change(sender, msg):
             #     if msg['value']:
             #         selected.add(msg['rowIndex'])

@@ -1,2 +1,2 @@
 psycopg2 >= 2.9.5
-nicegui == 0.9.25
+nicegui == 1.0.10
