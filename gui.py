@@ -293,13 +293,19 @@ if __name__ == '__main__':
                     'cellStyle': {'display': 'flex','justify-content': 'center'},
                     'headerClass': 'font-bold'
                 }
+    tables_changed = {}
     def create_orders_table(options):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
-
+        tables_changed[t.id] = False
         async def table_auto_size():
             try:
                 await t.call_api_method("sizeColumnsToFit")
                 await t.call_api_method("setDomLayout", 'autoHeight')
+                if tables_changed[t.id]:
+                    filter_model = await t.call_api_method('getFilterModel')
+                    t.update()
+                    await t.call_api_method('setFilterModel', filter_model)
+                    tables_changed[t.id] = False
             except:
                 pass
         
@@ -335,7 +341,7 @@ if __name__ == '__main__':
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
             async def select_all(sender):                
-                global selected
+                global selected, tables_changed
                 if sender.sender.id == clearallbut.id:
                     selected.clear()
                     for o in table_orders.options['rowData']:
@@ -346,7 +352,7 @@ if __name__ == '__main__':
                         if not is_filtered(o, filter_model):
                             o['enabled'] = True
                             selected.add(OrderKey(strg=o['strg'], oms=o['oms'], idx=o['id']))
-                table_orders.update()
+                tables_changed[table_orders.id] = True
 
             with ui.column():
                 selectallbut = ui.button('Select All', on_click=select_all).style('width:10em').props('color=blue')
@@ -445,6 +451,7 @@ if __name__ == '__main__':
 
     strg_pfx_len = len(strg_pfx) + 1
     def order_update(peer, channel, time, data):
+        global tables_changed
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
         first, _, second = channel.name()[strg_pfx_len:].partition('/')
         msgtype = msg.message.which()
@@ -486,7 +493,7 @@ if __name__ == '__main__':
         else:
             order_row[key] = len(table_orders.options['rowData'])
             table_orders.options['rowData'].append(table_orders_entry)
-        table_orders.update()
+        tables_changed[table_orders.id] = True
 
         tp, px, qt, reason = oe_details(msg)
         table_event_entry = {
@@ -503,7 +510,7 @@ if __name__ == '__main__':
             'reason': reason
         }
         table_order_events.options['rowData'].append(table_event_entry)
-        table_order_events.update()
+        tables_changed[table_order_events.id] = True
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
