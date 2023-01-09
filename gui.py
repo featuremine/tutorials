@@ -1,6 +1,5 @@
 from typing import Dict, Tuple, Optional, NamedTuple
 from collections import defaultdict
-from functools import partial
 from nicegui import ui
 import argparse
 import json, time
@@ -284,17 +283,15 @@ if __name__ == '__main__':
     def create_orders_table(options):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
 
-        # t.view.auto_size = False
-        # async def table_auto_size():
-        #     try:
-        #         t.update()
-        #         await update_filters()
-        #         await t.view.run_api("sizeColumnsToFit()", t.view.pages[0])
-        #         await t.view.run_api("setDomLayout('autoHeight')", t.view.pages[0])
-        #     except:
-        #         pass
+        async def table_auto_size():
+            try:
+                #await update_filters()
+                await t.call_api_method("sizeColumnsToFit")
+                await t.call_api_method("setDomLayout", 'autoHeight')
+            except:
+                pass
         
-        # ui.timer(interval=0.3, callback=table_auto_size)
+        ui.timer(interval=0.3, callback=table_auto_size)
         return t
         
     with expansion_bar('orders list'):
@@ -364,13 +361,14 @@ if __name__ == '__main__':
                 print(filter)
 
             table_orders.on('filterChanged', filter_update)
-            # def handle_change(sender, msg):
-            #     if msg['value']:
-            #         selected.add(msg['rowIndex'])
-            #     else:
-            #         selected.remove(msg['rowIndex'])
+            def handle_change(msg):
+                print(msg)
+                if msg['args']['value']:
+                    selected.add(msg['args']['rowIndex'])
+                else:
+                    selected.remove(msg['args']['rowIndex'])
 
-            # table_orders.view.on('cellValueChanged', handle_change)
+            table_orders.on('cellValueChanged', handle_change)
 
     with expansion_bar('orders event list'):                
         with padded_row():
