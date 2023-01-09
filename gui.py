@@ -26,6 +26,14 @@ def is_number(s):
     except ValueError:
         return False
 
+# only 'equals' for now
+def is_filtered(row, filter_model):
+    for k, v in row.items():
+        if k in filter_model:
+            if filter_model[k]['filter'] != str(v):
+                return True
+    return False
+
 class GuiSysTime(SystemTime):
     def __call__(self) -> int:
         return int(time.time() * 1000000000)
@@ -290,7 +298,6 @@ if __name__ == '__main__':
 
         async def table_auto_size():
             try:
-                #await update_filters()
                 await t.call_api_method("sizeColumnsToFit")
                 await t.call_api_method("setDomLayout", 'autoHeight')
             except:
@@ -302,12 +309,28 @@ if __name__ == '__main__':
     with expansion_bar('orders list'):
         with padded_row():
             with ui.column():
-                def cancel_orders(b):
+                async def cancel_orders():
                     global selected
+                    ref = refdata.state
+                    filter_model = await table_orders.call_api_method('getFilterModel')
                     for key in selected:
-                        ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{key.oms}/{key.strg}")
-                        ord_stream = peerstrg.stream(ord_ch)
-                        e_writer.cancel(stream=ord_stream, strgOrdID=key.idx)
+                        o = orders[(key.strg, key.oms, key.idx)]
+                        frow = {
+                            'id': key.idx,
+                            'account': o.info['accountID'],
+                            'security': ref.securities[o.info['securityId']].symbol,
+                            'venue': ref.venuesNames[o.info['venueID']].label,
+                            'strg': key.strg,
+                            'oms': key.oms,
+                            'side': 'buy' if o.side == Side.BID else 'sell',
+                            'price': o.px,
+                            'quantity': o.qty,
+                            'done': 'active'
+                        }
+                        if not is_filtered(frow, filter_model):
+                            ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{key.oms}/{key.strg}")
+                            ord_stream = peerstrg.stream(ord_ch)
+                            e_writer.cancel(stream=ord_stream, strgOrdID=key.idx)
                         
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
@@ -317,19 +340,10 @@ if __name__ == '__main__':
                     selected.clear()
                     for o in table_orders.options['rowData']:
                         o['enabled'] = False
-                elif sender.sender.id == selectallbut.id:                
-                    ref = refdata.state
-                    filters = await table_orders.call_api_method('getFilterModel')
-                    filter_values = {}
-                    for col, f in filters.items():
-                        filter_values[col] = f['filter'] if f['type'] == 'equals' else None 
+                elif sender.sender.id == selectallbut.id:
+                    filter_model = await table_orders.call_api_method('getFilterModel')
                     for o in table_orders.options['rowData']:
-                        filtered_row = False
-                        for col, f in filter_values.items():
-                            if o[col] != f:
-                                filtered_row = True
-                                break
-                        if not filtered_row:
+                        if not is_filtered(o, filter_model):
                             o['enabled'] = True
                             selected.add(OrderKey(strg=o['strg'], oms=o['oms'], idx=o['id']))
                 table_orders.update()
@@ -363,12 +377,6 @@ if __name__ == '__main__':
                 'rowData': [],
             }
             table_orders = create_orders_table(table_options)
-            async def filter_update(msg):
-                print(msg)
-                filter = await table_orders.call_api_method('getFilterModel')
-                print(filter)
-
-            table_orders.on('filterChanged', filter_update)
             def handle_change(msg):
                 row = msg['args']['data']
                 o = OrderKey(strg=row['strg'], oms=row['oms'], idx=row['id'])
