@@ -130,25 +130,30 @@ if __name__ == '__main__':
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
     async def update_filters():
-        filter = {}
-        ref = refdata.state
-        if selectAccount.value:
-            filter['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
-        if selectMarket.value:
-            filter['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
-        if selectSecurity.value:
-            filter['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
-        if not guiswitch.value:
-            filter['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
-            filter['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
+        async def set_filters(table):
+            filter = await table.call_api_method('getFilterModel')
+            ref = refdata.state
+            if selectAccount.value:
+                filter['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
+            if selectMarket.value:
+                filter['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
+            if selectSecurity.value:
+                filter['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
+            if not guiswitch.value:
+                filter['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
+                filter['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
+            else:
+                filter.pop('oms', None)
+                filter.pop('strg', None)
+            if table.id == table_orders.id:
+                if activecheckbox.value:
+                    filter['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
+                else:
+                    filter.pop('done', None)
+            await table.call_api_method('setFilterModel', filter)
 
-
-        await table_orders.call_api_method('setFilterModel', filter)
-        
-        if activecheckbox.value:
-            filter['done'] = {'filterType': 'text', 'type': 'equals', 'filter': 'active'}
-        await table_order_events.call_api_method('setFilterModel', filter)
-        
+        await set_filters(table_order_events)
+        await set_filters(table_orders)
 
     UNAVAILABLE = '-'
 
@@ -306,30 +311,34 @@ if __name__ == '__main__':
                         
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
-            def select_all(sel):
+            async def select_all(sender):                
                 global selected
-                if not sel:
+                if sender.sender.id == clearallbut.id:
                     selected.clear()
                     for o in table_orders.options['rowData']:
                         o['enabled'] = False
-                else:                
+                elif sender.sender.id == selectallbut.id:                
                     ref = refdata.state
-                    for idx, o in enumerate(table_orders.options['rowData']):
-                        if (not selectAccount.value or o['account'] == selectAccount.value) and \
-                        (not selectMarket.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
-                        (not selectSecurity.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
-                        (guiswitch.value or (o['oms'] == g_oms_name and o['strg'] == g_strg_name)) and \
-                        (not activecheckbox.value or o['done'] == 'active'):
-                            o['enabled'] = sel
-                            if sel:
-                                selected.add(idx)
+                    filters = await table_orders.call_api_method('getFilterModel')
+                    filter_values = {}
+                    for col, f in filters.items():
+                        filter_values[col] = f['filter'] if f['type'] == 'equals' else None 
+                    for o in table_orders.options['rowData']:
+                        filtered_row = False
+                        for col, f in filter_values.items():
+                            if o[col] != f:
+                                filtered_row = True
+                                break
+                        if not filtered_row:
+                            o['enabled'] = True
+                            selected.add(OrderKey(strg=o['strg'], oms=o['oms'], idx=o['id']))
                 table_orders.update()
 
             with ui.column():
-                ui.button('Select All', on_click=lambda: select_all(True)).style('width:10em').props('color=blue')
+                selectallbut = ui.button('Select All', on_click=select_all).style('width:10em').props('color=blue')
                 
             with ui.column():
-                ui.button('Clear All', on_click=lambda: select_all(False)).style('width:10em').props('color=blue')
+                clearallbut = ui.button('Clear All', on_click=select_all).style('width:10em').props('color=blue')
                 
             with ui.column():
                 activecheckbox = ui.checkbox('active', on_change=update_filters)
