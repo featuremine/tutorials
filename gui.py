@@ -299,11 +299,10 @@ if __name__ == '__main__':
             with ui.column():
                 def cancel_orders(b):
                     global selected
-                    for i in selected:
-                        row = table_orders.options['rowData'][i]
-                        ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{row['oms']}/{row['strg']}")
+                    for key in selected:
+                        ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{key.oms}/{key.strg}")
                         ord_stream = peerstrg.stream(ord_ch)
-                        e_writer.cancel(stream=ord_stream, strgOrdID=row['id'])
+                        e_writer.cancel(stream=ord_stream, strgOrdID=key.idx)
                         
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
@@ -313,18 +312,18 @@ if __name__ == '__main__':
                     selected.clear()
                     for o in table_orders.options['rowData']:
                         o['enabled'] = False
-                    return
-                
-                ref = refdata.state   
-                for idx, o in enumerate(table_orders.options['rowData']):
-                    if (not selectAccount.value or o['account'] == selectAccount.value) and \
-                       (not selectMarket.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
-                       (not selectSecurity.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
-                       (guiswitch.value or (o['oms'] == g_oms_name and o['strg'] == g_strg_name)) and \
-                       (not activecheckbox.value or o['done'] == 'active'):
-                        o['enabled'] = sel
-                        if sel:
-                            selected.add(idx)
+                else:                
+                    ref = refdata.state
+                    for idx, o in enumerate(table_orders.options['rowData']):
+                        if (not selectAccount.value or o['account'] == selectAccount.value) and \
+                        (not selectMarket.value or o['venue'] == ref.venuesNames[selectMarket.value].label) and \
+                        (not selectSecurity.value or o['security'] == ref.securities[selectSecurity.value].symbol) and \
+                        (guiswitch.value or (o['oms'] == g_oms_name and o['strg'] == g_strg_name)) and \
+                        (not activecheckbox.value or o['done'] == 'active'):
+                            o['enabled'] = sel
+                            if sel:
+                                selected.add(idx)
+                table_orders.update()
 
             with ui.column():
                 ui.button('Select All', on_click=lambda: select_all(True)).style('width:10em').props('color=blue')
@@ -362,11 +361,12 @@ if __name__ == '__main__':
 
             table_orders.on('filterChanged', filter_update)
             def handle_change(msg):
-                print(msg)
+                row = msg['args']['data']
+                o = OrderKey(strg=row['strg'], oms=row['oms'], idx=row['id'])
                 if msg['args']['value']:
-                    selected.add(msg['args']['rowIndex'])
+                    selected.add(o)
                 else:
-                    selected.remove(msg['args']['rowIndex'])
+                    selected.remove(o)
 
             table_orders.on('cellValueChanged', handle_change)
 
