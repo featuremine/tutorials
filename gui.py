@@ -37,16 +37,21 @@ filter_functions = {
     'lessThanOrEqual': lambda a,b: a <= b,
     'greaterThan': lambda a,b: a > b,
     'greaterThanOrEqual': lambda a,b: a >= b,
-    'inRange': None,
-    'empty': None
+    'blank': lambda a: a == '',
+    'notBlank': lambda a: a != '',
 }
 
 def is_filtered(row, filter_model):
     for k, v in row.items():
         if k in filter_model:
             f = filter_functions[filter_model[k]['type']]
-            if f and not f(str(v), filter_model[k]['filter']):
-                return True
+            if f:
+                if 'filter' in filter_model[k]:
+                    if not f(str(v), filter_model[k]['filter']):
+                        return True
+                else:
+                    if not f(str(v)):
+                        return True
     return False
 
 class GuiSysTime(SystemTime):
