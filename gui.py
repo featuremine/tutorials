@@ -351,7 +351,7 @@ if __name__ == '__main__':
                             'side': 'buy' if o.side == Side.BID else 'sell',
                             'price': o.px,
                             'quantity': o.qty,
-                            'done': 'active'
+                            'done': 'done' if o.done else 'active'
                         }
                         if not is_filtered(frow, filter_model):
                             ord_ch = peerstrg.channel(systime(), f"{strg_pfx}/{key.oms}/{key.strg}")
