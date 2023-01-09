@@ -313,26 +313,29 @@ if __name__ == '__main__':
                     'cellStyle': {'display': 'flex','justify-content': 'center'},
                     'headerClass': 'font-bold'
                 }
-    tables_changed = {}
-    def create_orders_table(options):
+    tables_state = {}
+    def create_orders_table(options, expansion = None):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
-        tables_changed[t.id] = False
+        tables_state[t.id] = {'changed': False, 'show': False}
         async def table_auto_size():
             try:
-                await t.call_api_method("sizeColumnsToFit")
-                await t.call_api_method("setDomLayout", 'autoHeight')
-                if tables_changed[t.id]:
-                    filter_model = await t.call_api_method('getFilterModel')
-                    t.update()
-                    await t.call_api_method('setFilterModel', filter_model)
-                    tables_changed[t.id] = False
+                res = await ui.run_javascript(f'document.getElementById("{expansion.id}").className')
+                if 'expanded' in res:
+                    await t.call_api_method("sizeColumnsToFit")
+                    await t.call_api_method("setDomLayout", 'autoHeight')
+                    if tables_state[t.id]['changed']:
+                        filter_model = await t.call_api_method('getFilterModel')
+                        t.update()
+                        await t.call_api_method('setFilterModel', filter_model)
+                        tables_state[t.id]['changed'] = False
             except:
                 pass
         
         ui.timer(interval=0.3, callback=table_auto_size)
         return t
         
-    with expansion_bar('orders list'):
+    expansion_to = expansion_bar('orders list')
+    with expansion_to:
         with padded_row():
             with ui.column():
                 async def cancel_orders():
@@ -361,7 +364,7 @@ if __name__ == '__main__':
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
             async def select_all(sender):                
-                global selected, tables_changed
+                global selected, tables_state
                 if sender.sender.id == clearallbut.id:
                     selected.clear()
                     for o in table_orders.options['rowData']:
@@ -372,7 +375,7 @@ if __name__ == '__main__':
                         if not is_filtered(o, filter_model):
                             o['enabled'] = True
                             selected.add(OrderKey(strg=o['strg'], oms=o['oms'], idx=o['id']))
-                tables_changed[table_orders.id] = True
+                tables_state[table_orders.id]['changed'] = True
 
             with ui.column():
                 selectallbut = ui.button('Select All', on_click=select_all).style('width:10em').props('color=blue')
@@ -402,7 +405,7 @@ if __name__ == '__main__':
                 ],
                 'rowData': [],
             }
-            table_orders = create_orders_table(table_options)
+            table_orders = create_orders_table(table_options, expansion_to)
             def handle_change(msg):
                 row = msg['args']['data']
                 o = OrderKey(strg=row['strg'], oms=row['oms'], idx=row['id'])
@@ -413,7 +416,8 @@ if __name__ == '__main__':
 
             table_orders.on('cellValueChanged', handle_change)
 
-    with expansion_bar('orders event list'):                
+    expansion_toe = expansion_bar('orders event list')
+    with expansion_toe:                
         with padded_row():
             table_options = {
                 'defaultColDef': column_defs, 
@@ -432,7 +436,7 @@ if __name__ == '__main__':
                 ],
                 'rowData': [],
             }
-            table_order_events = create_orders_table(table_options)
+            table_order_events = create_orders_table(table_options, expansion_toe)
 
     def update_ui(delta):
         if delta.accounts:
@@ -471,7 +475,7 @@ if __name__ == '__main__':
 
     strg_pfx_len = len(strg_pfx) + 1
     def order_update(peer, channel, time, data):
-        global tables_changed
+        global tables_state
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
         first, _, second = channel.name()[strg_pfx_len:].partition('/')
         msgtype = msg.message.which()
@@ -513,7 +517,7 @@ if __name__ == '__main__':
         else:
             order_row[key] = len(table_orders.options['rowData'])
             table_orders.options['rowData'].append(table_orders_entry)
-        tables_changed[table_orders.id] = True
+        tables_state[table_orders.id]['changed'] = True
 
         tp, px, qt, reason = oe_details(msg)
         table_event_entry = {
@@ -530,7 +534,7 @@ if __name__ == '__main__':
             'reason': reason
         }
         table_order_events.options['rowData'].append(table_event_entry)
-        tables_changed[table_order_events.id] = True
+        tables_state[table_order_events.id]['changed'] = True
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
