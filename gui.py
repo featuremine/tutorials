@@ -26,11 +26,26 @@ def is_number(s):
     except ValueError:
         return False
 
-# only 'equals' for now
+filter_functions = {
+    'equals': lambda a,b: a == b,
+    'notEqual': lambda a,b: a != b,
+    'contains': lambda a,b: b in a,
+    'notContains': lambda a,b: b not in a,
+    'startsWith': lambda a,b: a.startswith(b),
+    'endsWith': lambda a,b: a.endswith(b),
+    'lessThan': lambda a,b: a < b,
+    'lessThanOrEqual': lambda a,b: a <= b,
+    'greaterThan': lambda a,b: a > b,
+    'greaterThanOrEqual': lambda a,b: a >= b,
+    'inRange': None,
+    'empty': None
+}
+
 def is_filtered(row, filter_model):
     for k, v in row.items():
         if k in filter_model:
-            if filter_model[k]['filter'] != str(v):
+            f = filter_functions[filter_model[k]['type']]
+            if f and not f(str(v), filter_model[k]['filter']):
                 return True
     return False
 
