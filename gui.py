@@ -1,5 +1,4 @@
 from typing import Dict, Tuple, Optional, NamedTuple
-from collections import defaultdict
 from nicegui import ui
 import argparse
 import json, time
@@ -9,7 +8,6 @@ import functools
 import os
 import reference
 import signals
-import copy
 
 from common import SystemTime, StrgOrdIds, ManagerMessageWriter
 from common import StrategyOrderUpdater, OrderStateTable, Side, OrderEventDetails
@@ -33,10 +31,6 @@ filter_functions = {
     'notContains': lambda a,b: b not in a,
     'startsWith': lambda a,b: a.startswith(b),
     'endsWith': lambda a,b: a.endswith(b),
-    'lessThan': lambda a,b: a < b,
-    'lessThanOrEqual': lambda a,b: a <= b,
-    'greaterThan': lambda a,b: a > b,
-    'greaterThanOrEqual': lambda a,b: a >= b,
     'blank': lambda a: a == '',
     'notBlank': lambda a: a != '',
 }
@@ -157,16 +151,28 @@ if __name__ == '__main__':
     def expansion_bar(name):
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
+    def selector(options, on_change):            
+        s = ui.select(options, on_change=on_change)
+        with s.add_slot('append'):
+            ui.button(on_click=lambda a : s.set_value(None)).props('icon=cancel round colorize flat color=#0000008a')
+        return s
+    
     async def update_filters():
         async def set_filters(table):
             filter = await table.call_api_method('getFilterModel')
             ref = refdata.state
             if selectAccount.value:
                 filter['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
+            else:
+                filter.pop('account', None)
             if selectMarket.value:
                 filter['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
+            else:
+                filter.pop('venue', None)
             if selectSecurity.value:
                 filter['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
+            else:
+                filter.pop('security', None)
             if not guiswitch.value:
                 filter['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
                 filter['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
@@ -193,36 +199,31 @@ if __name__ == '__main__':
         with ui.column().style('margin-left:auto;margin-right:0%;'):
             with ui.row():
                 guiswitch = ui.switch('All Orders', value=True, on_change=update_filters).classes('text-black').style('height:1em;').props(add='v-model=green color=green')  
-                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account clearable')
+                selectAccount = selector(options=[], on_change=update_filters).style('width:11em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account')
 
     def update_prices():
-        if not selectMarket.value or not selectSecurity.value:
-            bidpx = '-'
-            askpx = '-'
-        else:
-            p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
-                                {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
-            bidpx = p['bidpx']
-            askpx = p['askpx']
-        bidlabel.set_text(bidpx)
-        asklabel.set_text(askpx)
+        p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
+                            {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
+        bidlabel.set_text(p['bidpx'])
+        asklabel.set_text(p['askpx'])
         if bidcheckbox.value:
-            pricein.set_value(bidpx)
+            pricein.set_value(p['bidpx'])
         elif askcheckbox.value:
-            pricein.set_value(askpx)
+            pricein.set_value(p['askpx'])
 
     with expansion_bar('orders BUY/SELL'):
         with padded_row():
             with ui.column():
                 with ui.row():
-                    def on_market_select():
+                    async def on_market_select():
                         selectSecurity.value = None
                         selectSecurity.options = {}
                         for sid in refdata.state.venuesSecurities.get(selectMarket.value, []):
                             selectSecurity.options[sid] = refdata.state.securities[sid].symbol
                         selectSecurity.update()
-                    selectMarket = ui.select({}, on_change=on_market_select).style('width:10em;').props(add='label=Market clearable')
-                    selectSecurity = ui.select({}, on_change=update_filters).style('width:10em;').props(add='label=Instrument clearable')
+                        await update_filters()
+                    selectMarket = selector(options={}, on_change=on_market_select).props(add='label=Market').style('width:12em;')
+                    selectSecurity = selector(options={}, on_change=update_filters).props(add='label=Instrument').style('width:12em;')
                     
             with ui.column():
                 with ui.row().style('align-items:center;'):
@@ -246,7 +247,7 @@ if __name__ == '__main__':
 
         with padded_row():
             with ui.column():
-                pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;')
+                pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:12em;')
             with ui.column():
                 def update_askbid_checkbox(check):
                     if check.value:
@@ -255,22 +256,22 @@ if __name__ == '__main__':
                     else:
                         pricein.props(remove='readonly')
 
-                bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;margin-top:1em;')
-                askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;')
+                bidcheckbox = ui.checkbox('bid', on_change=update_askbid_checkbox).style('width:5em;height:1em;margin-top:1em;')
+                askcheckbox = ui.checkbox('ask', on_change=update_askbid_checkbox).style('width:5em;height:1em;')
             
             with ui.column():
                 with ui.row():
                     def switch_qty(notional):
-                        qtyin.label = 'Notional' if notional else 'Quantity'
+                        qtyin.props(f"label={'Notional' if notional.value else 'Quantity'}")
                         qtyin.update()
                         update_qty()
                             
-                    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:10em;')
+                    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:12em;')
                     with ui.column():
                         qtyout = ui.label('Notional: -').style('width:10em;text-align:left;margin-top:2em;')
 
                     with ui.column():
-                        notionalswitch = ui.switch('notional', on_change=lambda c: switch_qty(c.value)).style('margin-top:1em;')                
+                        notionalswitch = ui.switch('notional', on_change=switch_qty).style('margin-top:1em;')                
 
         with padded_row():
             def parse_order(side):
@@ -291,6 +292,7 @@ if __name__ == '__main__':
                     return
 
                 px = float(pricein.value) if pricein.value else None
+                #TODO: review this
                 qty = float(qtyin.value)/float(pricein.value) if notionalswitch.value else float(qtyin.value)
                 g_writer.place(accountID=int(selectAccount.value), \
                                securityId=int(selectSecurity.value), venueID=int(selectMarket.value), \
@@ -325,7 +327,6 @@ if __name__ == '__main__':
                 res = await ui.run_javascript(f'document.getElementById("{expansion.id}").className')
                 if 'expanded' in res:
                     await t.call_api_method("sizeColumnsToFit")
-                    await t.call_api_method("setDomLayout", 'autoHeight')
                     if tables_state[t.id]['changed']:
                         filter_model = await t.call_api_method('getFilterModel')
                         t.update()
