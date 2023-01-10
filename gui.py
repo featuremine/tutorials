@@ -262,7 +262,7 @@ if __name__ == '__main__':
             with ui.column():
                 with ui.row():
                     def switch_qty(notional):
-                        qtyin.label = 'Notional' if notional else 'Quantity'
+                        qtyin.props(f"label={'Notional' if notional else 'Quantity'}")
                         qtyin.update()
                         update_qty()
                             
@@ -292,6 +292,7 @@ if __name__ == '__main__':
                     return
 
                 px = float(pricein.value) if pricein.value else None
+                #TODO: review this
                 qty = float(qtyin.value)/float(pricein.value) if notionalswitch.value else float(qtyin.value)
                 g_writer.place(accountID=int(selectAccount.value), \
                                securityId=int(selectSecurity.value), venueID=int(selectMarket.value), \
