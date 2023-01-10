@@ -1,5 +1,4 @@
 from typing import Dict, Tuple, Optional, NamedTuple
-from collections import defaultdict
 from nicegui import ui
 import argparse
 import json, time
@@ -9,7 +8,6 @@ import functools
 import os
 import reference
 import signals
-import copy
 
 from common import SystemTime, StrgOrdIds, ManagerMessageWriter
 from common import StrategyOrderUpdater, OrderStateTable, Side, OrderEventDetails
@@ -33,10 +31,6 @@ filter_functions = {
     'notContains': lambda a,b: b not in a,
     'startsWith': lambda a,b: a.startswith(b),
     'endsWith': lambda a,b: a.endswith(b),
-    'lessThan': lambda a,b: a < b,
-    'lessThanOrEqual': lambda a,b: a <= b,
-    'greaterThan': lambda a,b: a > b,
-    'greaterThanOrEqual': lambda a,b: a >= b,
     'blank': lambda a: a == '',
     'notBlank': lambda a: a != '',
 }
@@ -160,7 +154,7 @@ if __name__ == '__main__':
     def selector(options, on_change):            
         s = ui.select(options, on_change=on_change)
         with s.add_slot('append'):
-            market_clear = ui.button(on_click=lambda a : s.set_value(None)).props('icon=cancel round colorize flat color=#0000008a')
+            ui.button(on_click=lambda a : s.set_value(None)).props('icon=cancel round colorize flat color=#0000008a')
         return s
     
     async def update_filters():
