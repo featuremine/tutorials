@@ -188,12 +188,12 @@ if __name__ == '__main__':
     with ui.header().style('background-color: #3874c8').props('elevated'):
         with ui.column():
             with ui.row():
-                ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%)')
+                ui.icon('monetization_on').style('top: 50%;transform: translateY(-10%);').props('size=24px')
                 ui.label('Featuremine Trading GUI')
-        with ui.column().style('margin-start:auto;margin-end:right;align-items:right;'):
+        with ui.column().style('margin-left:auto;margin-right:0%;'):
             with ui.row():
                 guiswitch = ui.switch('All Orders', value=True, on_change=update_filters).classes('text-black').style('height:1em;').props(add='v-model=green color=green')  
-                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;').props(add='borderless label=Account clearable')
+                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account clearable')
 
     def update_prices():
         if not selectMarket.value or not selectSecurity.value:
