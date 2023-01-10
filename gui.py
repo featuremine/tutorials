@@ -308,7 +308,10 @@ if __name__ == '__main__':
                     'cellClass': ['text-2xl', 'text-white-500'],
                     'width': 165,
                     'minWidth': 100,
-                    'filter': True,
+                    'filter': 'agTextColumnFilter',
+                    'filterParams': {
+                        'suppressAndOrCondition': True,
+                    },
                     'resizable': True,
                     'cellStyle': {'display': 'flex','justify-content': 'center'},
                     'headerClass': 'font-bold'
