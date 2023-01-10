@@ -199,23 +199,17 @@ if __name__ == '__main__':
         with ui.column().style('margin-left:auto;margin-right:0%;'):
             with ui.row():
                 guiswitch = ui.switch('All Orders', value=True, on_change=update_filters).classes('text-black').style('height:1em;').props(add='v-model=green color=green')  
-                selectAccount = selector(options=[], on_change=update_filters).style('width:12em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account')
+                selectAccount = selector(options=[], on_change=update_filters).style('width:11em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account')
 
     def update_prices():
-        if not selectMarket.value or not selectSecurity.value:
-            bidpx = '-'
-            askpx = '-'
-        else:
-            p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
-                                {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
-            bidpx = p['bidpx']
-            askpx = p['askpx']
-        bidlabel.set_text(bidpx)
-        asklabel.set_text(askpx)
+        p = mrkdata.prices.get((selectMarket.value, selectSecurity.value),
+                            {'bidqty': '-','bidpx':'-','askqty':'-','askpx':'-'})
+        bidlabel.set_text(p['bidpx'])
+        asklabel.set_text(p['askpx'])
         if bidcheckbox.value:
-            pricein.set_value(bidpx)
+            pricein.set_value(p['bidpx'])
         elif askcheckbox.value:
-            pricein.set_value(askpx)
+            pricein.set_value(p['askpx'])
 
     with expansion_bar('orders BUY/SELL'):
         with padded_row():
