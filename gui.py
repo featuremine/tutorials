@@ -256,13 +256,13 @@ if __name__ == '__main__':
                     else:
                         pricein.props(remove='readonly')
 
-                bidcheckbox = ui.checkbox('bid', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;margin-top:1em;')
-                askcheckbox = ui.checkbox('ask', on_change=lambda c: update_askbid_checkbox(c)).style('width:5em;height:1em;')
+                bidcheckbox = ui.checkbox('bid', on_change=update_askbid_checkbox).style('width:5em;height:1em;margin-top:1em;')
+                askcheckbox = ui.checkbox('ask', on_change=update_askbid_checkbox).style('width:5em;height:1em;')
             
             with ui.column():
                 with ui.row():
                     def switch_qty(notional):
-                        qtyin.props(f"label={'Notional' if notional else 'Quantity'}")
+                        qtyin.props(f"label={'Notional' if notional.value else 'Quantity'}")
                         qtyin.update()
                         update_qty()
                             
@@ -271,7 +271,7 @@ if __name__ == '__main__':
                         qtyout = ui.label('Notional: -').style('width:10em;text-align:left;margin-top:2em;')
 
                     with ui.column():
-                        notionalswitch = ui.switch('notional', on_change=lambda c: switch_qty(c.value)).style('margin-top:1em;')                
+                        notionalswitch = ui.switch('notional', on_change=switch_qty).style('margin-top:1em;')                
 
         with padded_row():
             def parse_order(side):
