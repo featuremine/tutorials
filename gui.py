@@ -513,6 +513,7 @@ if __name__ == '__main__':
         }
         key = (strg, oms, ord.info['strgOrdID'])
         if key in order_row:
+            table_orders_entry['enabled'] = table_orders.options['rowData'][order_row[key]]['enabled']
             table_orders.options['rowData'][order_row[key]] = table_orders_entry
         else:
             order_row[key] = len(table_orders.options['rowData'])
