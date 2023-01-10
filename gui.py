@@ -157,16 +157,28 @@ if __name__ == '__main__':
     def expansion_bar(name):
         return ui.expansion(name).classes('w-full').props(add='switch-toggle-side').style('background-color: #e5e8e8')
 
+    def selector(options, on_change):            
+        s = ui.select(options, on_change=on_change)
+        with s.add_slot('append'):
+            market_clear = ui.button(on_click=lambda a : s.set_value(None)).props('icon=cancel round colorize flat color=#0000008a')
+        return s
+    
     async def update_filters():
         async def set_filters(table):
             filter = await table.call_api_method('getFilterModel')
             ref = refdata.state
             if selectAccount.value:
                 filter['account'] = {'filterType': 'text', 'type': 'equals', 'filter': str(selectAccount.value)}
+            else:
+                filter.pop('account', None)
             if selectMarket.value:
                 filter['venue'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.venuesNames[selectMarket.value].label}
+            else:
+                filter.pop('venue', None)
             if selectSecurity.value:
                 filter['security'] = {'filterType': 'text', 'type': 'equals', 'filter': ref.securities[selectSecurity.value].symbol}
+            else:
+                filter.pop('security', None)
             if not guiswitch.value:
                 filter['oms'] = {'filterType': 'text', 'type': 'equals', 'filter': g_oms_name}
                 filter['strg'] = {'filterType': 'text', 'type': 'equals', 'filter': g_strg_name}
@@ -193,7 +205,7 @@ if __name__ == '__main__':
         with ui.column().style('margin-left:auto;margin-right:0%;'):
             with ui.row():
                 guiswitch = ui.switch('All Orders', value=True, on_change=update_filters).classes('text-black').style('height:1em;').props(add='v-model=green color=green')  
-                selectAccount = ui.select([], on_change=update_filters).style('width:10em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account clearable')
+                selectAccount = selector(options=[], on_change=update_filters).style('width:12em;height:1em;top:50%;transform:translateY(-100%);').props(add='borderless label=Account')
 
     def update_prices():
         if not selectMarket.value or not selectSecurity.value:
@@ -215,14 +227,15 @@ if __name__ == '__main__':
         with padded_row():
             with ui.column():
                 with ui.row():
-                    def on_market_select():
+                    async def on_market_select():
                         selectSecurity.value = None
                         selectSecurity.options = {}
                         for sid in refdata.state.venuesSecurities.get(selectMarket.value, []):
                             selectSecurity.options[sid] = refdata.state.securities[sid].symbol
                         selectSecurity.update()
-                    selectMarket = ui.select({}, on_change=on_market_select).style('width:10em;').props(add='label=Market clearable')
-                    selectSecurity = ui.select({}, on_change=update_filters).style('width:10em;').props(add='label=Instrument clearable')
+                        await update_filters()
+                    selectMarket = selector(options={}, on_change=on_market_select).props(add='label=Market').style('width:12em;')
+                    selectSecurity = selector(options={}, on_change=update_filters).props(add='label=Instrument').style('width:12em;')
                     
             with ui.column():
                 with ui.row().style('align-items:center;'):
@@ -246,7 +259,7 @@ if __name__ == '__main__':
 
         with padded_row():
             with ui.column():
-                pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:10em;')
+                pricein = ui.input(label='Price', placeholder='0.00', on_change=update_qty).style('width:12em;')
             with ui.column():
                 def update_askbid_checkbox(check):
                     if check.value:
@@ -265,7 +278,7 @@ if __name__ == '__main__':
                         qtyin.update()
                         update_qty()
                             
-                    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:10em;')
+                    qtyin = ui.input(label='Quantity', placeholder='0.00', on_change=update_qty).style('width:12em;')
                     with ui.column():
                         qtyout = ui.label('Notional: -').style('width:10em;text-align:left;margin-top:2em;')
 
