@@ -338,7 +338,6 @@ if __name__ == '__main__':
                 res = await ui.run_javascript(f'document.getElementById("{expansion.id}").className')
                 if 'expanded' in res:
                     await t.call_api_method("sizeColumnsToFit")
-                    await t.call_api_method("setDomLayout", 'autoHeight')
                     if tables_state[t.id]['changed']:
                         filter_model = await t.call_api_method('getFilterModel')
                         t.update()
