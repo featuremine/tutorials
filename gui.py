@@ -413,6 +413,7 @@ if __name__ == '__main__':
                     selected.add(o)
                 else:
                     selected.remove(o)
+                table_orders.options['rowData'][order_row[(row['strg'], row['oms'], row['id'])]]['enabled'] = msg['args']['value']
 
             table_orders.on('cellValueChanged', handle_change)
 
