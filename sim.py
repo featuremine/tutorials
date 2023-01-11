@@ -3,6 +3,7 @@ import json
 import time as pytime
 from typing import Dict, Tuple, NamedTuple, Optional, Callable, Any
 from datetime import timedelta
+import os, time
 import queue
 from collections import defaultdict
 import functools
@@ -10,8 +11,10 @@ from bisect import insort, bisect_left
 from logging import getLogger
 from datetime import timedelta
 
-from reference import ReferenceData, MarketDataCallbacks
-from common import AbstractOrderBook, SidedPriceFIFOPriorityOrderBook, StrategyOrderUpdater, ManagerMessageWriter
+from signals import MarketSignals
+from reference import ReferenceData
+from common import SystemTime, AbstractOrderBook, OrderStateTable
+from common import SidedPriceFIFOPriorityOrderBook, StrategyOrderUpdater, ManagerMessageWriter
 
 from yamal import ytp
 from conveyor.utils import schemas
@@ -43,8 +46,9 @@ capnp_spec = schemas.strategy.ManagerMessage
 # in C we need to implement event queue and subscription and timers
 
 
-def time_ns():
-    return int(pytime.time() * 1000000000)
+class SimSysTime(SystemTime):
+    def __call__(self) -> int:
+        return int(time.time() * 1000000000)
 
 class FillModel(AbstractOrderBook):
     def __init__(self, mktdata, responder):
@@ -140,6 +144,128 @@ class FillModels(dict):
         self.mktdata.trade_callback(key.imnt, key.venue, obj.mkt_upd)
         return obj
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--cfg", help="configuration file in JSON format", required=True, type=str)
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.cfg):
+        print(f"configuration file {args.cfg} does not exist. Please provide a valid JSON configuration file.")
+        exit(1)
+
+    cfg = json.load(open(args.cfg))
+
+    if not os.path.isfile(cfg['state_ytp']):
+        print(f"yamal file {cfg['state_ytp']} does not exist. Please provide a valid yamal file for the market symbology.")
+        exit(1)
+
+    if not os.path.isfile(cfg['price_ytp']):
+        print(f"yamal file {cfg['price_ytp']} does not exist. Please provide a valid yamal file for the market data.")
+        exit(1)
+
+    ## Market Data
+    seqref = ytp.sequence(cfg['state_ytp'])
+    refdata = ReferenceData(seq=seqref, cfg=cfg)
+
+    systime = SimSysTime()
+
+    mrkdata = MarketSignals(cfg=cfg, sample=timedelta(milliseconds=10))
+
+    g_oms_name = cfg['oms_name']
+    g_strg_name = cfg['peer']
+
+    seqstrg = ytp.sequence(cfg['strategy_ytp'])
+    peerstrg = seqstrg.peer(g_strg_name)
+    g_ord_ch = peerstrg.channel(
+        systime(), f"{strg_pfx}/{g_oms_name}/{g_strg_name}")
+    g_ord_stream = peerstrg.stream(g_ord_ch)
+    g_writer = ManagerMessageWriter(
+        systime=systime, ctx={'stream': g_ord_stream})
+    e_writer = ManagerMessageWriter(systime=systime)
+
+    refdata.add_callback(update_ui)
+
+    def mktSubscribe(delta):
+        imnts = {}
+        for venid, securities in delta.venuesSecurities.items():
+            venue = refdata.state.venuesNames[venid]
+            market = venue.exdest if venue.exdest else venue.code
+            for secid in securities:
+                symbol = refdata.state.securities[secid].symbol
+                imnts[(venid, secid)] = (market, symbol)
+        mrkdata.subscribe(imnts)
+
+    refdata.add_callback(mktSubscribe)
+
+    orders = OrderStateTable()
+    updater = StrategyOrderUpdater(orders)
+
+    strg_pfx_len = len(strg_pfx) + 1
+    def order_update(peer, channel, time, data):
+        msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
+        first, _, second = channel.name()[strg_pfx_len:].partition('/')
+        msgtype = msg.message.which()
+        if msgtype == 'strg':
+            strg = second
+            oms = first
+        else:
+            strg = first
+            oms = second
+        ord = updater({
+            "strg": strg,
+            "oms": oms,
+            "msg": msg
+            })
+        if ord is None:
+            return
+
+        if strg == g_strg_name and oms == g_oms_name:
+            strg_ord_ids.add(ord.info['strgOrdID'])
+            
+        ref = refdata.state
+
+        table_orders_entry = {
+            'enabled': False,
+            'id': ord.info['strgOrdID'],
+            'account': ord.info['accountID'],
+            'security': ref.securities[ord.info['securityId']].symbol,
+            'venue': ref.venuesNames[ord.info['venueID']].label,
+            'strg': strg,
+            'oms': oms,
+            'side': 'buy' if ord.side == Side.BID else 'sell',
+            'price': '-' if ord.px is None else ord.px,
+            'quantity': ord.qty,
+            'done': 'done' if ord.done else 'active'
+        }
+        key = (strg, oms, ord.info['strgOrdID'])
+        if key in order_row:
+            table_orders.options['rowData'][order_row[key]] = table_orders_entry
+        else:
+            order_row[key] = len(table_orders.options['rowData'])
+            table_orders.options['rowData'].append(table_orders_entry)
+        table_orders.update()
+
+        tp, px, qt, reason = oe_details(msg)
+        table_event_entry = {
+            'type': tp,
+            'id': ord.info['strgOrdID'],
+            'account': ord.info['accountID'],
+            'security': ref.securities[ord.info['securityId']].symbol,
+            'venue': ref.venuesNames[ord.info['venueID']].label,
+            'strg': strg,
+            'oms': oms,
+            'side': 'buy' if ord.side == Side.BID else 'sell',
+            'price': '-' if px is None else px,
+            'quantity': '-' if qt is None else qt,
+            'reason': reason
+        }
+        table_order_events.options['rowData'].append(table_event_entry)
+        table_order_events.update()
+                              
+    seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
@@ -158,7 +284,7 @@ if __name__ == "__main__":
     strg_peer = strg_seq.peer(cfg["peer"])
     op.ytp_sequence(strg_seq, timedelta(microseconds=1))
 
-    mktdata = MarketDataCallbacks(state_peer, graph)
+    mktdata = MarketSignals(state_peer, graph)
 
     refdata = ReferenceData(state_seq, cfg)
     def refdata_cb(delta):
