@@ -559,7 +559,8 @@
           "custom": {
             "align": "auto",
             "displayMode": "auto",
-            "inspect": false
+            "inspect": false,
+            "width": 85
           },
           "mappings": [],
           "thresholds": {
@@ -576,32 +577,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "strategy"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 122
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "oms"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 82
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 6,
@@ -633,7 +609,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT * from orders;",
+          "rawSql": "SELECT * from orders\nWHERE venue = '$market' and security = '$instrument';;",
           "refId": "A",
           "select": [
             [
@@ -699,7 +675,8 @@
           "custom": {
             "align": "auto",
             "displayMode": "auto",
-            "inspect": false
+            "inspect": false,
+            "width": 85
           },
           "mappings": [],
           "thresholds": {
@@ -720,7 +697,7 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 10,
+        "w": 12,
         "x": 12,
         "y": 10
       },
@@ -747,7 +724,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT (info->'orderType'->'limit')::text as price, (info->'quantity')::text as quantity, (info->'orderSide')::text as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, imnts.name as imnt, venues.name as venue from order_events\nINNER JOIN imnts ON order_events.type = 'new' AND (order_events.info->'securityId')::text = imnts.imntID::text AND imnts.name = '$instrument'\nINNER JOIN venues ON (order_events.info->'venueID')::text = venues.venueID::text AND venues.name = '$market'\nUNION\nSELECT NULL as price, (info->'leaves')::text as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, imnts.name as imnt, venues.name as venue from order_events\nINNER JOIN imnts ON order_events.type = 'cancel' AND (order_events.info->'securityId')::text = imnts.imntID::text AND imnts.name = '$instrument'\nINNER JOIN venues ON (order_events.info->'venueID')::text = venues.venueID::text AND venues.name = '$market'\nUNION\nSELECT NULL as price, NULL as quantity, NULL as side, strategy, oms, strgordid, pubtime, seqnum, type, pubseq, NULL as imnt, NULL as venue from order_events\nWHERE NOT (type = 'new' OR type = 'cancel')\nORDER BY pubseq ASC;",
+          "rawSql": "SELECT * FROM order_events\nWHERE venue = '$market' and security = '$instrument';",
           "refId": "A",
           "select": [
             [
@@ -915,6 +892,6 @@
   "timezone": "",
   "title": "Market data tutorial",
   "uid": "rD_20UI42",
-  "version": 16,
+  "version": 2,
   "weekStart": ""
 }
