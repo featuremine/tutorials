@@ -240,10 +240,10 @@ if __name__ == "__main__":
 
     strg_pfx = f"{cfg['strategy_prefix']}"
     strg_pfx_len = len(strg_pfx) + 1
-    trpseqno = 0
+    ytpseqno = 0
     def orders2db(peer, channel, time, data):
-        global trpseqno
-        trpseqno += 1
+        global ytpseqno
+        ytpseqno += 1
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
         first, _, second = channel.name()[strg_pfx_len:].partition('/')
         msgtype = msg.message.which()
@@ -284,7 +284,7 @@ if __name__ == "__main__":
         dbreason = 'NULL' if reason is None else reason
         cmd = f"""
         INSERT INTO order_events (pubseq,type,id,account,security,venue,strg,oms,side,price,quantity,reason) VALUES
-        ({trpseqno},'{tp}',{dbid},'{dbacc}','{dbsec}','{dbven}','{strg}','{oms}','{dbside}',{dbpx},{dbqt},'{dbreason}')
+        ({ytpseqno},'{tp}',{dbid},'{dbacc}','{dbsec}','{dbven}','{strg}','{oms}','{dbside}',{dbpx},{dbqt},'{dbreason}')
         ON CONFLICT
         DO NOTHING
         """
@@ -412,7 +412,6 @@ if __name__ == "__main__":
     seqstrg.data_callback(f"{strg_pfx}/", orders2db)
     op.ytp_sequence(seqstrg, timedelta(milliseconds=1))
 
-    # Run the extractor blocking
     graph.stream_ctx().run_live()
 
     conn.close()
