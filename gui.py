@@ -285,14 +285,16 @@ if __name__ == '__main__':
                     ui.notify('please select a security')
                     return
                 elif not is_number(qtyin.value):
-                    ui.notify('please select a valid quantity')
+                    ui.notify('please input a valid quantity')
                     return
-                elif not is_number(pricein.value):
-                    ui.notify('please select a valid price')
+                elif pricein.value and not is_number(pricein.value):
+                    ui.notify('please input a valid price')
+                    return
+                elif notionalswitch.value and (not is_number(pricein.value) or float(pricein.value) == 0):
+                    ui.notify('if notional is selected you must input a valid price')
                     return
 
                 px = float(pricein.value) if pricein.value else None
-                #TODO: review this
                 qty = float(qtyin.value)/float(pricein.value) if notionalswitch.value else float(qtyin.value)
                 g_writer.place(accountID=int(selectAccount.value), \
                                securityId=int(selectSecurity.value), venueID=int(selectMarket.value), \
@@ -307,31 +309,31 @@ if __name__ == '__main__':
 
     selected = set()
     column_defs = {
-                    'cellClass': ['text-2xl', 'text-white-500'],
-                    'width': 165,
-                    'minWidth': 100,
-                    'filter': 'agTextColumnFilter',
-                    'filterParams': {
-                        'suppressAndOrCondition': True,
-                    },
-                    'resizable': True,
-                    'cellStyle': {'display': 'flex','justify-content': 'center'},
-                    'headerClass': 'font-bold'
-                }
-    tables_state = {}
+        'cellClass': ['text-2xl', 'text-white-500'],
+        'width': 165,
+        'minWidth': 100,
+        'filter': 'agTextColumnFilter',
+        'filterParams': {
+            'suppressAndOrCondition': True,
+        },
+        'resizable': True,
+        'cellStyle': {'display': 'flex','justify-content': 'center'},
+        'headerClass': 'font-bold'
+    }
+    tables_changed = {}
     def create_orders_table(options, expansion = None):
         t = ui.table(options=options).style('margin:0;padding:0;height:100vh;width:100%;')
-        tables_state[t.id] = {'changed': False, 'show': False}
+        tables_changed[t.id] = False
         async def table_auto_size():
             try:
                 res = await ui.run_javascript(f'document.getElementById("{expansion.id}").className')
                 if 'expanded' in res:
                     await t.call_api_method("sizeColumnsToFit")
-                    if tables_state[t.id]['changed']:
+                    if tables_changed[t.id]:
                         filter_model = await t.call_api_method('getFilterModel')
                         t.update()
                         await t.call_api_method('setFilterModel', filter_model)
-                        tables_state[t.id]['changed'] = False
+                        tables_changed[t.id] = False
             except:
                 pass
         
@@ -368,7 +370,7 @@ if __name__ == '__main__':
                 ui.button('cancel', on_click=cancel_orders).style('width:10em').props('color=red')
             
             async def select_all(sender):                
-                global selected, tables_state
+                global selected, tables_changed
                 if sender.sender.id == clearallbut.id:
                     selected.clear()
                     for o in table_orders.options['rowData']:
@@ -379,7 +381,7 @@ if __name__ == '__main__':
                         if not is_filtered(o, filter_model):
                             o['enabled'] = True
                             selected.add(OrderKey(strg=o['strg'], oms=o['oms'], idx=o['id']))
-                tables_state[table_orders.id]['changed'] = True
+                tables_changed[table_orders.id] = True
 
             with ui.column():
                 selectallbut = ui.button('Select All', on_click=select_all).style('width:10em').props('color=blue')
@@ -480,7 +482,7 @@ if __name__ == '__main__':
 
     strg_pfx_len = len(strg_pfx) + 1
     def order_update(peer, channel, time, data):
-        global tables_state
+        global tables_changed
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
         first, _, second = channel.name()[strg_pfx_len:].partition('/')
         msgtype = msg.message.which()
@@ -523,7 +525,7 @@ if __name__ == '__main__':
         else:
             order_row[key] = len(table_orders.options['rowData'])
             table_orders.options['rowData'].append(table_orders_entry)
-        tables_state[table_orders.id]['changed'] = True
+        tables_changed[table_orders.id] = True
 
         tp, px, qt, reason = oe_details(msg)
         table_event_entry = {
@@ -540,7 +542,7 @@ if __name__ == '__main__':
             'reason': reason
         }
         table_order_events.options['rowData'].append(table_event_entry)
-        tables_state[table_order_events.id]['changed'] = True
+        tables_changed[table_order_events.id] = True
                               
     seqstrg.data_callback(f"{cfg['strategy_prefix']}/", order_update)
 
