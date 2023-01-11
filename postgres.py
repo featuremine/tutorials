@@ -33,6 +33,7 @@ import psycopg2
 import time
 from time import time_ns
 import json
+from common import StrategyOrderUpdater, OrderStateTable, OrderEventDetails, Side
 
 # YTP channels prefix
 prefix = "ore/imnts"
@@ -158,11 +159,17 @@ if __name__ == "__main__":
     END $$;
     CREATE TABLE IF NOT EXISTS orders
     (
-        strategy TEXT NOT NULL,
+        id INT NOT NULL,
+        account TEXT NOT NULL,
+        security TEXT NOT NULL,
+        venue TEXT NOT NULL,
+        strg TEXT NOT NULL,
         oms TEXT NOT NULL,
-        strgOrdID INT NOT NULL,
-        status ordstatus,
-        PRIMARY KEY (strategy, strgOrdID)
+        side TEXT NOT NULL,
+        price NUMERIC,
+        quantity NUMERIC NOT NULL,
+        done TEXT NOT NULL,
+        PRIMARY KEY (strg, oms, id)
     );
     """)
     conn.commit()
@@ -172,13 +179,17 @@ if __name__ == "__main__":
     CREATE TABLE IF NOT EXISTS order_events
     (
         pubseq INT PRIMARY KEY NOT NULL,
-        strategy TEXT NOT NULL,
-        oms TEXT NOT NULL,
-        strgOrdID INT NOT NULL,
-        pubtime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-        seqnum INT NOT NULL UNIQUE,
         type VARCHAR(12),
-        info JSON
+        id INT NOT NULL,
+        account TEXT NOT NULL,
+        security TEXT NOT NULL,
+        venue TEXT NOT NULL,
+        strg TEXT NOT NULL,
+        oms TEXT NOT NULL,
+        side TEXT NOT NULL,
+        price NUMERIC,
+        quantity NUMERIC,
+        reason TEXT
     );
     """)
     conn.commit()
@@ -223,44 +234,52 @@ if __name__ == "__main__":
             cur.execute(cmd)
             conn.commit()
 
+    orders = OrderStateTable()
+    updater = StrategyOrderUpdater(orders)
+    oe_details = OrderEventDetails()
+
     strg_pfx = f"{cfg['strategy_prefix']}"
     strg_pfx_len = len(strg_pfx) + 1
-    oms = cfg['oms_name']
-    oms_len = len(oms)
     yamalsequence = 0
     def orders2db(peer, channel, time, data):
         global yamalsequence
         yamalsequence += 1
-        rest = channel.name()[strg_pfx_len:]
-        strategy = rest[oms_len + 1:] if rest.startswith(oms) else rest[:-oms_len - 1]
-        d = schemas.strategy.ManagerMessage.from_bytes_packed(data).to_dict()
-        print(d)
-        if 'strg' not in d['message']:
+        msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
+        first, _, second = channel.name()[strg_pfx_len:].partition('/')
+        msgtype = msg.message.which()
+        if msgtype == 'strg':
+            strg = second
+            oms = first
+        else:
+            strg = first
+            oms = second
+        ord = updater({
+            "strg": strg,
+            "oms": oms,
+            "msg": msg
+            })
+        if ord is None:
             return
-        msg = d['message']['strg']
-        msgtype = list(msg.keys())[0]
-        if 'strgOrdID' not in msg[msgtype]:
-            return
-        ord = msg[msgtype]
+
+        ref = refdata.state
         cmd = f"""
-        INSERT INTO order_events (pubseq,strategy,oms,strgOrdID,pubtime,seqnum,type,info) VALUES
-        ({yamalsequence},'{strategy}','{oms}',{ord['strgOrdID']},'{datetime.fromtimestamp(time/1000000000)}',{d['seqnum']},'{msgtype}','{json.dumps(ord)}')
-        ON CONFLICT (pubseq)
+        INSERT INTO orders (id,account,security,venue,strg,oms,side,price,quantity,done) VALUES
+        ({ord.info['strgOrdID']},'{ord.info['accountID']}','{ref.securities[ord.info['securityId']].symbol.replace('-','_')}','{ref.venuesNames[ord.info['venueID']].label}','{strg}','{oms}','{'buy' if ord.side == Side.BID else 'sell'}',{'NULL' if ord.px is None else ord.px},{ord.qty},'{'done' if ord.done else 'active'}')
+        ON CONFLICT
         DO NOTHING
         """
         cur.execute(cmd)
         conn.commit()
         
-        #TODO: the orders table is simulated here. Change it to actually process the orders
+        tp, px, qt, reason = oe_details(msg)
         cmd = f"""
-        INSERT INTO orders (strategy,oms,strgOrdID,status) VALUES
-        ('{strategy}','{oms}',{ord['strgOrdID']},'unacked')
-        ON CONFLICT (strategy,strgOrdID)
+        INSERT INTO order_events (pubseq,type,id,account,security,venue,strg,oms,side,price,quantity,reason) VALUES
+        ({yamalsequence},'{tp}',{ord.info['strgOrdID']},'{ord.info['accountID']}','{ref.securities[ord.info['securityId']].symbol.replace('-','_')}','{ref.venuesNames[ord.info['venueID']].label}','{strg}','{oms}','{'buy' if ord.side == Side.BID else 'sell'}',{'NULL' if px is None else px},{'NULL' if qt is None else qt},'{'NULL' if reason is None else reason}')
+        ON CONFLICT
         DO NOTHING
         """
         cur.execute(cmd)
         conn.commit()
-        #TODO: End orders table sim
 
 
     # TODO update to use ReferenceData and BarSignals
@@ -379,9 +398,9 @@ if __name__ == "__main__":
     refdata.poll()
     refdata.batch = False
 
-    # seqstrg = ytp.sequence(cfg['strategy_ytp'])
-    # seqstrg.data_callback(f"{strg_pfx}/", orders2db)
-    # op.ytp_sequence(seqstrg, timedelta(milliseconds=1))
+    seqstrg = ytp.sequence(cfg['strategy_ytp'])
+    seqstrg.data_callback(f"{strg_pfx}/", orders2db)
+    op.ytp_sequence(seqstrg, timedelta(milliseconds=1))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
