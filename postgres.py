@@ -240,10 +240,10 @@ if __name__ == "__main__":
 
     strg_pfx = f"{cfg['strategy_prefix']}"
     strg_pfx_len = len(strg_pfx) + 1
-    yamalsequence = 0
+    trpseqno = 0
     def orders2db(peer, channel, time, data):
-        global yamalsequence
-        yamalsequence += 1
+        global trpseqno
+        trpseqno += 1
         msg = schemas.strategy.ManagerMessage.from_bytes_packed(data)
         first, _, second = channel.name()[strg_pfx_len:].partition('/')
         msgtype = msg.message.which()
@@ -262,9 +262,16 @@ if __name__ == "__main__":
             return
 
         ref = refdata.state
+        dbid = ord.info['strgOrdID']
+        dbacc = ord.info['accountID']
+        dbsec = ref.securities[ord.info['securityId']].symbol.replace('-','_')
+        dbven = ref.venuesNames[ord.info['venueID']].label
+        dbside = 'buy' if ord.side == Side.BID else 'sell'
+        dbpx = 'NULL' if ord.px is None else ord.px
+        dbdone = 'done' if ord.done else 'active'
         cmd = f"""
         INSERT INTO orders (id,account,security,venue,strg,oms,side,price,quantity,done) VALUES
-        ({ord.info['strgOrdID']},'{ord.info['accountID']}','{ref.securities[ord.info['securityId']].symbol.replace('-','_')}','{ref.venuesNames[ord.info['venueID']].label}','{strg}','{oms}','{'buy' if ord.side == Side.BID else 'sell'}',{'NULL' if ord.px is None else ord.px},{ord.qty},'{'done' if ord.done else 'active'}')
+        ({dbid},'{dbacc}','{dbsec}','{dbven}','{strg}','{oms}','{dbside}',{dbpx},{ord.qty},'{dbdone}')
         ON CONFLICT
         DO NOTHING
         """
@@ -272,9 +279,12 @@ if __name__ == "__main__":
         conn.commit()
         
         tp, px, qt, reason = oe_details(msg)
+        dbpx = 'NULL' if px is None else px
+        dbqt = 'NULL' if qt is None else qt
+        dbreason = 'NULL' if reason is None else reason
         cmd = f"""
         INSERT INTO order_events (pubseq,type,id,account,security,venue,strg,oms,side,price,quantity,reason) VALUES
-        ({yamalsequence},'{tp}',{ord.info['strgOrdID']},'{ord.info['accountID']}','{ref.securities[ord.info['securityId']].symbol.replace('-','_')}','{ref.venuesNames[ord.info['venueID']].label}','{strg}','{oms}','{'buy' if ord.side == Side.BID else 'sell'}',{'NULL' if px is None else px},{'NULL' if qt is None else qt},'{'NULL' if reason is None else reason}')
+        ({trpseqno},'{tp}',{dbid},'{dbacc}','{dbsec}','{dbven}','{strg}','{oms}','{dbside}',{dbpx},{dbqt},'{dbreason}')
         ON CONFLICT
         DO NOTHING
         """
