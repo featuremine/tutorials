@@ -340,8 +340,8 @@ if __name__ == '__main__':
         ui.timer(interval=0.3, callback=table_auto_size)
         return t
         
-    expansion_to = expansion_bar('orders list')
-    with expansion_to:
+    expansion_orders = expansion_bar('orders list')
+    with expansion_orders:
         with padded_row():
             with ui.column():
                 async def cancel_orders():
@@ -411,7 +411,7 @@ if __name__ == '__main__':
                 ],
                 'rowData': [],
             }
-            table_orders = create_orders_table(table_options, expansion_to)
+            table_orders = create_orders_table(table_options, expansion_orders)
             def handle_change(msg):
                 row = msg['args']['data']
                 o = OrderKey(strg=row['strg'], oms=row['oms'], idx=row['id'])
@@ -423,8 +423,8 @@ if __name__ == '__main__':
 
             table_orders.on('cellValueChanged', handle_change)
 
-    expansion_toe = expansion_bar('orders event list')
-    with expansion_toe:                
+    expansion_events = expansion_bar('orders event list')
+    with expansion_events:                
         with padded_row():
             table_options = {
                 'defaultColDef': column_defs, 
@@ -443,7 +443,7 @@ if __name__ == '__main__':
                 ],
                 'rowData': [],
             }
-            table_order_events = create_orders_table(table_options, expansion_toe)
+            table_order_events = create_orders_table(table_options, expansion_events)
 
     def update_ui(delta):
         if delta.accounts:
