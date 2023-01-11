@@ -264,7 +264,7 @@ if __name__ == "__main__":
         ref = refdata.state
         dbid = ord.info['strgOrdID']
         dbacc = ord.info['accountID']
-        dbsec = ref.securities[ord.info['securityId']].symbol.replace('-','_')
+        dbsec = ref.securities[ord.info['securityId']].symbol
         dbven = ref.venuesNames[ord.info['venueID']].label
         dbside = 'buy' if ord.side == Side.BID else 'sell'
         dbpx = 'NULL' if ord.px is None else ord.px
