@@ -28,10 +28,9 @@ import extractor
 from yamal import ytp
 from conveyor.utils import schemas
 import reference
-from datetime import timedelta, date, datetime
+from datetime import timedelta, datetime
 import psycopg2
 import time
-import math
 from time import time_ns
 import json
 
@@ -90,8 +89,6 @@ if __name__ == "__main__":
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
     parser.add_argument("--host", help="postgreSQL database host", required=False, default="127.0.0.1")
     parser.add_argument("--port", help="postgreSQL database port", required=False, default="5432")
-    parser.add_argument("--ytpmarket", help="YTP file with market data in ORE format", required=True)
-    parser.add_argument("--ytporders", help="YTP file with orders data in capnp format", required=True)
     parser.add_argument("--peer", help="YTP peer reader", required=False, default="feed_handler")
     parser.add_argument("--markets", help="Comma separated markets list", required=True)
     parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
@@ -103,7 +100,7 @@ if __name__ == "__main__":
     cfg = json.load(open(args.cfg))
 
     # Wait until the YTP file is created
-    while not os.path.exists(args.ytpmarket):
+    while not os.path.exists(cfg['price_ytp']):
         time.sleep(0.1)
 
     # Connect to PostgreSQL database
@@ -227,7 +224,7 @@ if __name__ == "__main__":
             conn.commit()
 
     strg_pfx = f"{cfg['strategy_prefix']}"
-    strg_pfx_len = len(strg_pfx)
+    strg_pfx_len = len(strg_pfx) + 1
     oms = cfg['oms_name']
     oms_len = len(oms)
     yamalsequence = 0
@@ -347,7 +344,7 @@ if __name__ == "__main__":
     def compute_bars(op, quotes, trades, times):
         return [compute_bar(op, quote, trd, ven) for quote, trd, ven, in zip(quotes, trades, times)]
 
-    seq = ytp.sequence(args.ytpmarket)
+    seq = ytp.sequence(cfg['price_ytp'])
     op.ytp_sequence(seq, timedelta(milliseconds=1))
     peer = seq.peer(args.peer)
     upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
@@ -382,9 +379,9 @@ if __name__ == "__main__":
     refdata.poll()
     refdata.batch = False
 
-    seqorders = ytp.sequence(args.ytporders)
-    seqorders.data_callback(strg_pfx, orders2db)
-    op.ytp_sequence(seqorders, timedelta(milliseconds=1))
+    # seqstrg = ytp.sequence(cfg['strategy_ytp'])
+    # seqstrg.data_callback(f"{strg_pfx}/", orders2db)
+    # op.ytp_sequence(seqstrg, timedelta(milliseconds=1))
 
     # Run the extractor blocking
     graph.stream_ctx().run_live()
