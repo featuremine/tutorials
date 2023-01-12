@@ -107,11 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("--password", help="postgreSQL database password", required=False, default="")
     parser.add_argument("--host", help="postgreSQL database host", required=False, default="127.0.0.1")
     parser.add_argument("--port", help="postgreSQL database port", required=False, default="5432")
-    parser.add_argument("--peer", help="YTP peer reader", required=False, default="feed_handler")
-    parser.add_argument("--markets", help="Comma separated markets list", required=True)
-    parser.add_argument("--imnts", help="Comma separated instrument list", required=True)
     parser.add_argument("--period", help="Bar period in seconds", required=False, default=10)
-    parser.add_argument("--levels", help="Book levels to display", required=False, default=1)
     parser.add_argument("--cfg", help="configuration file in JSON format", required=True, type=str)
 
     args = parser.parse_args()
@@ -308,9 +304,6 @@ if __name__ == "__main__":
         cur.execute(cmd)
         conn.commit()
 
-
-    # TODO update to use ReferenceData and BarSignals
-
     graph = extractor.system.comp_graph()
     op = graph.features
     systime = PostgresSysTime()
@@ -330,7 +323,6 @@ if __name__ == "__main__":
                 symbol = refdata.state.securities[secid].symbol
                 imnts[(venid, secid)] = (market, symbol)
         bars.subscribe(imnts, bar2db)
-
 
     seqref = ytp.sequence(cfg['state_ytp'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
