@@ -33,7 +33,24 @@ import psycopg2
 import time
 from time import time_ns
 import json
-from common import StrategyOrderUpdater, OrderStateTable, OrderEventDetails, Side
+from typing import Dict, Tuple, Optional
+from common import StrategyOrderUpdater, OrderStateTable, OrderEventDetails, Side, SystemTime
+from signals import BarSignals
+
+class PostgresSysTime(SystemTime):
+    def __call__(self) -> int:
+        return int(time.time() * 1000000000)
+
+class PostgresBarSignals(BarSignals):
+    def __init__(self, components, peer, prefix: str, period) -> None:
+        super().__init__(components, peer, prefix, period)
+
+    def subscribe(self, imnts: Dict[Tuple[int, int], Tuple[str, str]], func) -> None:
+        if self.bars:
+            return
+        super().process(imnts)
+        for ids, syms in imnts.items():
+            self.graph.callback(self.bars[ids], functools.partial(func, market=syms[0], imnt=syms[1]))        
 
 # YTP channels prefix
 prefix = "ore/imnts"
@@ -296,115 +313,30 @@ if __name__ == "__main__":
 
     graph = extractor.system.comp_graph()
     op = graph.features
+    systime = PostgresSysTime()
 
-    # Parse markets and instruments
-    channels = []
-    mktimnt = []
-    for imnt in args.imnts.split(','):
-        for mkt in args.markets.split(','):
-            channels += [f"{prefix}/{mkt}/{imnt}"] # YTP channels for each market/instrument pair
-            mktimnt += [(mkt,imnt)] # market/instrument pair
+    seqprice = ytp.sequence(cfg['price_ytp'])
+    peerprice = seqprice.peer(cfg['peer'])
+    op.ytp_sequence(seqprice, timedelta(milliseconds=1))
+    components = {"graph": graph, "systime": systime}
+    bars = PostgresBarSignals(components, peerprice, "ore/imnts", args.period)
+    
+    def bars_subscribe(delta):
+        imnts = {}
+        for venid, securities in delta.venuesSecurities.items():
+            venue = refdata.state.venuesNames[venid]
+            market = venue.exdest if venue.exdest else venue.code
+            for secid in securities:
+                symbol = refdata.state.securities[secid].symbol
+                imnts[(venid, secid)] = (market, symbol)
+        bars.subscribe(imnts, bar2db)
 
-    def compute_bar(op, quote, trade, vendor_time):
-        close_time = op.data_bar(vendor_time, timedelta(seconds=int(args.period)))
-        open_time = op.tick_lag(close_time, 1)
-        close_quote = op.left_lim(quote, close_time)
-        open_quote = op.tick_lag(op.asof(quote, close_time), 1)
-
-        high_quote = op.left_lim(op.asof(quote, op.max(quote.bidprice, close_time)), close_time)
-        low_quote = op.left_lim(op.asof(quote, op.min(quote.askprice, close_time)), close_time)
-
-        notional = op.left_lim(op.cumulative(trade.price * trade.qty), close_time)
-        shares = op.left_lim(op.cumulative(trade.qty), close_time)
-        prev_notional = op.tick_lag(notional, 1)
-        prev_shares = op.tick_lag(shares, 1)
-        notional = notional - prev_notional
-        shares = shares - prev_shares
-
-        first_trade = op.first_after(trade, close_time)
-        open_trade_there = op.asof(first_trade, close_time)
-        close_trade = op.asof(trade, close_time)
-        no_trades = op.is_zero(shares)
-        open_trade = op.cond(no_trades, close_trade, open_trade_there)
-
-        high_trade_there = op.asof(op.asof(trade, op.max(trade.price, first_trade)), close_time)
-        low_trade_there = op.asof(op.asof(trade, op.min(trade.price, first_trade)), close_time)
-
-        high_trade = op.cond(no_trades, close_trade, high_trade_there)
-        low_trade = op.cond(no_trades, close_trade, low_trade_there)
-
-        # TODO: use mid price if no trade price exists yet
-        vwap = op.cond(op.is_zero(shares), op.asof(trade.price, close_time), notional / shares)
-
-        combined = op.combine(
-            open_trade, (("price", "open_px"),
-                        ("qty", "open_sz")),
-            close_trade, (("price", "close_px"),
-                        ("qty", "close_sz")),
-            high_trade, (("price", "high_px"),
-                        ("qty", "high_sz")),
-            low_trade, (("price", "low_px"),
-                        ("qty", "low_sz")),
-            open_quote, (("bidprice", "open_bidpx"),
-                        ("askprice", "open_askpx"),
-                        ("bidqty", "open_bidsz"),
-                        ("askqty", "open_asksz")),
-            close_quote, (("bidprice", "close_bidpx"),
-                        ("askprice", "close_askpx"),
-                    ("bidqty", "close_bidsz"),
-                        ("askqty", "close_asksz")),
-            high_quote, (("bidprice", "high_bidpx"),
-                        ("askprice", "high_askpx"),
-                        ("bidqty", "high_bidsz"),
-                        ("askqty", "high_asksz")),
-            low_quote, (("bidprice", "low_bidpx"),
-                        ("askprice", "low_askpx"),
-                        ("bidqty", "low_bidsz"),
-                        ("askqty", "low_asksz")),
-            vwap, ("vwap",),
-            notional, ("notional",),
-            open_time, (("start", "open_time"),),
-            close_time, (("start", "close_time"),),
-            )
-        
-        # TODO: need to skip bars that have missing data
-        return op.filter_unless(close_time.skipped, combined)
-
-    def compute_bars(op, quotes, trades, times):
-        return [compute_bar(op, quote, trd, ven) for quote, trd, ven, in zip(quotes, trades, times)]
-
-    seq = ytp.sequence(cfg['price_ytp'])
-    op.ytp_sequence(seq, timedelta(milliseconds=1))
-    peer = seq.peer(args.peer)
-    upds = [op.decode_data(op.ore_ytp_decode(peer.channel(time_ns(), ch))) for ch in channels]
-
-    levels = [op.book_build(upd, args.levels) for upd in upds]
-    times = [op.book_vendor_time(upd) for upd in upds]
-
-    quotes = [op.combine(level,
-                    (("bid_prx_0", "bidprice"),
-                     ("bid_shr_0", "bidqty"),
-                     ("ask_prx_0", "askprice"),
-                     ("ask_shr_0", "askqty")))
-            for level in levels]
-
-    trades = [op.combine(op.book_trades(upd),
-                        (("trade_price", "price"),
-                         ("vendor", "receive"),
-                         ("qty", "qty"),
-                         ("decoration", "side")))
-                for upd in upds]
-
-    bars = compute_bars(op, quotes, trades, times)
-
-    # Add a callback for each bar that corresponds to a market/instrument pair
-    for bar, mi, trade in zip(bars, mktimnt, trades):
-       graph.callback(bar, functools.partial(bar2db, market=mi[0], imnt=mi[1]))
 
     seqref = ytp.sequence(cfg['state_ytp'])
     refdata = reference.ReferenceData(seq=seqref, cfg=cfg)
     op.ytp_sequence(seqref, timedelta(milliseconds=1))
     refdata.add_callback(venues2db)
+    refdata.add_callback(bars_subscribe)
     refdata.poll()
     refdata.batch = False
 

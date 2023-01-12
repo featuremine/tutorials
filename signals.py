@@ -29,7 +29,7 @@ class MarketSignals(object):
             if ids in self.quotes:
                 continue
 
-            channel = self.peer.channel(self.systime(), f"{self.prefix}{syms[0]}/{syms[1]}")
+            channel = self.peer.channel(self.systime(), f"{self.prefix}/{syms[0]}/{syms[1]}")
             upd = op.decode_data(op.ore_ytp_decode(channel))
             level = op.combine(op.book_build(upd, 1),
                             (("bid_prx_0", "bidprice"),
@@ -143,7 +143,7 @@ class BarSignals(MarketSignals):
             if ids in self.bars:
                 continue
 
-            self.bars[ids] = compute_bar(op, self.quote[ids], self.trades[ids], self.times[ids])
+            self.bars[ids] = compute_bar(op, self.quotes[ids], self.trades[ids], self.times[ids])
 
 
 class VWAPRevSignals(BarSignals):
