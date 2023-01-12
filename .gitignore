@@ -4,5 +4,6 @@ __pycache__/*
 *.ytp
 *.whl
 *.tar.gz
+*.log
 bulldozer-*.sh
 syncer-*.sh
