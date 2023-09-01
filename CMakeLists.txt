@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.15)
+
+file (STRINGS "VERSION" YAMAL_VERSION)
+
+project(
+    yamal
+    VERSION "${YAMAL_VERSION}"
+    DESCRIPTION "Featuremine YTP Library"
+    HOMEPAGE_URL "https://www.featuremine.com"
+)
+
+set(Subproject_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(Subproject REQUIRED)
+
+option (BUILD_SHARED_LIBS "Request build of shared libraries." ON)
+option (BUILD_TESTING "Enable build of the unit tests and their execution." ON)
+option (BUILD_TOOLS "Enable build of command line tools." ON)
+option (BUILD_WHEEL "Enable build of the python package." ON)
+option (TEST_EXTENSIONS "Enable testing the extensions." ON)
+
+add_subproject(
+    NAME yamal
+    VERSION "8.0.0"
+    GIT_REVISION "v8.0.0"
+    GIT_URL "https://github.com/featuremine/yamal.git"
+    TARGETS fmc++ ytp
+)
+
