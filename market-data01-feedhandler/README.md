@@ -1,4 +1,4 @@
-# Unlocking Lightning-Speed Market Data: Building a Blazing Fast Binance Feed Handler in C++
+# Unlocking Lightning-Speed Market Data | Building a Blazing Fast Binance Feed Handler in C++
 
 ** Indroduction
 
