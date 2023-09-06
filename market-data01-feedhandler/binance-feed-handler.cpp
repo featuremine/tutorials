@@ -12,6 +12,7 @@
 #include <ctype.h>
 
 #include <string>
+#include <string_view>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -223,6 +224,7 @@ static int
 callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		 void *user, void *in, size_t len)
 {
+	using namespace std;
 	struct my_conn *mco = (struct my_conn *)user;
 	uint64_t latency_us, now_us;
 	uint64_t price;
@@ -238,9 +240,19 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		goto do_retry;
 		break;
 
-	case LWS_CALLBACK_CLIENT_RECEIVE:
+	case LWS_CALLBACK_CLIENT_RECEIVE: {
 		write(STDOUT_FILENO, (const char *)in, len);
 		printf("\n");
+
+		p = lws_json_simple_find((const char *)in, len,
+					 "\"stream\"", &alen);
+
+		if (!p) {
+			lwsl_err("%s, message does not contain \"stream\":\n", __func__);
+			break;
+		}
+		std::string_view stream((const char *)p+2, alen-3);
+		cout << stream << endl;
 		break;
 		/*
 		 * The messages are a few 100 bytes of JSON each
@@ -291,7 +303,7 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 			mco->price_range.samples++;
 		}
 		break;
-
+	}
 	case LWS_CALLBACK_CLIENT_ESTABLISHED:
 		lwsl_user("%s: established\n", __func__);
 		lws_sul_schedule(lws_get_context(wsi), 0, &mco->sul_hz,

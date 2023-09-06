@@ -19,6 +19,7 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
     write(STDOUT_FILENO, (const char *)in, len);
     printf("\n");
     ```
+1. Identify stream use string_view.
 1. Why Yamal: low-latency, multi-producer, multi-consumer, flat format, distributable
 
 ## Setup
