@@ -11,6 +11,12 @@
 #include <signal.h>
 #include <ctype.h>
 
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iterator>
+
 typedef struct range {
 	uint64_t		sum;
 	uint64_t		lowest;
@@ -33,6 +39,8 @@ static struct my_conn {
 
 	struct lws		*wsi;	     /* related wsi if any */
 	uint16_t		retry_count; /* count of consequetive retries */
+
+	std::string	path; /* storing the path for stream subscription */
 } mco;
 
 static struct lws_context *context;
@@ -124,8 +132,7 @@ connect_client(lws_sorted_usec_list_t *sul)
 	i.context = context;
 	i.port = 443;
 	i.address = "fstream.binance.com";
-	i.path = "/stream?"
-		 "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
+	i.path = mco->path.c_str();
 	i.host = i.address;
 	i.origin = i.address;
 	i.ssl_connection = LCCSCF_USE_SSL | LCCSCF_PRIORITIZE_READS;
@@ -331,6 +338,26 @@ sigint_handler(int sig)
 {
 	interrupted = 1;
 }
+
+bool process_securities_file(const char *file, std::string &path)
+{
+	using namespace std;
+	ifstream secfile{file};
+	if (!secfile) {
+		lwsl_err("%s: failed to open file %s\n", __func__, file);
+		return false;
+	}
+	ostringstream ss;
+	ss << "/stream?streams=";
+	for (std::string line; std::getline(secfile, line); ) {
+		ss << line << "@depth@0ms/"
+		   << line << "@bookTicker/"
+		   << line << "@aggTrade";
+	}
+	path = ss.str();
+	return true;
+}
+
 struct cmdline_option {
 	const char *str;
 	bool required;
@@ -381,7 +408,6 @@ int main(int argc, const char **argv)
 	info.fd_limit_per_thread = 1 + 1 + 1;
 	info.extensions = extensions;
 
-
 	struct cmdline_args {
 		const char *securities = nullptr;
 	} args;
@@ -392,6 +418,10 @@ int main(int argc, const char **argv)
 	};
 
 	if (!cmdline_feed_params_handle(argc, argv, options))
+		return 1;
+
+	lwsl_user("securities are %s\n", args.securities);
+	if (!process_securities_file(args.securities, mco.path))
 		return 1;
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
