@@ -7,7 +7,7 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
 1. Start with libwebsockets binance example
 1. Copy to binance-feed-handler.cpp and add comman line argument parsing.
 1. Add command line argument for securities file and parse securities file into subscription string.
-    ```
+    ```c++
     ostringstream ss;
     ss << "/stream?streams=";
     for (std::string line; std::getline(secfile, line); ) {
@@ -15,10 +15,11 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
     }
     ```
 1. Just print data for now
-    ```
+    ```c++
     write(STDOUT_FILENO, (const char *)in, len);
     printf("\n");
     ```
+1. Why Yamal: low-latency, multi-producer, multi-consumer, flat format, distributable
 
 ## Setup
 ### pull repo with submodules, using cmake utils
