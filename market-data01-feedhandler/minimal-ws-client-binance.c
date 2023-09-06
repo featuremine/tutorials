@@ -1,10 +1,14 @@
-/******************************************************************************
-        COPYRIGHT (c) 2019-2023 by Featuremine Corporation.
-
-        This Source Code Form is subject to the terms of the Mozilla Public
-        License, v. 2.0. If a copy of the MPL was not distributed with this
-        file, You can obtain one at https://mozilla.org/MPL/2.0/.
- *****************************************************************************/
+/*
+ * lws-minimal-ws-client-binance
+ *
+ * Written in 2010-2020 by Andy Green <andy@warmcat.com>
+ *                         Kutoga <kutoga@user.github.invalid>
+ *
+ * This file is made available under the Creative Commons CC0 1.0
+ * Universal Public Domain Dedication.
+ *
+ * This demonstrates a ws client that connects to binance ws server efficiently
+ */
 
 #include <libwebsockets.h>
 #include <string.h>

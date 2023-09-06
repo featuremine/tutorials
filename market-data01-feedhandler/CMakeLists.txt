@@ -6,37 +6,20 @@
         file, You can obtain one at https://mozilla.org/MPL/2.0/.
 ]===]
 
-
 add_subproject(
-    NAME json
-    VERSION "v3.11.2"
-    GIT_REVISION "v3.11.2"
-    GIT_URL "https://github.com/nlohmann/json.git"
-    TARGETS json
-)
-
-git_clone(
-    GIT_REVISION master
-    GIT_URL "https://github.com/dhbaird/easywsclient.git"
-    DIR ${CMAKE_BINARY_DIR}/dependencies/src/easywsclient
-)
-add_library(
-    easywsclient
-    STATIC
-    ${CMAKE_BINARY_DIR}/dependencies/src/easywsclient/easywsclient.cpp
-)
-target_include_directories(
-    easywsclient
-    PUBLIC
-    "${CMAKE_BINARY_DIR}/dependencies/src/easywsclient"
+    NAME websockets
+    VERSION "v4.3.2"
+    GIT_REVISION "v4.3.2"
+    GIT_URL "https://github.com/warmcat/libwebsockets.git"
+    TARGETS websockets
 )
 
 add_executable(
-    binance-feed
-    "binance-feed.cpp"
+    minimal-ws-client-binance
+    "minimal-ws-client-binance.c"
 )
 target_link_libraries(
-    binance-feed
+    minimal-ws-client-binance
     PRIVATE
-    easywsclient
+    websockets ${LIBWEBSOCKETS_DEP_LIBS}
 )
