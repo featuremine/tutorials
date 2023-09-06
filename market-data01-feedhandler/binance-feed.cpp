@@ -16,7 +16,7 @@ typedef struct range {
 	uint64_t		lowest;
 	uint64_t		highest;
 
-	unsigned int		samples;
+	unsigned int	samples;
 } range_t;
 
 /*
@@ -332,22 +332,74 @@ sigint_handler(int sig)
 	interrupted = 1;
 }
 
+struct cmdline_feed_params {
+	const char *securities = nullptr;
+};
+
+enum class opts : int {
+	OPT_SECURITIES,
+};
+
+struct {
+	opts key;
+	const char *str;
+	bool required;
+	bool set = false
+} cmdline_options[] = {
+	{opt::OPT_SECURITIES, "--securities", true}
+};
+
+bool
+cmdline_feed_params_handle(int argc, const char **argv,
+				  struct cmdline_feed_params *args)
+{
+	const char *p;
+	for (int n = 0; n < (int)LWS_ARRAY_SIZE(cmdline_options); n++) {
+		const char *p = lws_cmdline_option(argc, argv, cmdline_options[n].str);
+		if (!p)
+			continue;
+		if (cmdline_options[n].set) {
+			lwsl_err("%s: option %s is repeated\n", __func__, cmdline_options[n].str);
+			return false;
+		}
+		cmdline_options[n].set = true;
+		switch (n) {
+		case opt::OPT_SECURITIES:
+			args->securities = p
+			break;
+		}
+	}
+	int unset = 0;
+	for (int n = 0; n < (int)LWS_ARRAY_SIZE(cmdline_options); n++) {
+		if (!cmdline_options[n].required || cmdline_options[n].set)
+			continue;
+		lwsl_err("%s: option %s is required and remains unset\n", __func__, cmdline_options[n].str);
+		++unset;
+	}
+	if (unset)
+		return false;
+	return true;
+}
+
 int main(int argc, const char **argv)
 {
 	struct lws_context_creation_info info;
+	struct cmdline_feed_params args;
 	int n = 0;
 
 	signal(SIGINT, sigint_handler);
 	memset(&info, 0, sizeof info);
 	lws_cmdline_option_handle_builtin(argc, argv, &info);
 
-	lwsl_user("LWS minimal binance client\n");
+	lwsl_user("binance feed handler\n");
 
 	info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 	info.port = CONTEXT_PORT_NO_LISTEN; /* we do not run any server */
 	info.protocols = protocols;
 	info.fd_limit_per_thread = 1 + 1 + 1;
 	info.extensions = extensions;
+
+	cmdline_feed_params_handle(argc, argv, &args);
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
 	/*
