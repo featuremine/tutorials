@@ -344,9 +344,9 @@ struct {
 	opts key;
 	const char *str;
 	bool required;
-	bool set = false
+	bool set = false;
 } cmdline_options[] = {
-	{opt::OPT_SECURITIES, "--securities", true}
+	{opts::OPT_SECURITIES, "--securities", true}
 };
 
 bool
@@ -363,9 +363,9 @@ cmdline_feed_params_handle(int argc, const char **argv,
 			return false;
 		}
 		cmdline_options[n].set = true;
-		switch (n) {
-		case opt::OPT_SECURITIES:
-			args->securities = p
+		switch (cmdline_options[n].key) {
+		case opts::OPT_SECURITIES:
+			args->securities = p;
 			break;
 		}
 	}
@@ -399,7 +399,8 @@ int main(int argc, const char **argv)
 	info.fd_limit_per_thread = 1 + 1 + 1;
 	info.extensions = extensions;
 
-	cmdline_feed_params_handle(argc, argv, &args);
+	if (!cmdline_feed_params_handle(argc, argv, &args))
+		return 1;
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
 	/*
