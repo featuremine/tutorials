@@ -25,11 +25,11 @@ target_link_libraries(
 )
 
 add_executable(
-    binance-feed
-    "binance-feed.cpp"
+    binance-feed-handler
+    "binance-feed-handler.cpp"
 )
 target_link_libraries(
-    binance-feed
+    binance-feed-handler
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
 )
