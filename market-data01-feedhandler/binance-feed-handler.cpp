@@ -368,7 +368,6 @@ cmdline_feed_params_handle(int argc, const char **argv, struct cmdline_option *o
 int main(int argc, const char **argv)
 {
 	struct lws_context_creation_info info;
-	int n = 0;
 
 	signal(SIGINT, sigint_handler);
 	memset(&info, 0, sizeof info);
@@ -413,7 +412,7 @@ int main(int argc, const char **argv)
 	/* schedule the first client connection attempt to happen immediately */
 	lws_sul_schedule(context, 0, &mco.sul, connect_client, 1);
 
-	while (n >= 0 && !interrupted)
+	for (int n = 0; n >= 0 && !interrupted;)
 		n = lws_service(context, 0);
 
 	lws_context_destroy(context);
