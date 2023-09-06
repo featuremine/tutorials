@@ -131,7 +131,7 @@ connect_client(lws_sorted_usec_list_t *sul)
 
 	i.context = context;
 	i.port = 443;
-	i.address = "fstream.binance.com";
+	i.address = "stream.binance.com";
 	i.path = mco->path.c_str();
 	i.host = i.address;
 	i.origin = i.address;
@@ -239,6 +239,9 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		break;
 
 	case LWS_CALLBACK_CLIENT_RECEIVE:
+		write(STDOUT_FILENO, (const char *)in, len);
+		printf("\n");
+		break;
 		/*
 		 * The messages are a few 100 bytes of JSON each
 		 */
@@ -350,9 +353,7 @@ bool process_securities_file(const char *file, std::string &path)
 	ostringstream ss;
 	ss << "/stream?streams=";
 	for (std::string line; std::getline(secfile, line); ) {
-		ss << line << "@depth@0ms/"
-		   << line << "@bookTicker/"
-		   << line << "@aggTrade";
+		ss << line << "@bookTicker/" << line << "@trade";
 	}
 	path = ss.str();
 	return true;

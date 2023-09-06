@@ -7,6 +7,18 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
 1. Start with libwebsockets binance example
 1. Copy to binance-feed-handler.cpp and add comman line argument parsing.
 1. Add command line argument for securities file and parse securities file into subscription string.
+    ```
+    ostringstream ss;
+    ss << "/stream?streams=";
+    for (std::string line; std::getline(secfile, line); ) {
+        ss << line << "@bookTicker/" << line << "@trade";
+    }
+    ```
+1. Just print data for now
+    ```
+    write(STDOUT_FILENO, (const char *)in, len);
+    printf("\n");
+    ```
 
 ## Setup
 ### pull repo with submodules, using cmake utils
