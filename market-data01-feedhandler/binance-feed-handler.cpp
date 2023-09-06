@@ -331,49 +331,33 @@ sigint_handler(int sig)
 {
 	interrupted = 1;
 }
-
-struct cmdline_feed_params {
-	const char *securities = nullptr;
-};
-
-enum class opts : int {
-	OPT_SECURITIES,
-};
-
-struct {
-	opts key;
+struct cmdline_option {
 	const char *str;
 	bool required;
+	const char **value;
 	bool set = false;
-} cmdline_options[] = {
-	{opts::OPT_SECURITIES, "--securities", true}
 };
 
 bool
-cmdline_feed_params_handle(int argc, const char **argv,
-				  struct cmdline_feed_params *args)
+cmdline_feed_params_handle(int argc, const char **argv, struct cmdline_option *options)
 {
 	const char *p;
-	for (int n = 0; n < (int)LWS_ARRAY_SIZE(cmdline_options); n++) {
-		const char *p = lws_cmdline_option(argc, argv, cmdline_options[n].str);
+	for (int n = 0; options[n].str; n++) {
+		const char *p = lws_cmdline_option(argc, argv, options[n].str);
 		if (!p)
 			continue;
-		if (cmdline_options[n].set) {
-			lwsl_err("%s: option %s is repeated\n", __func__, cmdline_options[n].str);
+		if (options[n].set) {
+			lwsl_err("%s: option %s is repeated\n", __func__, options[n].str);
 			return false;
 		}
-		cmdline_options[n].set = true;
-		switch (cmdline_options[n].key) {
-		case opts::OPT_SECURITIES:
-			args->securities = p;
-			break;
-		}
+		options[n].set = true;
+		*options[n].value = p;
 	}
 	int unset = 0;
-	for (int n = 0; n < (int)LWS_ARRAY_SIZE(cmdline_options); n++) {
-		if (!cmdline_options[n].required || cmdline_options[n].set)
+	for (int n = 0; options[n].str; n++) {
+		if (!options[n].required || options[n].set)
 			continue;
-		lwsl_err("%s: option %s is required and remains unset\n", __func__, cmdline_options[n].str);
+		lwsl_err("%s: option %s is required and remains unset\n", __func__, options[n].str);
 		++unset;
 	}
 	if (unset)
@@ -384,7 +368,6 @@ cmdline_feed_params_handle(int argc, const char **argv,
 int main(int argc, const char **argv)
 {
 	struct lws_context_creation_info info;
-	struct cmdline_feed_params args;
 	int n = 0;
 
 	signal(SIGINT, sigint_handler);
@@ -399,7 +382,17 @@ int main(int argc, const char **argv)
 	info.fd_limit_per_thread = 1 + 1 + 1;
 	info.extensions = extensions;
 
-	if (!cmdline_feed_params_handle(argc, argv, &args))
+
+	struct cmdline_args {
+		const char *securities = nullptr;
+	} args;
+
+	struct cmdline_option options[] = {
+		{"--securities", true, &args.securities},
+		{NULL}
+	};
+
+	if (!cmdline_feed_params_handle(argc, argv, options))
 		return 1;
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
