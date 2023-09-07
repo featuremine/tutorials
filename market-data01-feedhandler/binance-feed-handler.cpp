@@ -29,12 +29,8 @@
 #include <ytp/data.h>
 
 typedef struct range {
-	uint64_t		sum;
-	uint64_t		lowest;
-	uint64_t		highest;
-
 	unsigned int	samples;
-} range_t;
+} stats_t;
 
 /*
  * This represents your object that "contains" the client connection and has
@@ -45,8 +41,7 @@ static struct mco {
 	lws_sorted_usec_list_t	sul;	     /* schedule connection retry */
 	lws_sorted_usec_list_t	sul_hz;	     /* 1hz summary */
 
-	range_t			e_lat_range;
-	range_t			price_range;
+	stats_t			stats;
 
 	struct lws		*wsi;	     /* related wsi if any */
 	uint16_t		retry_count; /* count of consequetive retries */
@@ -97,7 +92,7 @@ static const uint32_t backoff_ms[] = { 1000, 2000, 3000, 4000, 5000 };
 
 static const lws_retry_bo_t retry = {
 	.retry_ms_table			= backoff_ms,
-	.retry_ms_table_count		= LWS_ARRAY_SIZE(backoff_ms),
+	.retry_ms_table_count	= LWS_ARRAY_SIZE(backoff_ms),
 	.conceal_count			= LWS_ARRAY_SIZE(backoff_ms),
 
 	.secs_since_valid_ping		= 400,  /* force PINGs after secs idle */
@@ -169,10 +164,8 @@ connect_client(lws_sorted_usec_list_t *sul)
 }
 
 static void
-range_reset(range_t *r)
+stats_reset(stats_t *r)
 {
-	r->sum = r->highest = 0;
-	r->lowest = 999999999999ull;
 	r->samples = 0;
 }
 
@@ -188,38 +181,9 @@ sul_hz_cb(lws_sorted_usec_list_t *sul)
 	lws_sul_schedule(lws_get_context(mco->wsi), 0, &mco->sul_hz,
 			 sul_hz_cb, LWS_US_PER_SEC);
 
-	if (mco->price_range.samples)
-		lwsl_notice("%s: price: min: %llu¢, max: %llu¢, avg: %llu¢, "
-			    "(%d prices/s)\n",
-			    __func__,
-			    (unsigned long long)mco->price_range.lowest,
-			    (unsigned long long)mco->price_range.highest,
-			    (unsigned long long)(mco->price_range.sum / mco->price_range.samples),
-			    mco->price_range.samples);
-	if (mco->e_lat_range.samples)
-		lwsl_notice("%s: elatency: min: %llums, max: %llums, "
-			    "avg: %llums, (%d msg/s)\n", __func__,
-			    (unsigned long long)mco->e_lat_range.lowest / 1000,
-			    (unsigned long long)mco->e_lat_range.highest / 1000,
-			    (unsigned long long)(mco->e_lat_range.sum /
-					   mco->e_lat_range.samples) / 1000,
-			    mco->e_lat_range.samples);
+	lwsl_notice("%s: %d msg/s\n", __func__, mco->stats.samples);
 
-	range_reset(&mco->e_lat_range);
-	range_reset(&mco->price_range);
-}
-
-static uint64_t
-pennies(const char *s)
-{
-	uint64_t price = (uint64_t)atoll(s) * 100;
-
-	s = strchr(s, '.');
-
-	if (s && isdigit(s[1]) && isdigit(s[2]))
-		price = price + (uint64_t)((10 * (s[1] - '0')) + (s[2] - '0'));
-
-	return price;
+	stats_reset(&mco->stats);
 }
 
 static int
@@ -228,11 +192,8 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 {
 	using namespace std;
 	struct mco *mco = (struct mco *)user;
-	uint64_t latency_us, now_us;
-	uint64_t price;
-	char numbuf[16];
-	const char *p;
-	size_t alen;
+	const char *p = nullptr;
+	size_t alen = 0;
 	fmc_error_t *err = nullptr;
 	string_view stream;
 	string_view data;
@@ -246,30 +207,20 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		break;
 
 	case LWS_CALLBACK_CLIENT_RECEIVE: 
-		write(STDOUT_FILENO, (const char *)in, len);
-		printf("\n");
-
 		p = lws_json_simple_find((const char *)in, len,
 					"\"stream\"", &alen);
-
 		if (!p) {
 			lwsl_err("%s, message does not contain \"stream\":\n", __func__);
 			break;
 		}
 		stream = std::string_view((const char *)p+2, alen-3);
-		cout << stream << endl;
-
 		p = lws_json_simple_find((const char *)in, len,
 					"\"data\"", &alen);
-
 		if (!p) {
 			lwsl_err("%s, message does not contain \"data\":\n", __func__);
 			break;
 		}
-
 		data = std::string_view((const char *)p+1, len-(p-(const char *)in)-2);
-		cout << data << endl;
-
 		if (auto where = mco->streams.find(stream); where != mco->streams.end()) {
 			auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
 			if (err) {
@@ -294,8 +245,7 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		lws_sul_schedule(lws_get_context(wsi), 0, &mco->sul_hz,
 				 sul_hz_cb, LWS_US_PER_SEC);
 		mco->wsi = wsi;
-		range_reset(&mco->e_lat_range);
-		range_reset(&mco->price_range);
+		stats_reset(&mco->stats);
 		break;
 
 	case LWS_CALLBACK_CLIENT_CLOSED:
@@ -339,7 +289,7 @@ sigint_handler(int sig)
 	interrupted = 1;
 }
 
-struct cmdline_option {
+struct fmc_cmdline_opt {
 	const char *str;
 	bool required;
 	const char **value;
@@ -347,7 +297,7 @@ struct cmdline_option {
 };
 
 bool
-cmdline_feed_params_handle(int argc, const char **argv, struct cmdline_option *options)
+fmc_cmdline_opt_proc(int argc, const char **argv, struct fmc_cmdline_opt *options)
 {
 	const char *p;
 	for (int n = 0; options[n].str; n++) {
@@ -397,14 +347,14 @@ int main(int argc, const char **argv)
 	const char *peer = nullptr;
 	const char *ytpfile = nullptr;
 
-	struct cmdline_option options[] = {
+	struct fmc_cmdline_opt options[] = {
 		{"--securities", true, &securities},
 		{"--peer", true, &peer},
 		{"--ytp-file", true, &ytpfile},
 		{NULL}
 	};
 
-	if (!cmdline_feed_params_handle(argc, argv, options))
+	if (!fmc_cmdline_opt_proc(argc, argv, options))
 		return 1;
 
 	ifstream secfile{securities};
