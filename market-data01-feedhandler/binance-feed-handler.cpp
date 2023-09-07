@@ -17,6 +17,11 @@
 #include <fstream>
 #include <sstream>
 #include <iterator>
+#include <unordered_map>
+
+#include <ytp/yamal.h>
+#include <ytp/accouncement.h>
+#include <ytp/streams.h>
 
 typedef struct range {
 	uint64_t		sum;
@@ -31,7 +36,7 @@ typedef struct range {
  * the client connection bound to it
  */
 
-static struct my_conn {
+static struct mco {
 	lws_sorted_usec_list_t	sul;	     /* schedule connection retry */
 	lws_sorted_usec_list_t	sul_hz;	     /* 1hz summary */
 
@@ -41,6 +46,8 @@ static struct my_conn {
 	struct lws		*wsi;	     /* related wsi if any */
 	uint16_t		retry_count; /* count of consequetive retries */
 
+	std::unordered_map<std::string_view, ytp_mmnode_offs> streams;
+	ytp_yamal_t *yamal = nullptr;
 	std::string	path; /* storing the path for stream subscription */
 } mco;
 
@@ -125,7 +132,7 @@ static const struct lws_extension extensions[] = {
 static void
 connect_client(lws_sorted_usec_list_t *sul)
 {
-	struct my_conn *mco = lws_container_of(sul, struct my_conn, sul);
+	struct mco *mco = lws_container_of(sul, struct mco, sul);
 	struct lws_client_connect_info i;
 
 	memset(&i, 0, sizeof(i));
@@ -177,7 +184,7 @@ get_us_timeofday(void)
 static void
 sul_hz_cb(lws_sorted_usec_list_t *sul)
 {
-	struct my_conn *mco = lws_container_of(sul, struct my_conn, sul_hz);
+	struct mco *mco = lws_container_of(sul, struct mco, sul_hz);
 
 	/*
 	 * We are called once a second to dump statistics on the connection
@@ -225,7 +232,7 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		 void *user, void *in, size_t len)
 {
 	using namespace std;
-	struct my_conn *mco = (struct my_conn *)user;
+	struct mco *mco = (struct mco *)user;
 	uint64_t latency_us, now_us;
 	uint64_t price;
 	char numbuf[16];
@@ -252,6 +259,9 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 			break;
 		}
 		std::string_view stream((const char *)p+2, alen-3);
+		auto atpos = stream.find('@');
+		if (atpos != stream.npos)
+		    stream = stream.substr(0, atpos);
 		cout << stream << endl;
 		break;
 		/*
@@ -354,23 +364,6 @@ sigint_handler(int sig)
 	interrupted = 1;
 }
 
-bool process_securities_file(const char *file, std::string &path)
-{
-	using namespace std;
-	ifstream secfile{file};
-	if (!secfile) {
-		lwsl_err("%s: failed to open file %s\n", __func__, file);
-		return false;
-	}
-	ostringstream ss;
-	ss << "/stream?streams=";
-	for (std::string line; std::getline(secfile, line); ) {
-		ss << line << "@bookTicker/" << line << "@trade";
-	}
-	path = ss.str();
-	return true;
-}
-
 struct cmdline_option {
 	const char *str;
 	bool required;
@@ -407,7 +400,11 @@ cmdline_feed_params_handle(int argc, const char **argv, struct cmdline_option *o
 
 int main(int argc, const char **argv)
 {
+	using namespace std;
+
 	struct lws_context_creation_info info;
+	fmc_fd fd;
+	fmc_error_t *error = nullptr;
 
 	signal(SIGINT, sigint_handler);
 	memset(&info, 0, sizeof info);
@@ -421,21 +418,77 @@ int main(int argc, const char **argv)
 	info.fd_limit_per_thread = 1 + 1 + 1;
 	info.extensions = extensions;
 
-	struct cmdline_args {
-		const char *securities = nullptr;
-	} args;
+	const char *securities = nullptr;
+	const char *peer = nullptr;
+	const char *ytpfile = nullptr;
 
 	struct cmdline_option options[] = {
-		{"--securities", true, &args.securities},
+		{"--securities", true, &securities},
+		{"--peer", true, &peer},
+		{"--ytp-file", true, &ytpfile},
 		{NULL}
 	};
 
 	if (!cmdline_feed_params_handle(argc, argv, options))
 		return 1;
 
-	lwsl_user("securities are %s\n", args.securities);
-	if (!process_securities_file(args.securities, mco.path))
+	fd = fmc_fopen(ytpfile, fmc_fmode::READWRITE, &error);
+	if (error) {
+		lwsl_err("could not open file %s with error\n", ytpfile, fmc_error_msg(error));
 		return 1;
+	}
+
+	ifstream secfile{file};
+	if (!secfile) {
+		lwsl_err("%s: failed to open file %s\n", __func__, file);
+		return 1;
+	}
+	vector<string> secs(istream_iterator<string>(secfile), istream_iterator<string>());
+
+	mco.yamal = ytp_yamal_new(fd, &error);
+	if (error) {
+		lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
+		return 1;
+	}
+	auto streams = ytp_streams_new(mco.amal, &error);
+	if (error) {
+		lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
+		return 1;
+	}
+
+	string_view vpeer(peer);
+	string encoding =
+		"Content-Type application/json\n"
+		"Content-Schema Binance";
+
+	ostringstream ss;
+	ss << "/stream?streams=";
+	for (auto&& line: secs) {
+		auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
+										 line.size(), line.data()
+										 encoding.size(), encoding.data(),
+										 &error);
+		uint64_t seqno;
+		size_t psz;
+		const char *peer;
+		size_t csz;
+		const char *channel;
+		size_t esz;
+		const char *encoding;
+		ytp_mmnode_offs *original;
+		ytp_mmnode_offs *subscribed;
+
+		ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
+								&csz, &channel, &esz, &encoding, &original,
+								&subscribed, &error);
+		string_view vchan(channel, csz);
+		auto where = mco.streams.find(vchan);
+		if (where == mco.streams.end()) {
+			mco.streams.emplace(vchan, stream);
+			ss << line << "@bookTicker/" << line << "@trade";
+		}
+	}
+	mco.path = ss.str();
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
 	/*
