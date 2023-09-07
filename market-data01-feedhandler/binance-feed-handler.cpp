@@ -19,11 +19,12 @@
 #include <sstream>
 #include <iterator>
 #include <unordered_map>
+#include <algorithm>
 
 #include <fmc/files.h>
 #include <ytp/yamal.h>
 #include <ytp/announcement.h>
-#include <ytp/streams.h>\
+#include <ytp/streams.h>
 
 typedef struct range {
 	uint64_t		sum;
@@ -261,8 +262,18 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 			break;
 		}
 		std::string_view stream((const char *)p+2, alen-3);
-		stream = stream.substr(0, stream.find_first_of('@'));
 		cout << stream << endl;
+
+		p = lws_json_simple_find((const char *)in, len,
+					 "\"data\"", &alen);
+
+		if (!p) {
+			lwsl_err("%s, message does not contain \"data\":\n", __func__);
+			break;
+		}
+
+		std::string_view data((const char *)p+1, len-(p-(const char *)in)-2);
+		cout << data << endl;
 		break;
 		/*
 		 * The messages are a few 100 bytes of JSON each
@@ -437,7 +448,14 @@ int main(int argc, const char **argv)
 		lwsl_err("%s: failed to open file %s\n", __func__, securities);
 		return 1;
 	}
+
+	// load securities from the file
 	vector<string> secs{istream_iterator<string>(secfile), istream_iterator<string>()};
+	// sort securities
+	sort(secs.begin(), secs.end());
+	// remove duplicate securities
+	auto last = unique(secs.begin(), secs.end());
+	secs.erase(last, secs.end());
 
 	fd = fmc_fopen(ytpfile, fmc_fmode::READWRITE, &error);
 	if (error) {
@@ -459,34 +477,37 @@ int main(int argc, const char **argv)
 	string encoding =
 		"Content-Type application/json\n"
 		"Content-Schema Binance";
-
+	vector<string> types = {"@bookTicker", "@trade"};
 	ostringstream ss;
+	bool first = true;
 	ss << "/stream?streams=";
-	for (auto&& line: secs) {
-		auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
-										 line.size(), line.data(),
-										 encoding.size(), encoding.data(),
-										 &error);
-		uint64_t seqno;
-		size_t psz;
-		const char *peer;
-		size_t csz;
-		const char *channel;
-		size_t esz;
-		const char *encoding;
-		ytp_mmnode_offs *original;
-		ytp_mmnode_offs *subscribed;
+	for (auto&& sec: secs) {
+		for (auto&& tp: types) {
+			string chstr(sec);
+			chstr.append(tp);
+			auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
+											chstr.size(), chstr.data(),
+											encoding.size(), encoding.data(),
+											&error);
+			uint64_t seqno;
+			size_t psz;
+			const char *peer;
+			size_t csz;
+			const char *channel;
+			size_t esz;
+			const char *encoding;
+			ytp_mmnode_offs *original;
+			ytp_mmnode_offs *subscribed;
 
-		ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
-								&csz, &channel, &esz, &encoding, &original,
-								&subscribed, &error);
-		string_view vchan(channel, csz);
-		auto where = mco.streams.find(vchan);
-		if (where == mco.streams.end()) {
-			mco.streams.emplace(vchan, stream);
-			ss << line << "@bookTicker/" << line << "@trade";
+			ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
+									&csz, &channel, &esz, &encoding, &original,
+									&subscribed, &error);
+			mco.streams.emplace(string_view(channel, csz), stream);
+			ss << (first ? "" : "/") << chstr;
+			first = false;
 		}
 	}
+	cout << ss.str() << endl;
 	mco.path = ss.str();
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
