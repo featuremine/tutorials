@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <ctype.h>
 
+#include <vector>
 #include <string>
 #include <string_view>
 #include <iostream>
@@ -19,9 +20,10 @@
 #include <iterator>
 #include <unordered_map>
 
+#include <fmc/files.h>
 #include <ytp/yamal.h>
-#include <ytp/accouncement.h>
-#include <ytp/streams.h>
+#include <ytp/announcement.h>
+#include <ytp/streams.h>\
 
 typedef struct range {
 	uint64_t		sum;
@@ -259,9 +261,7 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 			break;
 		}
 		std::string_view stream((const char *)p+2, alen-3);
-		auto atpos = stream.find('@');
-		if (atpos != stream.npos)
-		    stream = stream.substr(0, atpos);
+		stream = stream.substr(0, stream.find_first_of('@'));
 		cout << stream << endl;
 		break;
 		/*
@@ -432,25 +432,24 @@ int main(int argc, const char **argv)
 	if (!cmdline_feed_params_handle(argc, argv, options))
 		return 1;
 
+	ifstream secfile{securities};
+	if (!secfile) {
+		lwsl_err("%s: failed to open file %s\n", __func__, securities);
+		return 1;
+	}
+	vector<string> secs{istream_iterator<string>(secfile), istream_iterator<string>()};
+
 	fd = fmc_fopen(ytpfile, fmc_fmode::READWRITE, &error);
 	if (error) {
-		lwsl_err("could not open file %s with error\n", ytpfile, fmc_error_msg(error));
+		lwsl_err("could not open file %s with error %s\n", ytpfile, fmc_error_msg(error));
 		return 1;
 	}
-
-	ifstream secfile{file};
-	if (!secfile) {
-		lwsl_err("%s: failed to open file %s\n", __func__, file);
-		return 1;
-	}
-	vector<string> secs(istream_iterator<string>(secfile), istream_iterator<string>());
-
 	mco.yamal = ytp_yamal_new(fd, &error);
 	if (error) {
 		lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
 		return 1;
 	}
-	auto streams = ytp_streams_new(mco.amal, &error);
+	auto streams = ytp_streams_new(mco.yamal, &error);
 	if (error) {
 		lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
 		return 1;
@@ -465,7 +464,7 @@ int main(int argc, const char **argv)
 	ss << "/stream?streams=";
 	for (auto&& line: secs) {
 		auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
-										 line.size(), line.data()
+										 line.size(), line.data(),
 										 encoding.size(), encoding.data(),
 										 &error);
 		uint64_t seqno;

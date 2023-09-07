@@ -32,4 +32,5 @@ target_link_libraries(
     binance-feed-handler
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
+    fmc++ ytp
 )
