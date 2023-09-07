@@ -22,9 +22,11 @@
 #include <algorithm>
 
 #include <fmc/files.h>
+#include <fmc/time.h>
 #include <ytp/yamal.h>
 #include <ytp/announcement.h>
 #include <ytp/streams.h>
+#include <ytp/data.h>
 
 typedef struct range {
 	uint64_t		sum;
@@ -174,16 +176,6 @@ range_reset(range_t *r)
 	r->samples = 0;
 }
 
-static uint64_t
-get_us_timeofday(void)
-{
-	struct timeval tv;
-
-	gettimeofday(&tv, NULL);
-
-	return (uint64_t)((lws_usec_t)tv.tv_sec * LWS_US_PER_SEC) + (uint64_t)tv.tv_usec;
-}
-
 static void
 sul_hz_cb(lws_sorted_usec_list_t *sul)
 {
@@ -241,6 +233,9 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 	char numbuf[16];
 	const char *p;
 	size_t alen;
+	fmc_error_t *err = nullptr;
+	string_view stream;
+	string_view data;
 
 	switch (reason) {
 
@@ -250,81 +245,50 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		goto do_retry;
 		break;
 
-	case LWS_CALLBACK_CLIENT_RECEIVE: {
+	case LWS_CALLBACK_CLIENT_RECEIVE: 
 		write(STDOUT_FILENO, (const char *)in, len);
 		printf("\n");
 
 		p = lws_json_simple_find((const char *)in, len,
-					 "\"stream\"", &alen);
+					"\"stream\"", &alen);
 
 		if (!p) {
 			lwsl_err("%s, message does not contain \"stream\":\n", __func__);
 			break;
 		}
-		std::string_view stream((const char *)p+2, alen-3);
+		stream = std::string_view((const char *)p+2, alen-3);
 		cout << stream << endl;
 
 		p = lws_json_simple_find((const char *)in, len,
-					 "\"data\"", &alen);
+					"\"data\"", &alen);
 
 		if (!p) {
 			lwsl_err("%s, message does not contain \"data\":\n", __func__);
 			break;
 		}
 
-		std::string_view data((const char *)p+1, len-(p-(const char *)in)-2);
+		data = std::string_view((const char *)p+1, len-(p-(const char *)in)-2);
 		cout << data << endl;
-		break;
-		/*
-		 * The messages are a few 100 bytes of JSON each
-		 */
 
-		// lwsl_hexdump_notice(in, len);
-
-		now_us = (uint64_t)get_us_timeofday();
-
-		p = lws_json_simple_find((const char *)in, len,
-					 "\"depthUpdate\"", &alen);
-		/*
-		 * Only the JSON with depthUpdate init has the numbers we care
-		 * about as well
-		 */
-		if (!p)
-			break;
-
-		p = lws_json_simple_find((const char *)in, len, "\"E\":", &alen);
-		if (!p) {
-			lwsl_err("%s: no E JSON\n", __func__);
+		if (auto where = mco->streams.find(stream); where != mco->streams.end()) {
+			auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
+			if (err) {
+				lwsl_err("%s, could not reserve yamal message with error %s:\n",
+					__func__, fmc_error_msg(err));
+				break;
+			}
+			memcpy(dst, data.data(), data.size());
+			ytp_data_commit(mco->yamal, fmc_cur_time_ns(), where->second, dst, &err);
+			if (err) {
+				lwsl_err("%s, could not commit with error %s:\n",
+						__func__, fmc_error_msg(err));
+				break;
+			}
+		} else {
+			lwsl_err("%s, stream map does not contain %s:\n", __func__, string(stream).c_str());
 			break;
 		}
-		lws_strnncpy(numbuf, p, alen, sizeof(numbuf));
-		latency_us = now_us -
-				((uint64_t)atoll(numbuf) * LWS_US_PER_MS);
-
-		if (latency_us < mco->e_lat_range.lowest)
-			mco->e_lat_range.lowest = latency_us;
-		if (latency_us > mco->e_lat_range.highest)
-			mco->e_lat_range.highest = latency_us;
-
-		mco->e_lat_range.sum += latency_us;
-		mco->e_lat_range.samples++;
-
-		p = lws_json_simple_find((const char *)in, len,
-					 "\"a\":[[\"", &alen);
-		if (p) {
-			lws_strnncpy(numbuf, p, alen, sizeof(numbuf));
-			price = pennies(numbuf);
-
-			if (price < mco->price_range.lowest)
-				mco->price_range.lowest = price;
-			if (price > mco->price_range.highest)
-				mco->price_range.highest = price;
-
-			mco->price_range.sum += price;
-			mco->price_range.samples++;
-		}
 		break;
-	}
 	case LWS_CALLBACK_CLIENT_ESTABLISHED:
 		lwsl_user("%s: established\n", __func__);
 		lws_sul_schedule(lws_get_context(wsi), 0, &mco->sul_hz,
