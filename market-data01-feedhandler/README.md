@@ -23,6 +23,14 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
 1. Why Yamal: low-latency, multi-producer, multi-consumer, flat format, distributable
 1. Using string_view for keys because performance
 1. Add small script to read data and plot it.
+1.
+    ```
+    ./market-data01-feedhandler/binance-feed-handler --securities ../market-data01-feedhandler/securities.txt --peer feed --ytp-file mktdata.ytp
+    ```
+1.
+    ```bash
+    MPLBACKEND=GTK4Cairo python ../market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt
+    ```
 
 ## Setup
 ### pull repo with submodules, using cmake utils
