@@ -28,10 +28,14 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 
 add_subproject(
     NAME yamal
-    VERSION "8.0.0"
-    GIT_REVISION "cmdline"
+    VERSION "8.0.1"
+    GIT_REVISION "v8.0.1"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp
 )
+
+set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(FmConfig REQUIRED)
+fm_config()
 
 add_subdirectory(market-data01-feedhandler)
