@@ -22,6 +22,7 @@
 #include <algorithm>
 
 #include <fmc/files.h>
+#include <fmc/cmdline.h>
 #include <fmc/time.h>
 #include <ytp/yamal.h>
 #include <ytp/announcement.h>
@@ -206,7 +207,7 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 		goto do_retry;
 		break;
 
-	case LWS_CALLBACK_CLIENT_RECEIVE: 
+	case LWS_CALLBACK_CLIENT_RECEIVE:
 		p = lws_json_simple_find((const char *)in, len,
 					"\"stream\"", &alen);
 		if (!p) {
@@ -239,6 +240,7 @@ callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 			lwsl_err("%s, stream map does not contain %s:\n", __func__, string(stream).c_str());
 			break;
 		}
+		mco->stats.samples++;
 		break;
 	case LWS_CALLBACK_CLIENT_ESTABLISHED:
 		lwsl_user("%s: established\n", __func__);
@@ -289,40 +291,6 @@ sigint_handler(int sig)
 	interrupted = 1;
 }
 
-struct fmc_cmdline_opt {
-	const char *str;
-	bool required;
-	const char **value;
-	bool set = false;
-};
-
-bool
-fmc_cmdline_opt_proc(int argc, const char **argv, struct fmc_cmdline_opt *options)
-{
-	const char *p;
-	for (int n = 0; options[n].str; n++) {
-		const char *p = lws_cmdline_option(argc, argv, options[n].str);
-		if (!p)
-			continue;
-		if (options[n].set) {
-			lwsl_err("%s: option %s is repeated\n", __func__, options[n].str);
-			return false;
-		}
-		options[n].set = true;
-		*options[n].value = p;
-	}
-	int unset = 0;
-	for (int n = 0; options[n].str; n++) {
-		if (!options[n].required || options[n].set)
-			continue;
-		lwsl_err("%s: option %s is required and remains unset\n", __func__, options[n].str);
-		++unset;
-	}
-	if (unset)
-		return false;
-	return true;
-}
-
 int main(int argc, const char **argv)
 {
 	using namespace std;
@@ -347,15 +315,18 @@ int main(int argc, const char **argv)
 	const char *peer = nullptr;
 	const char *ytpfile = nullptr;
 
-	struct fmc_cmdline_opt options[] = {
+	fmc_cmdline_opt_t options[] = {
 		{"--securities", true, &securities},
 		{"--peer", true, &peer},
 		{"--ytp-file", true, &ytpfile},
 		{NULL}
 	};
 
-	if (!fmc_cmdline_opt_proc(argc, argv, options))
+	fmc_cmdline_opt_proc(argc, argv, options, &error);
+	if (error) {
+		lwsl_err("%s, could not process args: %s\n", __func__, fmc_error_msg(error));
 		return 1;
+	}
 
 	ifstream secfile{securities};
 	if (!secfile) {
