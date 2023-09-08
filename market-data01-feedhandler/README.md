@@ -21,6 +21,7 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
     ```
 1. Identify stream use string_view.
 1. Why Yamal: low-latency, multi-producer, multi-consumer, flat format, distributable
+1. Using string_view for keys because performance
 
 ## Setup
 ### pull repo with submodules, using cmake utils

@@ -352,7 +352,7 @@ int main(int argc, const char **argv)
 		lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
 		return 1;
 	}
-	auto streams = ytp_streams_new(mco.yamal, &error);
+	auto *streams = ytp_streams_new(mco.yamal, &error);
 	if (error) {
 		lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
 		return 1;
@@ -417,6 +417,10 @@ int main(int argc, const char **argv)
 		n = lws_service(context, 0);
 
 	lws_context_destroy(context);
+
+	ytp_streams_del(streams, &error);
+	ytp_yamal_del(mco.yamal, &error);
+
 	lwsl_user("Completed\n");
 
 	return 0;
