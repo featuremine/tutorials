@@ -18,38 +18,31 @@ if __name__ == '__main__':
     peer = sequence.peer("reader")
 
     #Create a channel object using the desired channel name with the help of your peer object
-    tq = []
-    bids = []
-    asks = []
     tt = []
     trades = []
     plt.ion()
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
+    count = 0
 
     def redraw_plot():
-        #clear_output(wait=True)
-        plt.plot(tq, bids, 'g-')
-        plt.plot(tq, asks, 'r-')
+        clear_output(wait=True)
         plt.scatter(tt, trades, c='b', marker='+')
         plt.show()
-        plt.pause(0.01)
-        
-    def quote_update(peer, chan, tm, data):
-        quote = json.loads(data)
-        tq.append(pd.Timestamp(tm, unit='ns'))
-        bids.append(quote["b"])
-        asks.append(quote["a"])
-        redraw_plot()
-        
+        plt.pause(0.1)
+
     def trade_update(peer, chan, tm, data):
+        global count
         price = json.loads(data)
         tt.append(pd.Timestamp(tm, unit='ns'))
         trades.append(price["p"])
-        redraw_plot()
 
-    peer.channel(0, f"{args.security}@bookTicker").data_callback(quote_update)
     peer.channel(0, f"{args.security}@trade").data_callback(trade_update)
 
     while(True):
-        sequence.poll()
+        if not sequence.poll():
+            redraw_plot()
+        else:
+            count += 1
+            if count % 10000 == 0:
+                redraw_plot()
