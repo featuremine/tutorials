@@ -3,12 +3,35 @@ from yamal import ytp
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-from IPython.display import clear_output
+
+class TradePlotter:
+    def __init__(self, n):
+        self.tms = np.zeros(n, dtype='datetime64[ms]')
+        self.tds = np.zeros((n,3), dtype=np.float64)
+        self.bid = None
+        self.ask = None
+        self.idx = 0
+        self.done = False
+
+    def trade(self, tm, px):
+        if self.bid is None or self.ask is None:
+            return
+        self.tms[self.idx] = tm
+        self.tds[self.idx, 0] = px
+        self.tds[self.idx, 1] = self.bid
+        self.tds[self.idx, 2] = self.ask
+        self.idx += 1
+        self.done = self.idx == self.tms.shape[0]
+
+    def quote(self, bid, ask):
+        self.bid = bid
+        self.ask = ask
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--ytp-file", help="ytp file name", required=True)
     parser.add_argument("--security", help="security to display", required=True)
+    parser.add_argument("--points", help="number of trades", type=int, required=True)
     args = parser.parse_args()
 
     sequence = ytp.sequence(args.ytp_file)
@@ -16,60 +39,27 @@ if __name__ == '__main__':
     #Create a peer object using the desired peer name with the help of your sequence object
     peer = sequence.peer("reader")
 
-    #Create a channel object using the desired channel name with the help of your peer object
-    tq = np.array([], dtype=np.datetime64)
-    tt = np.array([], dtype=np.datetime64)
-    bids = np.array([], dtype=np.float64)
-    asks = np.array([], dtype=np.float64)
-    trds = np.array([], dtype=np.float64)
-    plt.ion()
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1)
+    plotter = TradePlotter(args.points)
 
-    def redraw_plot(delay):
-        global tt, tq, trds, asks, bids
-        ax.clear()
-        now = np.datetime64('now')
-        delta = np.timedelta64(5, 'm')
-        cutoff = now - delta
-        tti = np.argmax(tt > cutoff)
-        tt = tt[tti:]
-        trds = trds[tti:]
-        tqi = np.argmax(tq > cutoff)
-        if tqi > 1:
-            tq = tq[tqi-1:]
-            bids = bids[tqi-1:]
-            asks = asks[tqi-1:]
-            tq[0] = cutoff
-        plt.scatter(tt, trds, c='b', marker='+')
-        plt.plot(tq, bids, c='r')
-        plt.plot(tq, asks, c='g')
+    def draw_plot(tms, tds):
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        plt.scatter(tms, tds[:,0], c='b', marker='+')
+        plt.plot(tms, tds[:,1], c='r')
+        plt.plot(tms, tds[:,2], c='g')
         plt.show()
-        fig.canvas.flush_events()
-        plt.pause(delay)
 
-    def trade_update(peer, chan, tm, data):
-        global tt, trds
-        price = json.loads(data)
-        tt = np.append(tt, np.datetime64(tm, 'ns'))
-        trds = np.append(trds, price["p"])
+    def trade_plotter(plotter, data):
+        ev = json.loads(data)
+        plotter.trade(np.datetime64(ev['T'], 'ms'), ev['p'])
+    def quote_plotter(plotter, data):
+        ev = json.loads(data)
+        plotter.quote(ev['b'], ev['a'])
 
-    def quote_update(peer, chan, tm, data):
-        global tq, asks, bids
-        price = json.loads(data)
-        b = price["b"]
-        a = price["a"]
+    peer.channel(0, f"{args.security}@trade").data_callback(lambda peer, chan, tm, data: trade_plotter(plotter, data))
+    peer.channel(0, f"{args.security}@bookTicker").data_callback(lambda peer, chan, tm, data: quote_plotter(plotter, data))
 
-        if len(bids) > 1 and bids[-1] == bids[-2] and bids[-1] == b and asks[-1] == asks[-2] and asks[-1] == a:
-            tq[-1] = np.datetime64(tm, 'ns')
-        else:
-            tq = np.append(tq, np.datetime64(tm, 'ns'))
-            bids = np.append(bids, b)
-            asks = np.append(asks, a)
+    while not plotter.done:
+        sequence.poll()
 
-    peer.channel(0, f"{args.security}@trade").data_callback(trade_update)
-    peer.channel(0, f"{args.security}@bookTicker").data_callback(quote_update)
-
-    while(True):
-        if not sequence.poll():
-            redraw_plot(0.5)
+    draw_plot(plotter.tms, plotter.tds)
