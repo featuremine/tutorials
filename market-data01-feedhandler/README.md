@@ -27,6 +27,7 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
     ```
     ./market-data01-feedhandler/binance-feed-handler --securities ../market-data01-feedhandler/securities.txt --peer feed --ytp-file mktdata.ytp
     ```
+1. To check content directly, install yamal and run yamal-tail
 1.
     ```bash
     MPLBACKEND=GTK4Cairo python ../market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt
