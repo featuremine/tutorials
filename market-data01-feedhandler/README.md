@@ -23,6 +23,7 @@ Welcome to the inaugural blog in our in-depth series focused on building a cutti
 1. Why Yamal: low-latency, multi-producer, multi-consumer, flat format, distributable
 1. Using string_view for keys because performance
 1. Add small script to read data and plot it.
+1. C++ program to measure performance
 1.
     ```
     ./market-data01-feedhandler/binance-feed-handler --securities ../market-data01-feedhandler/securities.txt --peer feed --ytp-file mktdata.ytp

@@ -34,3 +34,13 @@ target_link_libraries(
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
+
+add_executable(
+    feed-perf
+    "feed-perf.cpp"
+)
+target_link_libraries(
+    feed-perf
+    PRIVATE
+    fmc++ ytp
+)
