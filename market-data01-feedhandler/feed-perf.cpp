@@ -57,7 +57,7 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 
-    fmc::counter::precision_sampler sampler;
+    fmc::counter::log_bucket sampler;
     int64_t last = fmc_cur_time_ns();
     int64_t period = 10LL * 1000000000LL; // 10s
     uint64_t count = 0ULL;
