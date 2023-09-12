@@ -35,7 +35,7 @@ cd tutorials
 cmake -B release -DCMAKE_BUILD_TYPE=Release ..
 cmake --build release
 ```
-Now, you will be able to find the binaries for this tutorial in ==release/market-data01-feedhandler==.
+Now, you will be able to find the binaries for this tutorial in **release/market-data01-feedhandler**.
 
 2. **libwebsocket binance example**
    - review various parts
