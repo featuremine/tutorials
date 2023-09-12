@@ -15,7 +15,7 @@ Binance is renowned for its public availability and intuitive API. A plethora of
 Libwebsockets stands out as a nimble, pure C library tailored for using contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation. If you would like to learn more visit https://github.com/warmcat/libwebsockets.
 
 ## **Featuremine Yamal**
-Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. The features of Yamal that are especially relevant for this blog are:
+Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. The features of Yamal that are relevant for this blog are:
 - **Performance**: Astoundingly low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
 - **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
 - **Consistency**: Guarantees data consistency across different processes.
@@ -27,9 +27,15 @@ These features will easily allow us to create feed server to distribute market d
 ## **Building the Binance Feed Server**
 
 1. **Setup**
-   - check out tutorial repo using --recursive
-   - run cmake .. to download dependencies
-   - run cmake -DCMAKE_BUILD_TYPE=Release ..
+For the purpose of this tutorial, I have created a repo where you can find all of the relevant code. To start out you will need `git`, `CMake` and a C++ compiler toolchain. The project builds on most sufficiently up-to-date Linux and MacOS systems. If you would like to build it on Windows I recommend using either WSL or a docker container.
+Begin by checking out the repo, creating a build directory, configuring the project with cmake and building it.
+```bash
+git clone --recurse-submodules https://github.com/featuremine/tutorials
+cd tutorials
+cmake -B release -DCMAKE_BUILD_TYPE=Release ..
+cmake --build release
+```
+Now, you will be able to find the binaries for this tutorial in ==release/market-data01-feedhandler==.
 
 2. **libwebsocket binance example**
    - review various parts
