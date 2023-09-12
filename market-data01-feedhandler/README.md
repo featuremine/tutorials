@@ -20,26 +20,17 @@ The multitude of seemingly contrudictory requirements placed on trading technolo
 - **Market Versatility**: Most facets of low-latency and nearly all elements pertinent to distribution and capture are applicable to equity, futures, and FX markets data feeds.
 
 ## **Libwebsockets**
-Libwebsockets stands out as a nimble, pure C library tailored for crafting contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation.
+Libwebsockets stands out as a nimble, pure C library tailored for crafting contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation. If you would like to learn more visit https://github.com/warmcat/libwebsockets
 
 ## **Featuremine Yamal**
-Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It's the cornerstone for systems necessitating swift and reliable data communication between various processes.
-
-**Features**:
+Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It's the cornerstone for systems necessitating swift and reliable data communication between various processes. The features of yamal that are relevant for this blog are:
 - **Performance**: Astoundingly low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
 - **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
-- **Non-blocking**: Ensures message memory is secured without obstructions.
 - **Consistency**: Guarantees data consistency across different processes.
-- **Sequential**: Ensures chronological order for message storage and access.
 - **Resilience**: In the event of application crashes, data is not lost.
-- **Structured Data**: The data is housed in a flat file.
 - **Zero-copy**: Abstains from data copying during read/write.
-- **Availability**: Data pointers remain active until application closure.
-- **Versatility**: Support for file rollover, indexing, and random access.
-- **Simplicity**: Boasts an elementary C API and a Python API.
-
-Yamal's features render it the ideal choice for constructing a high-performance market data platform aligning with the prerequisites discussed in the introduction.
-
+- **Simplicity**: Boasts an elementary C API and Python API.
+These features will easily allow us to create feed server to distribute market data to other process on the same machine at blazing fast speed.
 ## **Building the Binance Feed Server**
 
 1. **Setup**
