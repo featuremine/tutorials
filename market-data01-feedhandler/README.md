@@ -42,122 +42,19 @@ Libwebsockets stands out as a nimble, pure C library tailored for crafting conte
 Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It's the cornerstone for systems necessitating swift and reliable data communication between various processes.
 
 **Features**:
-- **Performance**: Boasts a median latency of 300ns and a max latency of 1us on Ryzen 5950X.
-- **Atomic**: Ensures the entire update to the bus is either done or not done at all.
-- **Versatility**: Compatible with multiple producers and consumers.
-- **Non-blocking**: Efficiently reserves and commits message memory.
-- **Data Consistency**: Guarantees consistency across different processes.
-- **Structured Data**: The data is housed in a flat file.
-- **Sequential**: Ensures chronological order for message storage and access.
-- **Reliability**: Post-crash, peers can function normally.
-- **Zero-copy**: Abstains from data copying during read/write.
-- **Ever-present Data**: Data pointers remain valid until application shutdown.
-- **Additional Features**: Supports file rollover, indexing, random access, and boasts a simple C API alongside a Python API.
-
-Yamal's features render it the ideal choice for constructing a high-performance market data platform aligning with the prerequisites discussed in the introduction.
-
-
------------------------------------------------
-# Unlocking Lightning-Speed Market Data: Building a Blazing Fast Binance Feed Server in C++
-
-## **Introduction**
-
-In the fast-paced realm of trading, time is a pivotal factor that often dictates success or failure. Low-latency market data is the gold standard for any market participant, but why is it so pivotal?
-
-1. **Relevance of Information**: The more time a strategy takes to respond to market events, the less relevant the information will be once the order reaches the market. This time-lapse can often lead to trading strategies misfiring. A prime example is the perils of "adverse selection". If a strategy executes a trade slowly, it often means it was not the optimal trade since others bypassed it.
-
-2. **Avoidance of Packet Loss**: Even if a strategy isn’t dictated by market events, slow data processing can lead to packet loss, thereby giving rise to flawed market data. Additionally, slow processing often causes exponential queuing, which further delays data access.
-
-3. **Economical Operations**: Efficient market data platforms require fewer resources, translating to lesser operational costs. Imagine the significant financial difference between maintaining five versus twenty high-end servers.
-
-4. **Efficient Distribution**: Market data platforms should be readily accessible to multiple endpoints, such as trading strategies, signal servers, and monitoring tools. Moreover, these platforms must guarantee low-latency while supporting various data routes without compromising on performance.
-
-5. **Instant Capture**: This feature enables strategies to recall hours-worth of market data, thereby allowing them to reconstitute their state upon initiation. Plus, having almost real-time access aids in research and simulations.
-
-In this series, our mission is to design a lightning-speed market data platform that seamlessly integrates these functionalities. Our focus today? A comprehensive guide on constructing a swift Binance feed server in C++.
-
-## **Why Binance?**
-
-Binance emerges as an excellent choice due to its public availability coupled with a user-centric API. The presence of numerous open-source feed handlers, especially the low-latency ones, add to its allure. Importantly, lessons from Binance can be seamlessly transposed to equity, futures, and FX market data feeds.
-
-## **Libwebsockets**
-
-Libwebsockets serves as a lean, pure C library, tailored for crafting modern network protocols with an insignificant footprint. This powerhouse is compatible with OpenSSL and is optimized for single connections, focusing on the latency of individual messages. An icing on the cake? Libwebsockets offers a comprehensive example of receiving Binance market data, offering us a sturdy foundation to build upon.
-
-## **Featuremine Yamal**
-
-Yamal, an open-source library, emerges as the linchpin for transactional low-latency IPC and data capture. The array of features it brings to the table include:
-
 - **Performance**: Astoundingly low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
-- **Atomicity**: Ensures updates to the bus are consistent.
+- **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
 - **Non-blocking**: Ensures message memory is secured without obstructions.
-- **Consistency**: Guaranteed data coherence across processes.
-- **Sequencing**: Data access and storage follow a chronological trajectory.
-- **Resilience**: In the event of crashes, operations remain uninterrupted.
-- **Efficiency**: Zero-copy ensures no duplication during data read/write.
+- **Consistency**: Guarantees data consistency across different processes.
+- **Sequential**: Ensures chronological order for message storage and access.
+- **Resilience**: In the event of application crashes, data is not lost.
+- **Structured Data**: The data is housed in a flat file.
+- **Zero-copy**: Abstains from data copying during read/write.
 - **Availability**: Data pointers remain active until application closure.
 - **Versatility**: Support for file rollover, indexing, and random access.
 - **Simplicity**: Boasts an elementary C API and a Python API.
 
-Given its feature-rich architecture, Yamal is a clear choice for our high-performance market data platform, aligning perfectly with the prerequisites outlined in our introduction.
-
-**Stay Tuned**: In our subsequent posts, we will delve deeper into the intricacies of building this robust platform, ensuring that you stay ahead in the high-stakes game of trading.
-
-------------------------------------------------------------------------------------------------------
-
-# Unlocking Lightning-Speed Market Data | Building a Blazing Fast Binance Feed Server in C++
-
-## **Introduction**
-1. Importance of low-latency market data:
-   - The more time strategy takes to respond to market events, the less relevant the information will be by the time the order gets to the market.
-   - Acting upon information available to multiple participants is competitive.
-   - For example, strategy that is able to make a trade when the trade is expected to make a profit will make money.
-   - The reserse is worse than not making money. Strategy that made a trade while being slow, likely means that it was a bad trade, because no one else wanted it. This is so called "adverse selection".
-   - Even if strategy is not market event driven, slow processing will result in packet loss and thus bad marked data. - Slow processing results in exponential queuing that can also result in significantly delayed data. This is expecially the case in cross-sectional strategies where parallelizing the strategy is not possible.
-   - lastly, high performance market data platform also results in less resources required to deploy it. Difference between running five or twenty very expensive servers is rather dramatic not only to small teams but to large enterprise also.
-2. Easy and availability of distribution is another requirement for market data platforms:
-   - Making market data available to various strategies, signal servers and monitoring tools is crucial.
-   - Both low-latency and available range of destinations is important.
-   - Fast signal server might require low-latency distribution.
-   - The enterprise risk monitoring can utilize kafka-based feed.
-   - It makes IT department's life easier if a wide range of programming languages and tools can access the market data.
-   - It should also be easy to develop new tools and adapters to access or distribute the market data.
-   - various market data routes should not affect each other's performance.
-3. Finally capture is another important aspect of the market data platform.
-   - making last several hours worth of market data available to the strategy to allow strategy to build up its state when starting up.
-   - near real-time processing of market data for evaluation or research purposes.
-   - near real-time market data archiving to make data available for research and simulation.
-3. Blog series goal: Build a lighting-speed market data platform that also satisfies distribution and capture requirements.
-4. Aim for this blog: Guide to building a fast Binance feed server in C++ that provides low-latency market data access to consumers on the local machine.
-
-## **Why Binance?**
-- Binance’s public availability and user-friendly API.
-- wide range of implemented, open source feed handlers, including low-latency ones, at least as far as that can be managed for a websocket/SSL/json feed.
-- Many aspects of low-latency and nearly everything related to distribution and capture is relevant to equity, futures, and FX markets data feeds.
-
-## **Libwebsockets**
-- libwebsockets is a flexible, lightweight pure C library for implementing modern network protocols easily with a tiny footprint, using a nonblocking event loop. It support OpenSSL and has good performance when used for a single connection as we do for here. For our applications we care about latency of each message on a single connection as opposed to a server designed to process multitude of requests from various clients.
-- The library also provides complete example for receiving Binance market data, which we use as a foundation.
-
-## **Featuremine Yamal**
-- Yamal is an open source library for transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems.
-- Performance: 300ns (median latency), 1us (max latency) on Ryzen 5950X.
-- Atomic: A guarantee of atomicity prevents updates to the bus occurring only partially.
-- multi-producer and multi-consumer
-- Non-blocking: Message memory is reserved and committed without blocking.
-- Data consistency across processes.
-- Serialized: Data is contained in a flat file.
-- Sequential: Message access and storage are in a chronological order.
-- Persistent: Upon a crash, peers can continue to operate normally.
-- Zero-copy: data is not copied during writing or reading.
-- Availability: Data pointers stay valid at all times until application shutdown
-- Supports file rollover
-- Supports indexing and random access
-- Simple C API
-- Python API
-These features make Yamal perfect as a foundation for the high-performance market data platform that full requirements discussed in the introduction
-
-------------------------------------------------------------------------------------------------------
+Yamal's features render it the ideal choice for constructing a high-performance market data platform aligning with the prerequisites discussed in the introduction.
 
 ## **Building the Binance Feed Server**
 
