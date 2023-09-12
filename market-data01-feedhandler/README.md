@@ -12,10 +12,10 @@ Why is quick market data crucial in trading? Quick responses to market shifts ar
 Binance is renowned for its public availability and intuitive API. A plethora of implemented, open-source feed handlers exist for Binance, including those optimized for low latency. Most facets of low-latency and nearly all elements pertinent to distribution and capture are applicable to equity, futures, and FX markets data feeds.
 
 ## **Libwebsockets**
-Libwebsockets stands out as a nimble, pure C library tailored for using contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation. If you would like to learn more visit https://github.com/warmcat/libwebsockets.
+[Libwebsockets](https://github.com/warmcat/libwebsockets) stands out as a nimble, pure C library tailored for using contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation.
 
 ## **Featuremine Yamal**
-Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. The features of Yamal that are relevant for this blog are:
+[Yamal](https://github.com/featuremine/yamal), an open-source library, is geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. The features of Yamal that are relevant for this blog are:
 - **Performance**: Astoundingly low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
 - **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
 - **Consistency**: Guarantees data consistency across different processes.
@@ -37,8 +37,8 @@ cmake --build release
 ```
 Now, you will be able to find the binaries for this tutorial in **release/market-data01-feedhandler**.
 
-2. **libwebsocket binance example**
-   - review various parts
+### **libwebsocket Binance example**
+To simplify things we copied the [Binance example from libwebsocket](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to the tutorial repo. 
 
 3. **Stream Market Data**
    - Customize data stream: trades, ticker data, order books.
