@@ -27,11 +27,12 @@ These features will easily allow us to create feed server to distribute market d
 ## **Building the Binance Feed Server**
 
 1. **Setup**
-   - Create a C++ development environment.
-   - Install libwebsockets and Featuremine Yamal.
+   - check out tutorial repo using --recursive
+   - run cmake .. to download dependencies
+   - run cmake -DCMAKE_BUILD_TYPE=Release ..
 
-2. **Websocket Connection**
-   - Connect to Binance’s websocket API.
+2. **libwebsocket binance example**
+   - review various parts
 
 3. **Stream Market Data**
    - Customize data stream: trades, ticker data, order books.
@@ -55,37 +56,8 @@ These features will easily allow us to create feed server to distribute market d
 ### **References & Acknowledgements**
 - Appreciate libwebsockets and Featuremine Yamal creators.
 
----
-Setup:
-Create a C++ development environment.
-Install libwebsockets and Featuremine Yamal.
-Initialize the Websocket Connection:
-Connect to Binance’s websocket API.
-Stream Market Data:
-Configure websocket for specific data: trades, tickers, order books.
-Serialization with Featuremine Yamal:
-Convert market data for serialization.
-Serialize using Featuremine Yamal.
-Inter-process Communication:
-Transmit serialized data using Featuremine Yamal.
-Potential Optimizations
 
-Consider fine-tuning data structures, multithreading, and network settings.
-Conclusion
-
-Emphasize benefits of using C++, libwebsockets, and Featuremine Yamal for real-time data access.
-Feedback Galore
-
-Encourage reader feedback and sharing of experiences.
-References and Acknowledgements
-
-Credit to libwebsockets and Featuremine Yamal creators.
-
-## Indroduction
-
-Welcome to the inaugural blog in our in-depth series focused on building a cutting-edge market data platform. Whether you're a small team, a burgeoning enterprise, or anywhere in between, the challenges of efficiently handling market data are universal. With the dynamic world of cryptocurrencies being the most accessible for many, we've chosen the Binance market as our starting point. But don't let the simplicity fool you &mdash; while the raw speed of our crypto feed handler might seem like overkill now, the methodologies and design principles we delve into will be equally applicable in the realms of equities, futures, and FX. As we take this journey together, we'll be leveraging the power of Featuremine Yamal, a versatile tool that doubles as both an efficient storage format and a high-octane messaging bus. So, whether you're laying the first bricks of your market data platform or retrofitting an existing structure, buckle up! This series promises deep dives, actionable insights, and best of all, blistering speeds!
-
-1. Start with libwebsockets binance example
+------------------------
 1. Copy to binance-feed-handler.cpp and add comman line argument parsing.
 1. Add command line argument for securities file and parse securities file into subscription string.
     ```c++
