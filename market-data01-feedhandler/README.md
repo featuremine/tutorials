@@ -38,7 +38,13 @@ cmake --build release
 Now, you will be able to find the binaries for this tutorial in **release/market-data01-feedhandler**.
 
 ### **libwebsocket Binance example**
-To simplify things we copied the [Binance example from libwebsocket](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to the tutorial repo. 
+To simplify things we copied the [Binance example from libwebsocket](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to the tutorial repo.
+For our purposes here we should take note of how connection server and Binance streams are subscribed to:
+```C
+	i.address = "fstream.binance.com";
+	i.path = "/stream?"
+		 "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
+```
 
 3. **Stream Market Data**
    - Customize data stream: trades, ticker data, order books.
