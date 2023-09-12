@@ -26,7 +26,7 @@ Yamal, an open-source library, is geared towards transactional low-latency IPC a
 These features will easily allow us to create feed server to distribute market data to other process on the same machine at blazing fast speed. To learn more about Yamal visit https://github.com/featuremine/yamal.
 ## **Building the Binance Feed Server**
 
-1. **Setup**
+### **Setup**
 For the purpose of this tutorial, I have created a repo where you can find all of the relevant code. To start out you will need `git`, `CMake` and a C++ compiler toolchain. The project builds on most sufficiently up-to-date Linux and MacOS systems. If you would like to build it on Windows I recommend using either WSL or a docker container.
 Begin by checking out the repo, creating a build directory, configuring the project with cmake and building it.
 ```bash
