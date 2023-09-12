@@ -22,6 +22,7 @@ Yamal, an open-source library, is geared towards transactional low-latency IPC a
 - **Resilience**: In the event of application crashes, data is not lost.
 - **Zero-copy**: Abstains from data copying during read/write.
 - **Simplicity**: Boasts an elementary C API and Python API.
+
 These features will easily allow us to create feed server to distribute market data to other process on the same machine at blazing fast speed. To learn more about Yamal visit https://github.com/featuremine/yamal.
 ## **Building the Binance Feed Server**
 
