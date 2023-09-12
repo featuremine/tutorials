@@ -6,31 +6,23 @@ In the realm of financial markets, microseconds, if not nanoseconds, can spell t
 
 The multitude of seemingly contrudictory requirements placed on trading technology is what ultimatey makes algorithmic trading such a challenging, yet facinating persuit. Our objective with this series of blogs is to architect a market data platform that meets all four of the requirements mentioned above. In this, first installment, of the series we will focus on building a low-latency Binance Feed Server in C++, we will deploy several of them at once for load balancing, then we will evaluate performance of the feed server, and finally we will implement a simple trade plotter using Python API.
 
-## Why low-latency market data is so important in trading?
-- **Relevance**: The more time a strategy takes to respond to market events, the less relevant the information will be by the time the order gets to the market.
-- **Competition**: Acting upon information available to multiple participants is fiercely competitive.
-- **Profitable Decisions**: A strategy that can promptly capitalize on a trade expected to yield profit will earn money.
-- **Adverse Selection**: Conversely, if a strategy is too slow, it's likely making an undesirable trade that no one else sought—this is referred to as "adverse selection".
-- **Data Integrity**: Slow processing can lead to packet loss and consequently, flawed market data. It can also cause exponential queuing, leading to substantially delayed data, particularly for cross-sectional strategies where parallelization isn’t feasible.
-- **Resource Efficiency**: A high-performance market data platform demands fewer resources. The cost difference between running five servers or twenty can be monumental, affecting both small teams and large enterprises.
+Why is quick market data crucial in trading? Quick responses to market shifts are vital. If a trading strategy lags, the data might be outdated by the time the order reaches the market. Trading based on timely information is super competitive. A strategy that acts fast on profitable trades will benefit. On the flip side, a slow strategy might end up with trades no one else wanted, known as "adverse selection". Delays can result in lost data packets, giving an inaccurate market view. This can also cause data backlogs, especially in strategies where market data processing can't be parallelized. A top-notch market data system uses fewer resources. Think of the huge cost difference between operating five servers versus twenty – it impacts both small groups and big businesses.
 
 ## **Why Binance?**
-- **Accessibility**: Binance is renowned for its public availability and intuitive API.
-- **Variety**: A plethora of implemented, open-source feed handlers exist for Binance, including those optimized for low latency.
-- **Market Versatility**: Most facets of low-latency and nearly all elements pertinent to distribution and capture are applicable to equity, futures, and FX markets data feeds.
+Binance is renowned for its public availability and intuitive API. A plethora of implemented, open-source feed handlers exist for Binance, including those optimized for low latency. Most facets of low-latency and nearly all elements pertinent to distribution and capture are applicable to equity, futures, and FX markets data feeds.
 
 ## **Libwebsockets**
-Libwebsockets stands out as a nimble, pure C library tailored for crafting contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation. If you would like to learn more visit https://github.com/warmcat/libwebsockets
+Libwebsockets stands out as a nimble, pure C library tailored for using contemporary network protocols without a hassle. The library has a minuscule footprint and leverages a non-blocking event loop. Especially for our needs, it's apt for handling a single connection, focusing on the latency of each message. Notably, the library offers a comprehensive example for receiving Binance market data, serving as our foundation. If you would like to learn more visit https://github.com/warmcat/libwebsockets.
 
 ## **Featuremine Yamal**
-Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It's the cornerstone for systems necessitating swift and reliable data communication between various processes. The features of yamal that are relevant for this blog are:
+Yamal, an open-source library, is geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. The features of Yamal that are especially relevant for this blog are:
 - **Performance**: Astoundingly low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
 - **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
 - **Consistency**: Guarantees data consistency across different processes.
 - **Resilience**: In the event of application crashes, data is not lost.
 - **Zero-copy**: Abstains from data copying during read/write.
 - **Simplicity**: Boasts an elementary C API and Python API.
-These features will easily allow us to create feed server to distribute market data to other process on the same machine at blazing fast speed.
+These features will easily allow us to create feed server to distribute market data to other process on the same machine at blazing fast speed. To learn more about Yamal visit https://github.com/featuremine/yamal.
 ## **Building the Binance Feed Server**
 
 1. **Setup**
