@@ -4,7 +4,11 @@
 
 In the realm of financial markets, microseconds, if not nanoseconds, can spell the difference between a successful trade and a missed opportunity. There's no denying the importance of **low-latency and reliable** market data. Trading operations, however, is a large, complex, (often globally) **distributed**, graph of computational processes and most of them require market data in one form or another. Enterprises often have a diverse ecosystem of tools and technologies utilized by these processes and **versatility and interoperability** with meriad of technologies is a key requirements. At the same time, trading is ultimately is a competitive experimental science and ability of the market data platform to **capture** market data and quickly make it available for research and simulations is essential for analysing and responding to latest market conditions.
 
-The multitude of seemingly contrudictory requirements placed on trading technology is what ultimatey makes algorithmic trading such a challenging, yet facinating persuit. Our objective with this series of blogs is to architect a market data platform that meets all four of the requirements mentioned above. In this, first installment, of the series we will focus on building a low-latency Binance Feed Server in C++, we will deploy several of them at once for load balancing, then we will evaluate performance of the feed server, and finally we will implement a simple trade plotter using Python API.
+The multitude of seemingly contrudictory requirements placed on trading technology is what ultimatey makes algorithmic trading such a challenging, yet facinating persuit. Our objective with this series of blogs is to architect a market data platform that meets all four of the requirements mentioned above. In this, first installment, of the series we will focus on:
+- low latency
+- load balancing
+- local distribution
+- Python API and easy of use
 
 ## Why low-latency market data is so important in trading?
 - **Relevance**: The more time a strategy takes to respond to market events, the less relevant the information will be by the time the order gets to the market.
@@ -13,6 +17,19 @@ The multitude of seemingly contrudictory requirements placed on trading technolo
 - **Adverse Selection**: Conversely, if a strategy is too slow, it's likely making an undesirable trade that no one else sought—this is referred to as "adverse selection".
 - **Data Integrity**: Slow processing can lead to packet loss and consequently, flawed market data. It can also cause exponential queuing, leading to substantially delayed data, particularly for cross-sectional strategies where parallelization isn’t feasible.
 - **Resource Efficiency**: A high-performance market data platform demands fewer resources. The cost difference between running five servers or twenty can be monumental, affecting both small teams and large enterprises.
+
+### Easy and availability of distribution is another requirement for market data platforms:
+- **Versatility**: Making market data available to diverse strategies, signal servers, and monitoring tools is vital.
+- **Dual Needs**: Both low-latency and a broad spectrum of destinations are crucial.
+- **Requirements**: While a fast signal server might mandate low-latency distribution, an enterprise risk monitor could leverage a kafka-based feed.
+- **Interoperability**: The IT department has it easier when various programming languages and tools can readily access the market data.
+- **Expandability**: It should be straightforward to devise new tools and adapters to access or disseminate the market data.
+- **Performance Independence**: Different market data routes must not impair each other's efficiency.
+
+### Capture is another important aspect of the market data platform:
+- **Data Reservoir**: It's crucial to have several hours of market data available for strategies to initialize their state upon launch.
+- **Research and Analysis**: Near real-time processing of market data is pivotal for evaluation, research, and subsequent data archiving to facilitate further studies and simulations.
+- **Near real-time archive**: Ability to archive market data nearly real-time, allows research teams to analyse startegy performance and to make model adjustments for the following trading day.
 
 ## **Why Binance?**
 - **Accessibility**: Binance is renowned for its public availability and intuitive API.
@@ -27,16 +44,17 @@ Yamal, an open-source library, is geared towards transactional low-latency IPC a
 
 **Features**:
 - **Performance**: Astoundingly low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
-- **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
-- **Non-blocking**: Ensures message memory is secured without obstructions.
-- **Consistency**: Guarantees data consistency across different processes.
+- **Atomicity**: Ensures the entire update to the bus is either complete or not done at all.
 - **Sequential**: Ensures chronological order for message storage and access.
+- **Versatility**: Support for file rollover, indexing, and random access.
 - **Resilience**: In the event of application crashes, data is not lost.
 - **Structured Data**: The data is housed in a flat file.
+- **Simplicity**: Boasts an elementary C and Python API.
+- **Non-blocking**: Ensures message memory is secured without obstructions.
+- **Consistency**: Guarantees data consistency across different processes.
 - **Zero-copy**: Abstains from data copying during read/write.
 - **Availability**: Data pointers remain active until application closure.
-- **Versatility**: Support for file rollover, indexing, and random access.
-- **Simplicity**: Boasts an elementary C API and a Python API.
+- **Discovery**: designed for on-demand data and data discovery.
 
 Yamal's features render it the ideal choice for constructing a high-performance market data platform aligning with the prerequisites discussed in the introduction.
 
