@@ -40,7 +40,7 @@ Now, you will be able to find the binaries for this tutorial in **release/market
 ### **libwebsocket Binance example**
 To simplify things we copied the [Binance example from libwebsocket](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to the tutorial repo.
 For our purposes here we should take note of how connection server and Binance streams are subscribed to:
-```C {highlight=10}
+```C {.line-numbers}
 	i.address = "fstream.binance.com";
 	i.path = "/stream?"
 		 "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
