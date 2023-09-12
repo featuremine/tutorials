@@ -2,7 +2,7 @@
 
 ## **Introduction**
 
-In the realm of financial markets, milliseconds, if not microseconds, can spell the difference between a successful trade and a missed opportunity. There's no denying the significance of rapid and reliable market data.
+In the realm of financial markets, microseconds, if not nanoseconds, can spell the difference between a successful trade and a missed opportunity. There's no denying the importance of **low-latency and reliable** market data. Trading operations, however, is a large, complex, (often globally) **distributed**, graph of computational processes and most of them require market data in one form or another. Enterprises often have a diverse ecosystem of tools and technologies utilized by these processes and **versatility and interoperability** with meriad of technologies is a key requirements. At the same time, trading is ultimately is a competitive experimental science and ability of the market data platform to capture market data and quickly make it available for research and simulations is essential for analysing and responding to latest market conditions.
 
 ### Importance of low-latency market data:
 - **Relevance**: The more time a strategy takes to respond to market events, the less relevant the information will be by the time the order gets to the market.
@@ -23,6 +23,7 @@ In the realm of financial markets, milliseconds, if not microseconds, can spell 
 ### Capture is another important aspect of the market data platform:
 - **Data Reservoir**: It's crucial to have several hours of market data available for strategies to initialize their state upon launch.
 - **Research and Analysis**: Near real-time processing of market data is pivotal for evaluation, research, and subsequent data archiving to facilitate further studies and simulations.
+- **Near real-time archive**: Ability to archive market data nearly real-time, allows research teams to analyse startegy performance and to make model adjustments for the following trading day.
 
 ### Blog series goal:
 Our objective with this series is to architect a lightning-fast market data platform that also meets distribution and capture benchmarks.
