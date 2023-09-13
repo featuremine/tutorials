@@ -28,6 +28,7 @@ These features will easily allow us to create feed server to distribute market d
 
 ### **Setup**
 For the purpose of this tutorial, I have created a repo where you can find all of the relevant code. To start out you will need [git](https://git-scm.com/downloads), [CMake](https://cmake.org/download) and a C++ compiler toolchain. The project builds on most sufficiently up-to-date Linux and MacOS systems. If you would like to build it on Windows I recommend using either WSL or a docker container.
+
 Begin by checking out the repo, creating a build directory, configuring the project with cmake and building it.
 ```bash
 git clone --recurse-submodules https://github.com/featuremine/tutorials
