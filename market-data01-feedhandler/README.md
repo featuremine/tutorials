@@ -54,7 +54,7 @@ On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutoria
 					 "\"depthUpdate\"", &alen);
 ```
 
-3. ### **Adding Yamal**
+### **Adding Yamal**
 First, copy [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that we can add Yamal related changes. I made the feed handler a C++ application, we will need to use standard library.
 
 Then we need to add processing of command line arguments, so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the Yamal [repo](https://github.com/featuremine/yamal).
