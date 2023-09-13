@@ -117,7 +117,7 @@ Notice that you first reserve the data you need then commit that data to Yamal. 
 ```
 1. To check content directly, install yamal and run yamal-tail (need to improve readme on how to build and install yamal)
 
-## **Using the Data for Trade Plotter**
+## **Feeding Data for Trade Plotter**
 ```bash
 MPLBACKEND=GTK4Cairo python ../market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt
 ```
