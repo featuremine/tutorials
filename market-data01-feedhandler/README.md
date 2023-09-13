@@ -46,7 +46,7 @@ For our purposes here we should take note of how to specify the server and Binan
 	i.path = "/stream?"
 		 "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
 ```
-On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutorials/blob/2f4257e82a68a69a24d3e63805610a0f5e113844/market-data01-feedhandler/minimal-ws-client-binance.c#L247) of the example is where the data from Binance is being processed. Binance market data comes in JSON format, however, messages have a strictly prescribed structure. This makes parsing these messages quite easy and in general does not require a full-blown JSON parser. You can refer to [Binance API docs](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams) for more details. LWS is using `lws_json_simple_find` to find the location of JSON key, which we will also use in our application.
+On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutorials/blob/2f4257e82a68a69a24d3e63805610a0f5e113844/market-data01-feedhandler/minimal-ws-client-binance.c#L247) of the example is where the data from Binance is being processed. Binance market data comes in JSON format, however, messages have a strictly prescribed structure. This makes parsing these messages quite easy and in general does not require a full-blown JSON parser. You can refer to [Binance API docs](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams) for more details. LWS is using `lws_json_simple_find` to find the location of JSON key. We will also use this function in our application.
 ```C {.line-numbers}
 	case LWS_CALLBACK_CLIENT_RECEIVE:
 		// ...
@@ -54,8 +54,10 @@ On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutoria
 					 "\"depthUpdate\"", &alen);
 ```
 
-3. **Stream Market Data**
-   - Customize data stream: trades, ticker data, order books.
+3. ### **Adding Yamal**
+First, copy [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that we can add Yamal related changes. I made the feed handler a C++ application, we will need to use standard library.
+
+Then we need to add processing of command line arguments, so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the Yamal [repo](https://github.com/featuremine/yamal).
 
 4. **Serialization**
    - Transform market data for serialization.
