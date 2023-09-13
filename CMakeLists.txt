@@ -28,7 +28,7 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 
 add_subproject(
     NAME yamal
-    VERSION "8.0.1"
+    VERSION "8.0.2"
     GIT_REVISION "improve-cmdline"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp

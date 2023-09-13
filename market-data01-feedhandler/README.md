@@ -33,7 +33,7 @@ Begin by checking out the repo, creating a build directory, configuring the proj
 ```bash
 git clone --recurse-submodules https://github.com/featuremine/tutorials
 cd tutorials
-cmake -B release -DCMAKE_BUILD_TYPE=Release ..
+cmake -B release -DCMAKE_BUILD_TYPE=Release
 cmake --build release
 ```
 Now, you will be able to find the binaries for this tutorial in **release/market-data01-feedhandler**.
@@ -68,7 +68,7 @@ auto last = unique(secs.begin(), secs.end());
 secs.erase(last, secs.end());
 ```
 
-Having done that I proceed to open YTP file for reading and writing and then create an instance of Yamal as follows:
+Having done that I proceed to open YTP file for reading and writing on line [binance-feed-handler.cpp:351](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L351) and then create an instance of Yamal as follows:
 ```c++
 mco.yamal = ytp_yamal_new(fd, &error);
 if (error) {
@@ -76,6 +76,7 @@ if (error) {
     return 1;
 }
 ```
+
 I assign yamal instance pointer to the connection context structure, so that is can be easily accessible from the websocket callback when data is received. Notice that we check the `error` pointer to determine whether the error has occurred. This is a pattern used across `libfmc` and `libytp` libraries. This approach standardizes error handling accross the libraries and helps to avoid common error handling bugs when dealing with C libraries.
 
 Yamal is essentially a number of memory mapped linked lists. This structure affords amazing performance without sacrificing flexibility. First list is used for data, while the second list is used for defining logical partition of data into `streams`. `Stream` is defined as a pair of `peer` and `channel`. Think of `peer` as denoting who publishes the data and `channel` as a global namespace or category of the published data. While Yamal refers to the way data is organized into memory mapped lists, Yamal Transport Protocol or `YTP` refers to the protocol that defines how the data is assigned to streams and how streams are announced.
