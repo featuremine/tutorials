@@ -70,7 +70,7 @@ secs.erase(last, secs.end());
 
 Having done that I proceed to open YTP file for reading and writing on line [binance-feed-handler.cpp:351](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L351) and then create an instance of Yamal as follows:
 ```c++
-mco.yamal = ytp_yamal_new(fd, &error);
+mco.yamal = [ytp_yamal_new](https://github.com/featuremine/yamal/blob/main/docs/Yamal-C-API.md#ytp_yamal_new)(fd, &error);
 if (error) {
     lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
     return 1;
