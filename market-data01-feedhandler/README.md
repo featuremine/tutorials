@@ -113,7 +113,7 @@ ytp_data_commit(mco->yamal, fmc_cur_time_ns(), where->second, dst, &err);
 Notice that you first reserve the data you need then commit that data to Yamal. Data is not available to anyone else until you commit it and the commit is atomic. This is important because other reader will never see partially written data. At this point we perform a few minor adjustements and improvements and we are done.
 
 ## **Validation and Performance**
-The moment of truth, we finally get to run our feed handler. I have created two files with (rather short) lists of securities. First, we run one instance of the feed handler.
+The moment of truth. We finally get to run our feed handler. I have created two files with (rather short) lists of securities. First, we run one instance of the feed handler.
 ```bash
 ./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities1.txt --peer feed --ytp-file mktdata.ytp
 ```
@@ -135,9 +135,15 @@ Finally we can run `yamal-local-perf` to monitor performance of yamal bus. This 
 ./release/dependencies/build/yamal/yamal-local-perf mktdata.ytp
 ```
 ## **Feeding Data for Trade Plotter**
+The last example I would like to discuss in this blog is how to use the market data from yamal. For this purpose I wrote a small Python script that plots a given number of trades together with the corresponding best bid and offer reported at the time of the trade. For convenience we added Python dependencies to **requirements.txt**, you can install them by running
 ```bash
-MPLBACKEND=GTK4Cairo python ../market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt
+pip install -r requirements.txt
 ```
+The script takes the yamal file, security to use for the plot and number of trades to show.
+```bash
+MPLBACKEND=GTK4Cairo python market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
+```
+The script is well documented and should be easy to follow. Please refer to Yamal documentation for additional information on [Yamal Python API](https://github.com/featuremine/yamal/blob/main/docs/YTP-Python-API.md).
 
 ## **Conclusion**
 - Combine C++, libwebsockets, and Featuremine Yamal for real-time market data.

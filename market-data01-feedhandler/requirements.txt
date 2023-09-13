@@ -1,4 +1,3 @@
 numpy
-pandas
 matplotlib
 yamal==8.0.1
