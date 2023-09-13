@@ -113,8 +113,9 @@ ytp_data_commit(mco->yamal, fmc_cur_time_ns(), where->second, dst, &err);
 Notice that you first reserve the data you need then commit that data to Yamal. Data is not available to anyone else until you commit it and the commit is atomic. This is important because other reader will never see partially written data. At this point we perform a few minor adjustements and improvements and we are done.
 
 ## **Validation and Performance**
+The moment of truth, we finally get to run our feed handler. I have created two files with (rather short) lists of securities. First, we run one instance of the feed handler.
 ```
-./market-data01-feedhandler/binance-feed-handler --securities ../market-data01-feedhandler/securities.txt --peer feed --ytp-file mktdata.ytp
+./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities1.txt --peer feed --ytp-file mktdata.ytp
 ```
 1. To check content directly, install yamal and run yamal-tail (need to improve readme on how to build and install yamal)
 

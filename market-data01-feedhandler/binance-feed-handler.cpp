@@ -336,7 +336,7 @@ int main(int argc, const char **argv)
 
 	ifstream secfile{securities};
 	if (!secfile) {
-		lwsl_err("%s: failed to open file %s\n", __func__, securities);
+		lwsl_err("%s: failed to open securities file %s\n", __func__, securities);
 		return 1;
 	}
 
