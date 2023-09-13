@@ -55,10 +55,30 @@ case LWS_CALLBACK_CLIENT_RECEIVE:
 ```
 
 ### **Adding Yamal**
-First, I copied [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that Yamal related changes could be added without interfering with original. I made the feed handler a C++ application, because I wanted to use C++ standard library.
+First, I copied [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that Yamal related changes could be added without interfering with the original. I made the feed handler a C++ application, because I wanted to use C++ standard library.
 
-Then, I added processing of command line arguments (see [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313)), so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). 
+Second, I added processing of command line arguments (see [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313)), so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using `fmc_cmdline_opt_proc` utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). Then, I load securities from the file, making sure to eliminate any duplicates first:
+```c++
+// load securities from the file
+vector<string> secs{istream_iterator<string>(secfile), istream_iterator<string>()};
+// sort securities
+sort(secs.begin(), secs.end());
+// remove duplicate securities
+auto last = unique(secs.begin(), secs.end());
+secs.erase(last, secs.end());
+```
 
+Having done that I proceed to open YTP file for reading and writing and then create an instance of Yamal as follows:
+```c++
+mco.yamal = ytp_yamal_new(fd, &error);
+if (error) {
+    lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
+    return 1;
+}
+```
+I assign yamal instance pointer to the connection context structure, so that is can be easily accessible from the websocket callback, when data is received. Notice that we check the `error` pointer to check if the error has occurred. This is a pattern used across `libfmc` and `libytp` libraries. This approach standardizes error handling accross the libraries and helps to avoid common error handling bugs.
+
+Yamal is essentially a number of memory mapped linked lists. This structure affords amazing performance without sacrificing flexibility. First list is used for data, while the second list is used for defining logical partition of data into `streams`. `Streams` is defined as a pair of `peer` and `channel`. Think of `peer` as denoting who publishes the data and `channel` as a global namespace or category of the published data.
 
 4. **Serialization**
    - Transform market data for serialization.
