@@ -139,10 +139,13 @@ The last example I would like to discuss in this blog is how to use the market d
 ```bash
 pip install -r requirements.txt
 ```
-The script takes the yamal file, security to use for the plot and number of trades to show.
+The script takes the yamal file, security to use for the plot and number of trades to show. Here we are using GTK4Cairo backend for matplotlib, but you can use whichever backend you prefer.
 ```bash
 MPLBACKEND=GTK4Cairo python market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
 ```
+You should see something like this
+![trades](binance-view.png)
+
 The script is well documented and should be easy to follow. Please refer to Yamal documentation for additional information on [Yamal Python API](https://github.com/featuremine/yamal/blob/main/docs/YTP-Python-API.md).
 
 ## **Conclusion**
