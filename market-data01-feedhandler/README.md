@@ -45,7 +45,7 @@ For our purposes here we should take note of how to specify the server and Binan
 	i.path = "/stream?"
 		 "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
 ```
-On line [247](https://github.com/featuremine/tutorials/blob/2f4257e82a68a69a24d3e63805610a0f5e113844/market-data01-feedhandler/minimal-ws-client-binance.c#L247) of the example is where the data from Binance is processed. Binance market data comes in a JSON format, however, messages have a strictly prescribed structure. This makes parsing these messages quite easy and in general does not require a full-blown JSON parser. You can refer to [Binance API docs](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams) for more details. LWS is using `lws_json_simple_find` to find the location of JSON key, which we will also use in our application.
+On line [247](https://github.com/featuremine/tutorials/blob/2f4257e82a68a69a24d3e63805610a0f5e113844/market-data01-feedhandler/minimal-ws-client-binance.c#L247) of the example is where the data from Binance is being processed. Binance market data comes in JSON format, however, messages have a strictly prescribed structure. This makes parsing these messages quite easy and in general does not require a full-blown JSON parser. You can refer to [Binance API docs](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams) for more details. LWS is using `lws_json_simple_find` to find the location of JSON key, which we will also use in our application.
 ```C {.line-numbers}
 	case LWS_CALLBACK_CLIENT_RECEIVE:
 		// ...
