@@ -31,7 +31,7 @@ add_subproject(
     VERSION "8.0.2"
     GIT_REVISION "improve-cmdline"
     GIT_URL "https://github.com/featuremine/yamal.git"
-    TARGETS fmc++ ytp yamal-tail yamal-local-perf
+    TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
 
 add_custom_target(
@@ -39,6 +39,7 @@ add_custom_target(
     DEPENDS
     yamal-tail
     yamal-local-perf
+    yamal-stats
 )
 
 set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

@@ -114,11 +114,26 @@ Notice that you first reserve the data you need then commit that data to Yamal. 
 
 ## **Validation and Performance**
 The moment of truth, we finally get to run our feed handler. I have created two files with (rather short) lists of securities. First, we run one instance of the feed handler.
-```
+```bash
 ./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities1.txt --peer feed --ytp-file mktdata.ytp
 ```
-1. To check content directly, install yamal and run yamal-tail (need to improve readme on how to build and install yamal)
-
+To check content directly we need Yamal tools. For the purpose of this blog, these utilities are build when building tutorial project. To install there utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly.
+Let's first run `yamal-tail` to dump the content of the file to the screen
+```bash
+./release/dependencies/build/yamal/yamal-tail mktdata.ytp
+```
+Now we can run another feed handler with the second set of securities.
+```bash
+./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities2.txt --peer feed --ytp-file mktdata.ytp
+```
+We can run `yamal-stats` to see that the streams corresponding to the second set of securities also appear in yamal.
+```bash
+./release/dependencies/build/yamal/yamal-stats mktdata.ytp
+```
+Finally we can run `yamal-local-perf` to monitor performance of yamal bus. This tool listens to the latest messages and displays a histogram of differences between the time on the message and the time the message is received. In our case, since we message time is immediately before committing the message to yamal, difference corresponds to the time it takes to transmit a message over yamal. 
+```bash
+./release/dependencies/build/yamal/yamal-local-perf mktdata.ytp
+```
 ## **Feeding Data for Trade Plotter**
 ```bash
 MPLBACKEND=GTK4Cairo python ../market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt
