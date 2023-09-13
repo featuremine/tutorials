@@ -313,7 +313,6 @@ int main(int argc, const char **argv)
 	const char *securities = nullptr;
 	const char *peer = nullptr;
 	const char *ytpfile = nullptr;
-
 	fmc_cmdline_opt_t options[] = {
 		/* 0 */ {"--help", false, NULL},
 		/* 1 */ {"--securities", true, &securities},
@@ -321,7 +320,6 @@ int main(int argc, const char **argv)
 		/* 3 */ {"--ytp-file", true, &ytpfile},
 		{NULL}
 	};
-
 	fmc_cmdline_opt_proc(argc, argv, options, &error);
 	if (options[0].set) {
 		printf("binance-feed-handler --ytp-file FILE --peer PEER --securities SECURITIES\n\n"

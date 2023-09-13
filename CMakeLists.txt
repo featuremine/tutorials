@@ -8,12 +8,12 @@
 
 cmake_minimum_required(VERSION 3.15)
 
-file (STRINGS "VERSION" YAMAL_VERSION)
+file (STRINGS "VERSION" TUTORIAL_VERSION)
 
 project(
-    yamal
-    VERSION "${YAMAL_VERSION}"
-    DESCRIPTION "Featuremine YTP Library"
+    tutorials
+    VERSION "${TUTORIAL_VERSION}"
+    DESCRIPTION "Featuremine tutorials"
     HOMEPAGE_URL "https://www.featuremine.com"
 )
 
@@ -29,7 +29,7 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 add_subproject(
     NAME yamal
     VERSION "8.0.1"
-    GIT_REVISION "v8.0.1"
+    GIT_REVISION "improve-cmdline"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp
 )

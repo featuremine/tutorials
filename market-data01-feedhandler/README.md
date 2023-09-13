@@ -62,20 +62,26 @@ Then we need to add processing of command line arguments, so that we can pass a 
 	const char *securities = nullptr;
 	const char *peer = nullptr;
 	const char *ytpfile = nullptr;
-
 	fmc_cmdline_opt_t options[] = {
-		{"--securities", true, &securities},
-		{"--peer", true, &peer},
-		{"--ytp-file", true, &ytpfile},
+		/* 0 */ {"--help", false, NULL},
+		/* 1 */ {"--securities", true, &securities},
+		/* 2 */ {"--peer", true, &peer},
+		/* 3 */ {"--ytp-file", true, &ytpfile},
 		{NULL}
 	};
-
 	fmc_cmdline_opt_proc(argc, argv, options, &error);
+	if (options[0].set) {
+		printf("binance-feed-handler --ytp-file FILE --peer PEER --securities SECURITIES\n\n"
+			"Binance Feed Server.\n\n"
+			"Application will subscribe to quotes and trades streams for the securities provided\n"
+			"in the file SECURITIES and will publish each stream onto a separate channel with the\n"
+			"same name as the stream. It will publish only the data part of the stream.\n");
+		return 0;
+	}
 	if (error) {
 		lwsl_err("%s, could not process args: %s\n", __func__, fmc_error_msg(error));
 		return 1;
 	}
-
 ```
 
 4. **Serialization**
