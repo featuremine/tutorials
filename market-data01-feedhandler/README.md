@@ -42,9 +42,9 @@ Now, you will be able to find the binaries for this tutorial in **release/market
 To simplify things we copied the Binance example from libwebsocket [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to the tutorial repo.
 For our purposes here we should take note of how to specify the server and Binance streams to which we want to subscribe on line [minimal-ws-client-binance.c:130](https://github.com/featuremine/tutorials/blob/ba5e6cda40f924b14019a483688ef52c22b07b2a/market-data01-feedhandler/minimal-ws-client-binance.c#L130):
 ```C
-	i.address = "fstream.binance.com";
-	i.path = "/stream?"
-		 "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
+i.address = "fstream.binance.com";
+i.path = "/stream?"
+        "streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
 ```
 On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutorials/blob/2f4257e82a68a69a24d3e63805610a0f5e113844/market-data01-feedhandler/minimal-ws-client-binance.c#L247) of the example is where the data from Binance is being processed. Binance market data comes in JSON format, however, messages have a strictly prescribed structure. This makes parsing these messages quite easy and in general does not require a full-blown JSON parser. You can refer to [Binance API docs](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams) for more details. LWS is using `lws_json_simple_find` to find the location of JSON key. We will also use this function in our application.
 ```C
