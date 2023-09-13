@@ -48,10 +48,10 @@ For our purposes here we should take note of how to specify the server and Binan
 ```
 On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutorials/blob/2f4257e82a68a69a24d3e63805610a0f5e113844/market-data01-feedhandler/minimal-ws-client-binance.c#L247) of the example is where the data from Binance is being processed. Binance market data comes in JSON format, however, messages have a strictly prescribed structure. This makes parsing these messages quite easy and in general does not require a full-blown JSON parser. You can refer to [Binance API docs](https://binance-docs.github.io/apidocs/spot/en/#websocket-market-streams) for more details. LWS is using `lws_json_simple_find` to find the location of JSON key. We will also use this function in our application.
 ```C
-	case LWS_CALLBACK_CLIENT_RECEIVE:
-		// ...
-		p = lws_json_simple_find((const char *)in, len,
-					 "\"depthUpdate\"", &alen);
+case LWS_CALLBACK_CLIENT_RECEIVE:
+    // ...
+    p = lws_json_simple_find((const char *)in, len,
+                    "\"depthUpdate\"", &alen);
 ```
 
 ### **Adding Yamal**
@@ -59,29 +59,29 @@ First, I copied [minimal-ws-client-binance.c](https://github.com/featuremine/tut
 
 Then as you can see on line [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313), I added processing of command line arguments, so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). 
 ```C
-	const char *securities = nullptr;
-	const char *peer = nullptr;
-	const char *ytpfile = nullptr;
-	fmc_cmdline_opt_t options[] = {
-		/* 0 */ {"--help", false, NULL},
-		/* 1 */ {"--securities", true, &securities},
-		/* 2 */ {"--peer", true, &peer},
-		/* 3 */ {"--ytp-file", true, &ytpfile},
-		{NULL}
-	};
-	fmc_cmdline_opt_proc(argc, argv, options, &error);
-	if (options[0].set) {
-		printf("binance-feed-handler --ytp-file FILE --peer PEER --securities SECURITIES\n\n"
-			"Binance Feed Server.\n\n"
-			"Application will subscribe to quotes and trades streams for the securities provided\n"
-			"in the file SECURITIES and will publish each stream onto a separate channel with the\n"
-			"same name as the stream. It will publish only the data part of the stream.\n");
-		return 0;
-	}
-	if (error) {
-		lwsl_err("%s, could not process args: %s\n", __func__, fmc_error_msg(error));
-		return 1;
-	}
+const char *securities = nullptr;
+const char *peer = nullptr;
+const char *ytpfile = nullptr;
+fmc_cmdline_opt_t options[] = {
+    /* 0 */ {"--help", false, NULL},
+    /* 1 */ {"--securities", true, &securities},
+    /* 2 */ {"--peer", true, &peer},
+    /* 3 */ {"--ytp-file", true, &ytpfile},
+    {NULL}
+};
+fmc_cmdline_opt_proc(argc, argv, options, &error);
+if (options[0].set) {
+    printf("binance-feed-handler --ytp-file FILE --peer PEER --securities SECURITIES\n\n"
+        "Binance Feed Server.\n\n"
+        "Application will subscribe to quotes and trades streams for the securities provided\n"
+        "in the file SECURITIES and will publish each stream onto a separate channel with the\n"
+        "same name as the stream. It will publish only the data part of the stream.\n");
+    return 0;
+}
+if (error) {
+    lwsl_err("%s, could not process args: %s\n", __func__, fmc_error_msg(error));
+    return 1;
+}
 ```
 
 4. **Serialization**
