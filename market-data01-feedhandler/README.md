@@ -57,32 +57,8 @@ case LWS_CALLBACK_CLIENT_RECEIVE:
 ### **Adding Yamal**
 First, I copied [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that Yamal related changes could be added without interfering with original. I made the feed handler a C++ application, because I wanted to use C++ standard library.
 
-Then as you can see on line [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313), I added processing of command line arguments, so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). 
-```C
-const char *securities = nullptr;
-const char *peer = nullptr;
-const char *ytpfile = nullptr;
-fmc_cmdline_opt_t options[] = {
-    /* 0 */ {"--help", false, NULL},
-    /* 1 */ {"--securities", true, &securities},
-    /* 2 */ {"--peer", true, &peer},
-    /* 3 */ {"--ytp-file", true, &ytpfile},
-    {NULL}
-};
-fmc_cmdline_opt_proc(argc, argv, options, &error);
-if (options[0].set) {
-    printf("binance-feed-handler --ytp-file FILE --peer PEER --securities SECURITIES\n\n"
-        "Binance Feed Server.\n\n"
-        "Application will subscribe to quotes and trades streams for the securities provided\n"
-        "in the file SECURITIES and will publish each stream onto a separate channel with the\n"
-        "same name as the stream. It will publish only the data part of the stream.\n");
-    return 0;
-}
-if (error) {
-    lwsl_err("%s, could not process args: %s\n", __func__, fmc_error_msg(error));
-    return 1;
-}
-```
+Then, I added processing of command line arguments (see [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313)), so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). 
+
 
 4. **Serialization**
    - Transform market data for serialization.
