@@ -76,9 +76,32 @@ if (error) {
     return 1;
 }
 ```
-I assign yamal instance pointer to the connection context structure, so that is can be easily accessible from the websocket callback, when data is received. Notice that we check the `error` pointer to check if the error has occurred. This is a pattern used across `libfmc` and `libytp` libraries. This approach standardizes error handling accross the libraries and helps to avoid common error handling bugs.
+I assign yamal instance pointer to the connection context structure, so that is can be easily accessible from the websocket callback when data is received. Notice that we check the `error` pointer to determine whether the error has occurred. This is a pattern used across `libfmc` and `libytp` libraries. This approach standardizes error handling accross the libraries and helps to avoid common error handling bugs when dealing with C libraries.
 
-Yamal is essentially a number of memory mapped linked lists. This structure affords amazing performance without sacrificing flexibility. First list is used for data, while the second list is used for defining logical partition of data into `streams`. `Streams` is defined as a pair of `peer` and `channel`. Think of `peer` as denoting who publishes the data and `channel` as a global namespace or category of the published data.
+Yamal is essentially a number of memory mapped linked lists. This structure affords amazing performance without sacrificing flexibility. First list is used for data, while the second list is used for defining logical partition of data into `streams`. `Stream` is defined as a pair of `peer` and `channel`. Think of `peer` as denoting who publishes the data and `channel` as a global namespace or category of the published data. While Yamal refers to the way data is organized into memory mapped lists, Yamal Transport Protocol or `YTP` refers to the protocol that defines how the data is assigned to streams and how streams are announced.
+
+In our case it makes sense to publish each Binance stream to a separate YTP channel. To define streams we need an instance of streams object, which we create as follows:
+```c++
+auto *streams = ytp_streams_new(mco.yamal, &error);
+```
+Then in a loop, for each security and type of Bianance feed we need (here `bookTicker`, `trade`), we announce a corresponding YTP stream:
+```c++
+    auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
+                                       chstr.size(), chstr.data(),
+                                       encoding.size(), encoding.data(),
+                                       &error);
+```
+For performance reasons I wanted to use string_view instead of using strings as the c++ unordered_map keep to avoid performing a string copy. This feature now exists in C++20, however, I wanted to keep the code compatible with older standards. For this, I performed a look up of the just defined stream to obtain a persistent string_view from libyamal.
+```c++
+    ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
+                            &csz, &channel, &esz, &encoding, &original,
+                            &subscribed, &error);
+    mco.streams.emplace(string_view(channel, csz), stream);
+```
+Finally I added a path variable to the connection context, add the corresponding Binance stream name to the path variable in the loop and change the `i.path` websocket parameter to this built up path:
+```
+	i.path = mco->path.c_str();
+```
 
 4. **Serialization**
    - Transform market data for serialization.
