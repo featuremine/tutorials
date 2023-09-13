@@ -84,23 +84,23 @@ In our case it makes sense to publish each Binance stream to a separate YTP chan
 ```c++
 auto *streams = ytp_streams_new(mco.yamal, &error);
 ```
-Then in a loop, for each security and type of Bianance feed we need (here `bookTicker`, `trade`), we announce a corresponding YTP stream:
+Then in a loop, for each security and type of Bianance feed we need (here `bookTicker` and `trade`), we announce a corresponding YTP stream:
 ```c++
-    auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
-                                       chstr.size(), chstr.data(),
-                                       encoding.size(), encoding.data(),
-                                       &error);
+auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
+                                    chstr.size(), chstr.data(),
+                                    encoding.size(), encoding.data(),
+                                    &error);
 ```
 For performance reasons I wanted to use string_view instead of using strings as the c++ unordered_map keep to avoid performing a string copy. This feature now exists in C++20, however, I wanted to keep the code compatible with older standards. For this, I performed a look up of the just defined stream to obtain a persistent string_view from libyamal.
 ```c++
-    ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
-                            &csz, &channel, &esz, &encoding, &original,
-                            &subscribed, &error);
-    mco.streams.emplace(string_view(channel, csz), stream);
+ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
+                        &csz, &channel, &esz, &encoding, &original,
+                        &subscribed, &error);
+mco.streams.emplace(string_view(channel, csz), stream);
 ```
 Finally I added a path variable to the connection context, add the corresponding Binance stream name to the path variable in the loop and change the `i.path` websocket parameter to this built up path:
 ```
-	i.path = mco->path.c_str();
+i.path = mco->path.c_str();
 ```
 
 4. **Serialization**
