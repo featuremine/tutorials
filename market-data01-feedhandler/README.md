@@ -91,7 +91,7 @@ auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
                                     encoding.size(), encoding.data(),
                                     &error);
 ```
-For performance reasons I wanted to use string_view instead of using strings as the c++ unordered_map keep to avoid performing a string copy. This feature now exists in C++20, however, I wanted to keep the code compatible with older standards. For this, I performed a look up of the just defined stream to obtain a persistent string_view from libyamal.
+For performance reasons I wanted to use string_view instead of using strings as the c++ unordered_map keep to avoid performing a string copy. This feature now exists in C++20, however, I wanted to keep the code compatible with older standards. For this, I performed a look up of the just defined stream to obtain a persistent string_view from libytp.
 ```c++
 ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
                         &csz, &channel, &esz, &encoding, &original,
@@ -99,19 +99,21 @@ ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
 mco.streams.emplace(string_view(channel, csz), stream);
 ```
 Finally I added a path variable to the connection context, add the corresponding Binance stream name to the path variable in the loop and change the `i.path` websocket parameter to this built up path:
-```
+```c++
 i.path = mco->path.c_str();
 ```
+We are almost done. We just need write the data we received from Binance to Yamal. We first isolate the Binance stream name, then the actual update data from the message. Then we look up the corresponding YTP stream and write the data as follows:
+```c++
+auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
+// ...
+memcpy(dst, data.data(), data.size());
+ytp_data_commit(mco->yamal, fmc_cur_time_ns(), where->second, dst, &err);
+```
+Notice that you first reserve the data you need then commit that data to Yamal. Data is not available to anyone else until you commit it and the commit is atomic. This is important because other reader will never see partially written data. At this point we perform a few minor adjustements and improvements and we are done.
 
-4. **Serialization**
-   - Transform market data for serialization.
-   - Use Featuremine Yamal for serialization.
+## **Validation and Performance**
 
-5. **Inter-process Communication (IPC)**
-   - Transmit serialized data between processes.
-
-### **Optimizations**
-- Consider fine-tuning data structures, multithreading, and network settings.
+## **Using the Data for Trade Plotter**
 
 ### **Conclusion**
 - Combine C++, libwebsockets, and Featuremine Yamal for real-time market data.
