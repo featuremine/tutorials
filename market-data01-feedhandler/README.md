@@ -55,9 +55,9 @@ On line [minimal-ws-client-binance.c:247](https://github.com/featuremine/tutoria
 ```
 
 ### **Adding Yamal**
-First, copy [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that we can add Yamal related changes. I made the feed handler a C++ application, we will need to use standard library.
+First, I copied [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp) so that Yamal related changes could be added without interfering with original. I made the feed handler a C++ application, because I wanted to use C++ standard library.
 
-Then we need to add processing of command line arguments, so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). 
+Then as you can see on line [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313), I added processing of command line arguments, so that we can pass a file containing a list of securities and a file to be used by yamal. Here we are using a utility from our Featuremine Common Library `libfmc`, which is also available in the [Yamal repo](https://github.com/featuremine/yamal). 
 ```C
 	const char *securities = nullptr;
 	const char *peer = nullptr;
