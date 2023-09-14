@@ -2,9 +2,9 @@
 
 ## **Introduction**
 
-In the high-stakes world of financial markets, mere microseconds—or even nanoseconds—can determine the success or failure of a trade. It's undisputed: **low-latency and reliable** market data is paramount. The vast expanse of trading operations stretches across a complicated, **distributed** network of computational processes globally, each craving up-to-date market data. Within this web, enterprises employ a plethora of tools and technologies. To maintain coherence, **versatility, and interoperability** across a wide spectrum of technologies becomes crucial. Furthermore, trading at its core is a competitive experimental science. The prowess of a market data platform in swiftly **capturing** and availing data for research and simulations is paramount for adaptive reactions to market flux.
+In the high-stakes world of financial markets, mere microseconds—or even nanoseconds—can determine the success or failure of a trade. It's undisputed: **low-latency and reliable** market data is paramount. The vast expanse of trading operations stretches across a complicated, **distributed** network of computational processes globally, each craving up-to-date market data. Within this web, enterprises employ a plethora of tools and technologies. To maintain coherence, **versatility and interoperability** across a wide spectrum of technologies becomes crucial. Furthermore, trading, at its core, is a competitive experimental science. The prowess of a market data platform in swiftly **capturing** and availing data for research and simulations is paramount for adaptive reactions to market flux.
 
-The intricate balance of demands on trading technology is what makes algorithmic trading such a formidable and captivating endeavor. Our mission through this blog series is to conceptualize a market data platform that addresses these multifaceted requirements. In this inaugural entry, we'll delve deep into the low-latency facet of trading. Herein, we'll construct a rapid Binance Feed Server in C++, deploy multiple servers simultaneously for optimal load distribution, scrutinize the feed server's performance, and culminate with crafting a basic trade plotter via the Python API.
+Our blog series aims to conceptualize a market data platform that addresses the intricate balance of demands on trading technology which makes algorithmic trading a formidable and captivating endeavor. In this inaugural entry, we'll delve deep into the low-latency facet of trading. Herein, we'll construct a rapid Binance Feed Server in C++, deploy multiple servers simultaneously for optimal load distribution, scrutinize the feed server's performance, and culminate with crafting a basic trade plotter via the Python API.
 
 But why is swift market data indispensable in trading? Timely reactions to market swings are crucial. A tardy trading strategy risks outdated data, jeopardizing its efficiency by the time orders penetrate the market. Contemporary trading is fiercely competitive, where immediate action on lucrative trades holds the key. Conversely, sluggish strategies risk "adverse selection"—settling for trades discarded by others. Data lags can lead to packet loss, skewing market perspectives and potentially causing data backlogs—particularly in non-parallelizable strategies. An efficient market data system economizes resources. Imagine the fiscal contrast in operating five servers versus twenty; it resonates with both small and large-scale entities.
 
@@ -18,7 +18,7 @@ Binance stands out for its accessible public interface and user-friendly API. Nu
 
 ## **Featuremine Yamal**
 
-[Yamal](https://github.com/featuremine/yamal) is an open-source library geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. Yamal's key features for our context include:
+[Yamal](https://github.com/featuremine/yamal) is an open-source library geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, emphasizing the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. Yamal's key features for our context include:
 - **Performance**: Astoundingly low latencies - 100ns (median) and 1us (max) on a Ryzen 7950X.
 - **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
 - **Consistency**: Ensures that data remains consistent across various processes.
@@ -32,9 +32,9 @@ Harnessing these features, we can seamlessly develop a feed server to distribute
 
 ### **Getting Started**
 
-To facilitate this tutorial, we've created a repository containing all essential code snippets. Before diving in, ensure you've installed [git](https://git-scm.com/downloads), [CMake](https://cmake.org/download), and a C++ compiler toolchain. This project is compatible with contemporary Linux and MacOS setups. For Windows users, consider using either the Windows Subsystem for Linux (WSL) or a Docker container.
+We've created a repository containing all essential code snippets to facilitate this tutorial. Before diving in, ensure you've installed [git](https://git-scm.com/downloads), [CMake](https://cmake.org/download), and a C++ compiler toolchain. This project is compatible with contemporary Linux and MacOS setups. For Windows users, consider using either the Windows Subsystem for Linux (WSL) or a Docker container.
 
-Kick off by cloning the repository and setting up the build environment:
+Kick-off by cloning the repository and setting up the build environment:
 ```bash
 git clone --recurse-submodules https://github.com/featuremine/tutorials
 cd tutorials
@@ -66,7 +66,7 @@ Initially, we duplicated [minimal-ws-client-binance.c](https://github.com/featur
 
 Following this, we introduced command-line argument processing. Refer to [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313) for clarity. Here, the `fmc_cmdline_opt_proc` utility, sourced from our Featuremine Common Library `libfmc`, comes in handy. This library is also accessible in the [Yamal repository](https://github.com/featuremine/yamal).
 
-After this, we loaded securities from the file, with an additional step to eliminate potential duplicates:
+After this, we loaded securities from the file with an additional step to eliminate potential duplicates:
 ```c++
 // load securities from the file
 vector<string> secs{istream_iterator<string>(secfile), istream_iterator<string>()};
@@ -77,7 +77,7 @@ auto last = unique(secs.begin(), secs.end());
 secs.erase(last, secs.end());
 ```
 
-The subsequent steps involve opening the YTP file for reading and writing on line [binance-feed-handler.cpp:351](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L351), and creating an instance of Yamal object utilizing the [ytp_yamal_new](https://github.com/featuremine/yamal/blob/main/docs/Yamal-C-API.md#ytp_yamal_new) function.
+The subsequent steps involve opening the YTP file for reading and writing online [binance-feed-handler.cpp:351](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L351), and creating an instance of Yamal object utilizing the [ytp_yamal_new](https://github.com/featuremine/yamal/blob/main/docs/Yamal-C-API.md#ytp_yamal_new) function.
 ```c++
 mco.yamal = ytp_yamal_new(fd, &error);
 if (error) {
@@ -89,7 +89,7 @@ This instance is saved within the connection context, ensuring its availability 
 
 Yamal, in essence, is a series of memory-mapped linked lists. This architecture delivers impressive performance while retaining adaptability. The first list is used for data, while the second defines the logical data segmentation into `streams`. The `stream` is effectively a combination of a `peer` and a `channel`. Here, the `peer` indicates the data publisher, and the `channel` represents a global data category. The `YTP` or Yamal Transport Protocol outlines the procedure for data allocation to streams and the announcement of these streams within Yamal.
 
-For our project, each Binance stream is channeled to a distinct YTP channel. Generating a stream announcement necessitates an instance of the streams object, which we create using the [ytp_streams_new](https://github.com/featuremine/yamal/blob/main/docs/Streams-C-API.md#ytp_streams_new) function.
+Each Binance stream is channeled to a distinct YTP channel for our project. Generating a stream announcement necessitates an instance of the streams object, which we create using the [ytp_streams_new](https://github.com/featuremine/yamal/blob/main/docs/Streams-C-API.md#ytp_streams_new) function.
 ```c++
 auto *streams = ytp_streams_new(mco.yamal, &error);
 ```
@@ -100,39 +100,39 @@ auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
                                    encoding.size(), encoding.data(),
                                    &error);
 ```
-Given a stream ID, we can also look up the stream information using [ytp_announcement_lookup](https://github.com/featuremine/yamal/blob/main/docs/Announcement-C-API.md#ytp_announcement_lookup). The memory for stream information, such as channel name, is memory mapped and stored within the Yamal file itself. This is handy, since to avoid unnecessary copy we wanted to use `string_view` instead of using `string` as the key in the C++ `unordered_map` used to look up YTP streams.
+Given a stream ID, we can also look up the stream information using [ytp_announcement_lookup](https://github.com/featuremine/yamal/blob/main/docs/Announcement-C-API.md#ytp_announcement_lookup). The memory for stream information, such as channel name, is memory mapped and stored within the Yamal file itself. This is handy since, to avoid unnecessary copy, we wanted to use `string_view` instead of `string` as the key in the C++ `unordered_map` used to look up YTP streams.
 ```c++
 ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer,
                         &csz, &channel, &esz, &encoding, &original,
                         &subscribed, &error);
 mco.streams.emplace(string_view(channel, csz), stream);
 ```
-Also for every security and required Binance feed we add the corresponding Binance stream name to the path variable `i.path`, which we use to specify the WebSocket connection path:
+Also, for every security and required Binance feed, we add the corresponding Binance stream name to the path variable `i.path`, which we use to specify the WebSocket connection path:
 ```c++
 i.path = mco->path.c_str();
 ```
-We are almost done. We just need to write the data we received from Binance to Yamal. Starting on line [binance-feed-handler.cpp:210](https://github.com/featuremine/tutorials/blob/a53660e5911ec7120f0cc122287bd7e5a0d04b7d/market-data01-feedhandler/binance-feed-handler.cpp#L210) we first isolate the Binance stream name, then the actual update data from the message. Then we look up the corresponding YTP stream and write the data as follows:
+We are almost done. We just need to write the data we received from Binance to Yamal. Starting online [binance-feed-handler.cpp:210](https://github.com/featuremine/tutorials/blob/a53660e5911ec7120f0cc122287bd7e5a0d04b7d/market-data01-feedhandler/binance-feed-handler.cpp#L210) we first isolate the Binance stream name, then the actual update data from the message. Then, we look up the corresponding YTP stream and write the data as follows:
 ```c++
 auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
 // ...
 memcpy(dst, data.data(), data.size());
 ytp_data_commit(mco->yamal, fmc_cur_time_ns(), where->second, dst, &err);
 ```
-Notice that we first reserve the data using [ytp_data_reserve](https://github.com/featuremine/yamal/blob/main/docs/Data-C-API.md#ytp_data_reserve) then commit that data to Yamal with [ytp_data_commit](https://github.com/featuremine/yamal/blob/main/docs/Data-C-API.md#ytp_data_commit). Data is not available for reading until you commit it and the commit is atomic. This is important because other readers will never see partially written data.
+Notice that we first reserve the data using [ytp_data_reserve](https://github.com/featuremine/yamal/blob/main/docs/Data-C-API.md#ytp_data_reserve), then commit that data to Yamal with [ytp_data_commit](https://github.com/featuremine/yamal/blob/main/docs/Data-C-API.md#ytp_data_commit). Data is not available for reading until you commit it and the commit is atomic. This is important because other readers will never see partially written data.
 
-Finally, we made a few minor adjustments and improvements and we are done.
+Finally, we made a few minor adjustments and improvements, and we are done.
 
 ### **Validating and Assessing Performance**
 
-Now, it's time to test our feed handler in action. For this exercise, we've prepared two files, each containing a curated list of securities. To start, run one feed handler instance:
+Now, it's time to test our feed handler in action. We've prepared two files for this exercise, each containing a curated list of securities. To start, run one feed handler instance:
 ```bash
 ./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities1.txt --peer feed --ytp-file mktdata.ytp
 ```
-To check content directly we need Yamal tools. For this blog, these utilities are built together with a tutorial project. To install these utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly. Let's first run `yamal-tail` to dump the content of the file to the screen
+To check content directly, we need Yamal tools. For this blog, these utilities are built together with a tutorial project. To install these utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly. Let's first run `yamal-tail` to dump the content of the file to the screen
 ```bash
 ./release/dependencies/build/yamal/yamal-tail mktdata.ytp
 ```
-Now we can run another feed handler with the second set of securities.
+Now, we can run another feed handler with the second set of securities.
 ```bash
 ./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities2.txt --peer feed --ytp-file mktdata.ytp
 ```
@@ -140,7 +140,7 @@ We can run `yamal-stats` to see that the streams corresponding to the second set
 ```bash
 ./release/dependencies/build/yamal/yamal-stats mktdata.ytp
 ```
-Finally, we can run `yamal-local-perf` to monitor the performance of the yamal bus. This tool listens to the latest messages and displays a histogram of differences between the time on the message and the time the message is received. In our case, since we message time is immediately before committing the message to Yamal, the difference corresponds to the time it takes to transmit a message over Yamal.
+Finally, we can run `yamal-local-perf` to monitor the performance of the yamal bus. This tool listens to the latest messages and displays a histogram of differences between the time on the message and the time the message is received. In our case, since the message time is immediately before committing the message to Yamal, the difference corresponds to the time it takes to transmit a message over Yamal.
 ```bash
 ./release/dependencies/build/yamal/yamal-local-perf mktdata.ytp
 ```
