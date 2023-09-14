@@ -36,3 +36,5 @@ build
 debug
 release
 .vscode
+
+*.ytp
