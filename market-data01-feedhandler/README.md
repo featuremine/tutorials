@@ -2,15 +2,15 @@
 
 ## **Introduction**
 
-In the high-stakes world of financial markets, mere microseconds—or even nanoseconds—can determine the success or failure of a trade. It's undisputed: **low-latency and reliable** market data is paramount. The vast expanse of trading operations stretches across a complicated, **distributed** network of computational processes globally, each craving up-to-date market data. Within this web, enterprises employ a plethora of tools and technologies. To maintain coherence, **versatility and interoperability** across a wide spectrum of technologies becomes crucial. Furthermore, trading at its core is a competitive experimental science. The prowess of a market data platform in swiftly **capturing** and availing data for research and simulations is paramount for adaptive reactions to market flux.
+In the high-stakes world of financial markets, mere microseconds—or even nanoseconds—can determine the success or failure of a trade. It's undisputed: **low-latency and reliable** market data is paramount. The vast expanse of trading operations stretches across a complicated, **distributed** network of computational processes globally, each craving up-to-date market data. Within this web, enterprises employ a plethora of tools and technologies. To maintain coherence, **versatility, and interoperability** across a wide spectrum of technologies becomes crucial. Furthermore, trading at its core is a competitive experimental science. The prowess of a market data platform in swiftly **capturing** and availing data for research and simulations is paramount for adaptive reactions to market flux.
 
-The intricate balance of demands on trading technology is what makes algorithmic trading into such a formidable and captivating endeavor. Our mission through this blog series is to conceptualize a market data platform that addresses these multifaceted requirements. In this inaugural entry, we'll delve deep into the low-latency facet of trading. Herein, we'll construct a rapid Binance Feed Server in C++, deploy multiple servers simultaneously for optimal load distribution, scrutinize the feed server's performance, and culminate with crafting a basic trade plotter via the Python API.
+The intricate balance of demands on trading technology is what makes algorithmic trading such a formidable and captivating endeavor. Our mission through this blog series is to conceptualize a market data platform that addresses these multifaceted requirements. In this inaugural entry, we'll delve deep into the low-latency facet of trading. Herein, we'll construct a rapid Binance Feed Server in C++, deploy multiple servers simultaneously for optimal load distribution, scrutinize the feed server's performance, and culminate with crafting a basic trade plotter via the Python API.
 
 But why is swift market data indispensable in trading? Timely reactions to market swings are crucial. A tardy trading strategy risks outdated data, jeopardizing its efficiency by the time orders penetrate the market. Contemporary trading is fiercely competitive, where immediate action on lucrative trades holds the key. Conversely, sluggish strategies risk "adverse selection"—settling for trades discarded by others. Data lags can lead to packet loss, skewing market perspectives and potentially causing data backlogs—particularly in non-parallelizable strategies. An efficient market data system economizes resources. Imagine the fiscal contrast in operating five servers versus twenty; it resonates with both small and large-scale entities.
 
 ## **Why Binance?**
 
-Binance stands out for its accessible public interface and a user-friendly API. Numerous open-source feed handlers, designed for Binance and optimized for low latency, are at one's disposal. At the same time, the principles of low-latency and elements concerning distribution and capture are largely synonymous across equity, futures, and FX market data feeds.
+Binance stands out for its accessible public interface and user-friendly API. Numerous open-source feed handlers, designed for Binance and optimized for low latency, are at one's disposal. At the same time, the principles of low latency and elements concerning distribution and capture are largely synonymous across equity, futures, and FX market data feeds.
 
 ## **Libwebsockets**
 
@@ -21,7 +21,7 @@ Binance stands out for its accessible public interface and a user-friendly API. 
 [Yamal](https://github.com/featuremine/yamal) is an open-source library geared towards transactional low-latency IPC and data capture. It is used to build systems where data is communicated and captured between different processes very quickly, with an emphasis on ensuring the consistency and reliability of that data. This is especially important in environments where fast, reliable data transmission and storage are essential, such as financial trading platforms or real-time analytics systems. Yamal's key features for our context include:
 - **Performance**: Astoundingly low latencies - 100ns (median) and 1us (max) on a Ryzen 7950X.
 - **Atomicity**: Ensures the entire update to the bus is either done or not done at all.
-- **Consistency**: Guarantees data consistency across different processes.
+- **Consistency**: Ensures that data remains consistent across various processes.
 - **Resilience**: In the event of application crashes, data is not lost.
 - **Zero-copy**: Abstains from data copying during read/write.
 - **Simplicity**: Boasts an elementary C API and Python API.
@@ -47,7 +47,7 @@ Post-build, locate the tutorial binaries under **release/market-data01-feedhandl
 
 To streamline the process, we've imported the Binance sample from libwebsocket into our tutorial repository. The file in focus is [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c).
 
-Take a moment to examine how the server and desired Binance streams are specified on line [minimal-ws-client-binance.c:130](https://github.com/featuremine/tutorials/blob/ba5e6cda40f924b14019a483688ef52c22b07b2a/market-data01-feedhandler/minimal-ws-client-binance.c#L130):
+Take a moment to examine how the server and desired Binance streams are specified on the line [minimal-ws-client-binance.c:130](https://github.com/featuremine/tutorials/blob/ba5e6cda40f924b14019a483688ef52c22b07b2a/market-data01-feedhandler/minimal-ws-client-binance.c#L130):
 ```c
 i.address = "fstream.binance.com";
 i.path = "/stream?streams=btcusdt@depth@0ms/btcusdt@bookTicker/btcusdt@aggTrade";
@@ -62,7 +62,7 @@ case LWS_CALLBACK_CLIENT_RECEIVE:
 
 ### **Integrating Yamal**
 
-Initially, we duplicated [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp). This separation ensures our additions pertaining to Yamal won't interfere with the original code. This feed handler is converted into a C++ application, facilitating the use of the C++ standard library.
+Initially, we duplicated [minimal-ws-client-binance.c](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/minimal-ws-client-binance.c) to [binance-feed-handler.cpp](https://github.com/featuremine/tutorials/blob/main/market-data01-feedhandler/binance-feed-handler.cpp). This separation ensures our additions related to Yamal won't interfere with the original code. This feed handler is converted into a C++ application, facilitating the use of the C++ standard library.
 
 Following this, we introduced command-line argument processing. Refer to [binance-feed-handler.cpp:313](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L313) for clarity. Here, the `fmc_cmdline_opt_proc` utility, sourced from our Featuremine Common Library `libfmc`, comes in handy. This library is also accessible in the [Yamal repository](https://github.com/featuremine/yamal).
 
@@ -77,7 +77,7 @@ auto last = unique(secs.begin(), secs.end());
 secs.erase(last, secs.end());
 ```
 
-The subsequent steps involve opening the YTP file for reading and writing on line [binance-feed-handler.cpp:351](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L351), and initializing an instance of Yamal utilizing the `ytp_yamal_new` function.
+The subsequent steps involve opening the YTP file for reading and writing on line [binance-feed-handler.cpp:351](https://github.com/featuremine/tutorials/blob/ff04f928715f00fbd06ab0271280519029d4ba78/market-data01-feedhandler/binance-feed-handler.cpp#L351), and creating an instance of Yamal object utilizing the [ytp_yamal_new](https://github.com/featuremine/yamal/blob/main/docs/Yamal-C-API.md#ytp_yamal_new) function.
 ```c++
 mco.yamal = ytp_yamal_new(fd, &error);
 if (error) {
@@ -85,9 +85,9 @@ if (error) {
     return 1;
 }
 ```
-The function [ytp_yamal_new](https://github.com/featuremine/yamal/blob/main/docs/Yamal-C-API.md#ytp_yamal_new)initializes a new yamal object instance. This instance is saved within the connection context, ensuring its availability during the websocket callback. It's essential to note that we verify the `error` pointer to ascertain if an error has taken place. Such a methodology is consistently applied in both the `libfmc` and `libytp` libraries. Adopting this approach streamlines error management across these libraries, mitigating typical error-handling pitfalls inherent in C libraries.
+This instance is saved within the connection context, ensuring its availability during the WebSocket callback. It's essential to note that we verify the `error` pointer to ascertain if an error has taken place. Such a methodology is consistently applied in both the `libfmc` and `libytp` libraries. Adopting this approach streamlines error management across these libraries, mitigating typical error-handling pitfalls inherent in C libraries.
 
-Yamal, in essence, is a series of memory-mapped linked lists. This architecture delivers impressive performance while retaining adaptability. First list is used for data, while the second defines the logical data segmentation into `streams`. The `Stream` is effectively a combination of a `peer` and `channel`. Here, `peer` indicates the data publisher, and `channel` represents a global data category. The `YTP` or Yamal Transport Protocol outlines the procedure for data allocation to streams and the announcement of these streams within Yamal.
+Yamal, in essence, is a series of memory-mapped linked lists. This architecture delivers impressive performance while retaining adaptability. The first list is used for data, while the second defines the logical data segmentation into `streams`. The `stream` is effectively a combination of a `peer` and a `channel`. Here, the `peer` indicates the data publisher, and the `channel` represents a global data category. The `YTP` or Yamal Transport Protocol outlines the procedure for data allocation to streams and the announcement of these streams within Yamal.
 
 For our project, each Binance stream is channeled to a distinct YTP channel. Generating a stream announcement necessitates an instance of the streams object, which we create using [ytp_streams_new](https://github.com/featuremine/yamal/blob/main/docs/Streams-C-API.md#ytp_streams_new) function.
 ```c++
