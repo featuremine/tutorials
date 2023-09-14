@@ -151,12 +151,12 @@ Concluding this tutorial, we'll guide you on leveraging the market data from Yam
 
 To set up the Python environment, simply run:
 ```bash
-pip install -r requirements.txt
+pip install -r market-data01-feedhandler/requirements.txt
 ```
 
-Run the script with your preferred matplotlib backend (in this example, we use GTK4Cairo for matplotlib):
+Run the script with your preferred matplotlib backend. In this example, we used `MPLBACKEND=GTK4Cairo` on Linux. On MacOS `MPLBACKEND=macosx` worked well for us.
 ```bash
-MPLBACKEND=GTK4Cairo python market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
+MPLBACKEND=GTK4Cairo python3 market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
 ```
 You should see something like this
 ![trades](binance-view.png)
