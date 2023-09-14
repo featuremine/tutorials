@@ -46,6 +46,7 @@ if __name__ == '__main__':
     parser.add_argument("--points", help="number of trades", type=int, required=True)
     args = parser.parse_args()
 
+    # First create a sequence object, which represents a sequence of messages in yamal
     sequence = ytp.sequence(args.ytp_file)
 
     #Create a peer object using the desired peer name with the help of your sequence object
@@ -76,10 +77,15 @@ if __name__ == '__main__':
         ev = json.loads(data)
         plotter.quote(ev['b'], ev['a'])
 
+    # Then subscribe to message callbacks.
+    # Specify the current time or zero, and the channel you want to subscribe to
+    # Each callback receives the peer, channel, time of the message and the message itself
     peer.channel(0, f"{args.security}@trade").data_callback(lambda peer, chan, tm, data: trade_plotter(plotter, data))
     peer.channel(0, f"{args.security}@bookTicker").data_callback(lambda peer, chan, tm, data: quote_plotter(plotter, data))
 
     while not plotter.done:
+        # Call poll to process the next message.
+        # If no messages have been processed, poll returns False
         sequence.poll()
 
     draw_plot(plotter)
