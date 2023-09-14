@@ -29,7 +29,7 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 add_subproject(
     NAME yamal
     VERSION "8.0.2"
-    GIT_REVISION "dev"
+    GIT_REVISION "8.0.2"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
