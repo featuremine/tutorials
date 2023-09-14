@@ -130,7 +130,7 @@ Now, it's time to test our feed handler in action. We've prepared two files for 
 ```
 To check content directly, we need Yamal tools. For this blog, these utilities are built together with a tutorial project. To install these utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly. Let's first run `yamal-tail` to dump the content of the file to the screen
 ```bash
-./release/dependencies/build/yamal/yamal-tail mktdata.ytp
+./release/dependencies/build/yamal/yamal-tail -f mktdata.ytp
 ```
 Now, we can run another feed handler with the second set of securities.
 ```bash
@@ -142,7 +142,7 @@ We can run `yamal-stats` to see that the streams corresponding to the second set
 ```
 Finally, we can run `yamal-local-perf` to monitor the performance of the yamal bus. This tool listens to the latest messages and displays a histogram of differences between the time on the message and the time the message is received. In our case, since the message time is immediately before committing the message to Yamal, the difference corresponds to the time it takes to transmit a message over Yamal.
 ```bash
-./release/dependencies/build/yamal/yamal-local-perf mktdata.ytp
+./release/dependencies/build/yamal/yamal-local-perf --ytp-file mktdata.ytp
 ```
 
 ### **Data Integration for Trade Visualization**
