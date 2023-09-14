@@ -125,36 +125,49 @@ Finally, we made a few minor adjustements and improvements and we are done.
 ### **Validating and Assessing Performance**
 
 Now, it's time to test our feed handler in action. For this exercise, we've prepared two files, each containing a curated list of securities. To start, run one feed handler instance:
-
 ```bash
 ./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities1.txt --peer feed --ytp-file mktdata.ytp
 ```
-
-For direct content verification, Yamal tools are essential. Within the scope of this tutorial, these utilities are incorporated during the project build. But for general use, you can either fetch from the [releases](https://github.com/featuremine/yamal/releases) or build directly from the source.
-
-The `yamal-tail` tool can be used to display the file contents:
+To check content directly we need Yamal tools. For the purpose of this blog, these utilities are built together with tutorial project. To install there utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly.
+Let's first run `yamal-tail` to dump the content of the file to the screen
 ```bash
 ./release/dependencies/build/yamal/yamal-tail mktdata.ytp
 ```
-Following this, launch another feed handler with a different set of securities. Then, deploy `yamal-stats` to confirm that streams related to this new set of securities are present in Yamal. Finally, employ `yamal-local-perf` to monitor Yamal's performance.
+Now we can run another feed handler with the second set of securities.
+```bash
+./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities2.txt --peer feed --ytp-file mktdata.ytp
+```
+We can run `yamal-stats` to see that the streams corresponding to the second set of securities also appear in yamal.
+```bash
+./release/dependencies/build/yamal/yamal-stats mktdata.ytp
+```
+Finally we can run `yamal-local-perf` to monitor performance of yamal bus. This tool listens to the latest messages and displays a histogram of differences between the time on the message and the time the message is received. In our case, since we message time is immediately before committing the message to yamal, difference corresponds to the time it takes to transmit a message over yamal. 
+```bash
+./release/dependencies/build/yamal/yamal-local-perf mktdata.ytp
+```
 
 ### **Data Integration for Trade Visualization**
 
-Concluding this tutorial, we'll guide you on leveraging the market data from Yamal. we've developed a concise Python script that illustrates a series of trades, complemented by the best bid and offer available during the trade.
+Concluding this tutorial, we'll guide you on leveraging the market data from Yamal. We've added a Python utility that plots a given number of trades together with the corresponding best bid and offer reported at the time of the trade.
 
 To set up the Python environment, simply run:
 ```bash
 pip install -r requirements.txt
 ```
-Run the script with your preferred backend (in this example, we use GTK4Cairo for matplotlib):
 
+Run the script with your preferred matplotlib backend (in this example, we use GTK4Cairo for matplotlib):
 ```bash
 MPLBACKEND=GTK4Cairo python market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
 ```
-The outcome is a graphical
+You should see something like this
+![trades](binance-view.png)
 
- display of trade data, reinforcing the practical utility of the market data collected from Binance.
+The script is well documented and should be easy to follow. Please refer to Yamal documentation for additional information on [Yamal Python API](https://github.com/featuremine/yamal/blob/main/docs/YTP-Python-API.md).
 
 ### **Conclusion**
 
-By following this tutorial, you've built a comprehensive Binance feed server that captures, processes, and visualizes market data. The integration of Yamal into your C++ application equips you with the potential to manage high-frequency data efficiently. Going forward, you can adapt this foundational codebase to cater to a broad spectrum of trading applications and analytics tools. Happy coding!
+By following this tutorial, you've built a blazing fast Binance feed server and utility to visualize the market data. The integration of Yamal into your C++ application equips you with the potential to manage high-frequency data efficiently. Going forward, you can adapt this foundational codebase to cater to a broad spectrum of trading applications and analytics tools. Happy coding!
+
+## **Feedback**
+
+We value the perspectives and insights of our readers. Your experiences and feedback not only enrich the content but also shape our future posts, ensuring they remain relevant and beneficial for all. Whether it's a query, a suggestion, or a personal anecdote related to the topic, we encourage you to share it with us. By fostering an interactive community, we can all grow and learn together. Please don't hesitate to reach out and share your thoughts!

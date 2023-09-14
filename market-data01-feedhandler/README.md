@@ -117,7 +117,7 @@ The moment of truth. We finally get to run our feed handler. I have created two 
 ```bash
 ./release/market-data01-feedhandler/binance-feed-handler --securities market-data01-feedhandler/securities1.txt --peer feed --ytp-file mktdata.ytp
 ```
-To check content directly we need Yamal tools. For the purpose of this blog, these utilities are build when building tutorial project. To install there utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly.
+To check content directly we need Yamal tools. For the purpose of this blog, these utilities are built together with tutorial project. To install there utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly.
 Let's first run `yamal-tail` to dump the content of the file to the screen
 ```bash
 ./release/dependencies/build/yamal/yamal-tail mktdata.ytp
