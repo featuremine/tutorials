@@ -154,10 +154,12 @@ To set up the Python environment, simply run:
 pip install -r market-data01-feedhandler/requirements.txt
 ```
 
-Run the script with your preferred matplotlib backend. In this example, we used `MPLBACKEND=GTK4Cairo` on Linux. On MacOS `MPLBACKEND=macosx` worked well for us.
+Now to plot the data, run:
 ```bash
-MPLBACKEND=GTK4Cairo python3 market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
+python3 market-data01-feedhandler/binance-view.py --ytp-file mktdata.ytp --security btcusdt --points 1000
 ```
+If you require a backend to be explicitly specified, you can do it through the MLPBACKEND environment variable. You may find additional details regarding the availability of the backends at [the matplotlib backends documentation website](https://matplotlib.org/stable/users/explain/backends.html).
+
 You should see something like this
 ![trades](binance-view.png)
 
