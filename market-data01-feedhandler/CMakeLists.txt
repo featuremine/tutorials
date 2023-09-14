@@ -6,14 +6,6 @@
         file, You can obtain one at https://mozilla.org/MPL/2.0/.
 ]===]
 
-add_subproject(
-    NAME websockets
-    VERSION "v4.3.2"
-    GIT_REVISION "v4.3.2"
-    GIT_URL "https://github.com/warmcat/libwebsockets.git"
-    TARGETS websockets
-)
-
 add_executable(
     minimal-ws-client-binance
     "minimal-ws-client-binance.c"

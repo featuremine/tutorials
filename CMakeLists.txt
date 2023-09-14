@@ -8,11 +8,11 @@
 
 cmake_minimum_required(VERSION 3.15)
 
-file (STRINGS "VERSION" TUTORIAL_VERSION)
+file (STRINGS "VERSION" TUTORIALS_VERSION)
 
 project(
     tutorials
-    VERSION "${TUTORIAL_VERSION}"
+    VERSION "${TUTORIALS_VERSION}"
     DESCRIPTION "Featuremine tutorials"
     HOMEPAGE_URL "https://www.featuremine.com"
 )
@@ -32,6 +32,13 @@ add_subproject(
     GIT_REVISION "dev"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
+)
+add_subproject(
+    NAME websockets
+    VERSION "v4.3.2"
+    GIT_REVISION "v4.3.2"
+    GIT_URL "https://github.com/warmcat/libwebsockets.git"
+    TARGETS websockets
 )
 
 add_custom_target(
