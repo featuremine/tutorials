@@ -1,29 +1,32 @@
-# Building a Lightning-Fast Binance Feed Server with C++
+# Harnessing Rapid Market Data: Crafting a High-Speed Binance Feed Server in C++
 
 ## **Introduction**
 
-In the intricate world of financial markets, every microsecond counts. The difference between seizing an opportunity or missing it can be a matter of nanoseconds. There's no contesting the value of **low-latency and dependable** market data. Trading, a vast and often globally **distributed** network of computational processes, necessitates this data. Amidst this expansive trading ecosystem, compatibility and smooth communication with a plethora of technologies is paramount. Moreover, in this competitive domain, a market data platform's capability to swiftly **capture** and present data for research and simulations is crucial for deciphering and adapting to ever-changing market scenarios.
+In the high-stakes world of financial markets, mere microseconds—or even nanoseconds—can determine the success or failure of a trade. It's undisputed: **low-latency and reliable** market data is paramount. The vast expanse of trading operations stretches across a complicated, **distributed** network of computational processes globally, each craving up-to-date market data. Within this web, enterprises employ a plethora of tools and technologies. To maintain coherence, **versatility and interoperability** across a wide spectrum of technologies becomes crucial. Furthermore, trading at its core is a competitive experimental science. The prowess of a market data platform in swiftly **capturing** and availing data for research and simulations is paramount for adaptive reactions to market flux.
 
-The plethora of requirements makes algorithmic trading a complex yet riveting endeavor. Our goal in this blog series is to design a market data platform that ticks all the boxes. In this initial installment, we delve into crafting a low-latency Binance Feed Server using C++, evaluate its performance, deploy multiple servers for load balancing, and finally, showcase a basic trade plotter via a Python API.
+The intricate balance of demands on trading technology is what transforms algorithmic trading into such a formidable and captivating endeavor. Our mission through this blog series is to conceptualize a market data platform that addresses these multifaceted requirements. In this inaugural entry, we'll delve deep into the low-latency facet of trading. Herein, we'll construct a rapid Binance Feed Server in C++, deploy multiple servers simultaneously for optimal load distribution, scrutinize the feed server's performance, and culminate with crafting a basic trade plotter via the Python API.
 
-The significance of real-time market data cannot be overstated. Immediate responses to market changes are imperative. If there's a delay in a strategy's execution, the data might be obsolete by the time the order lands on the market floor. Consequently, a speedy strategy might be the difference between seizing a golden opportunity or settling for an "adverse selection". Besides, lags can lead to data loss, creating a skewed market perspective and potential data congestion. An efficient market data system, aside from being faster, is also cost-effective. Imagine the cost difference between running five servers compared to twenty - it affects everyone, from startups to conglomerates.
+But why is swift market data indispensable in trading? Timely reactions to market swings are crucial. A tardy trading strategy risks outdated data, jeopardizing its efficiency by the time orders penetrate the market. Contemporary trading is fiercely competitive, where immediate action on lucrative trades holds the key. Conversely, sluggish strategies risk "adverse selection"—settling for trades discarded by others. Data lags can lead to packet loss, skewing market perspectives and potentially causing data backlogs—particularly in non-parallelizable strategies. An efficient market data system economizes resources. Imagine the fiscal contrast in operating five servers versus twenty; it resonates with both niche and large-scale entities.
 
 ## **Why Binance?**
-Binance's reputation stems from its easily accessible and user-friendly API. A myriad of open-source feed handlers optimized for low latency have been crafted for Binance. It's worth noting that the principles of low-latency, distribution, and data capture are universally applicable across equity, futures, and FX market data feeds.
+
+Binance stands out for its accessible public interface and a user-friendly API. Numerous open-source feed handlers, designed for Binance and optimized for low latency, are at one's disposal. The principles of low-latency and elements concerning distribution and capture are largely synonymous across equity, futures, and FX market data streams.
 
 ## **Libwebsockets**
-[Libwebsockets](https://github.com/warmcat/libwebsockets) is a lean, pure C library designed to facilitate modern network protocols. This compact library integrates a non-blocking event loop, making it ideal for managing a singular connection with a keen emphasis on each message's latency. Notably, it provides an extensive example for accessing Binance market data, which serves as our stepping stone.
+
+[Libwebsockets](https://github.com/warmcat/libwebsockets) emerges as a sleek, pure C library, masterfully crafted for hassle-free adoption of modern network protocols. Its lean footprint harnesses a non-blocking event loop, making it ideal for managing individual connections with an emphasis on message latency. Significantly, this library showcases a robust example for procuring Binance market data, which serves as our blueprint.
 
 ## **Featuremine Yamal**
-[Yamal](https://github.com/featuremine/yamal) is an open-source library fine-tuned for transactional low-latency IPC and data capture. Primarily used in systems that demand rapid and consistent data exchange between varied processes, it shines in settings like financial trading platforms or real-time analytics. Yamal's features relevant to our discussion include:
-- **Performance**: Remarkably low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
-- **Atomicity**: Guarantees either complete execution or none at all.
-- **Consistency**: Ensures uniform data across diverse processes.
-- **Resilience**: Data preservation even during application failures.
-- **Zero-copy**: Bypasses data duplication during read/write operations.
-- **Simplicity**: Offers a straightforward C and Python API.
 
-Leveraging these features, we can efficiently develop a feed server that transmits market data to other processes on the same machine at unparalleled speeds. To delve deeper into Yamal, visit [here](https://github.com/featuremine/yamal).
+[Yamal](https://github.com/featuremine/yamal) is an open-source marvel tailored for low-latency IPC and data capture. It's the linchpin for systems demanding rapid, consistent, and reliable inter-process communication. This is pivotal in arenas demanding swift and dependable data transition and retention—like financial trading platforms or real-time analytics mechanisms. Yamal's key features for our context include:
+- **Performance**: Impressively low latencies - 300ns (median) and 1us (max) on a Ryzen 5950X.
+- **Atomicity**: Guarantees either a complete or no bus update.
+- **Consistency**: Ensures data uniformity across varying processes.
+- **Resilience**: Retains data integrity despite application crashes.
+- **Zero-copy**: Eliminates data duplication during read/write operations.
+- **Simplicity**: Offers a streamlined C API and Python API.
+
+Harnessing these features, we can seamlessly develop a feed server to distribute market data to other processes within the same system at breakneck speeds. For a more in-depth understanding of Yamal, visit https://github.com/featuremine/yamal.
 
 ## **Constructing the Binance Feed Server**
 
