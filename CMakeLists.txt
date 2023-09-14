@@ -26,6 +26,7 @@ option (BUILD_TOOLS "Enable build of command line tools." ON)
 option (BUILD_WHEEL "Enable build of the python package." ON)
 option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 
+find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
     VERSION "8.0.2"
