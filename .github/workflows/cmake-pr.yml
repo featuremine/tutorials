@@ -1,0 +1,50 @@
+# COPYRIGHT (c) 2019-2023 by Featuremine Corporation.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: CMake PR
+
+on:
+  pull_request:
+
+permissions: write-all
+
+jobs:
+  build-manylinux:
+    runs-on: ubuntu-20.04
+    container:
+      image: public.ecr.aws/p0w8t0l8/ci-hosted-gh-centos7-gcc10.2.0
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Build ${{ github.event.repository.name }} with fm gcc
+      uses: featuremine/actions/package/build@v2
+      with:
+        gh_token: ${{ secrets.GITHUB_TOKEN }}
+        docs: false
+        wheel: false
+        upload: false
+
+  build-macos:
+    runs-on: macos-11
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: brew install pkg-config cmake python
+
+    - name: Build ${{ github.event.repository.name }} with fm gcc
+      uses: featuremine/actions/package/build@v2
+      with:
+        gh_token: ${{ secrets.GITHUB_TOKEN }}
+        docs: false
+        wheel: false
+        upload: false
