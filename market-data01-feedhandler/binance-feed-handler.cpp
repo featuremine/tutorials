@@ -53,6 +53,8 @@ static struct mco {
 
 static struct lws_context *context;
 static int interrupted;
+static const char *address = "stream.binance.com";
+static int port = 443;
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
 /*
@@ -132,8 +134,8 @@ static void connect_client(lws_sorted_usec_list_t *sul) {
   memset(&i, 0, sizeof(i));
 
   i.context = context;
-  i.port = 443;
-  i.address = "stream.binance.com";
+  i.port = port;
+  i.address = address;
   i.path = mco->path.c_str();
   i.host = i.address;
   i.origin = i.address;
@@ -296,6 +298,7 @@ int main(int argc, const char **argv) {
                                  /* 1 */ {"--securities", true, &securities},
                                  /* 2 */ {"--peer", true, &peer},
                                  /* 3 */ {"--ytp-file", true, &ytpfile},
+                                 /* 4 */ {"--us-region", false, NULL},
                                  {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {
@@ -314,6 +317,11 @@ int main(int argc, const char **argv) {
     lwsl_err("%s, could not process args: %s\n", __func__,
              fmc_error_msg(error));
     return 1;
+  }
+
+  if (options[4].set) {
+    address = "stream.binance.us";
+    port = 9443;
   }
 
   ifstream secfile{securities};
