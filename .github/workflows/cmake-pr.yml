@@ -39,7 +39,7 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: brew install pkg-config cmake python
+      run: brew install pkg-config cmake openssl python
 
     - name: Build ${{ github.event.repository.name }} with fm gcc
       uses: featuremine/actions/package/build@v2
