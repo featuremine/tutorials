@@ -1,0 +1,4 @@
+numpy
+matplotlib
+yamal==8.0.1
+featuremine-extractor==7.0.3
