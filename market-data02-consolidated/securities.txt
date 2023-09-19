@@ -1,2 +1,4 @@
 btcusdt
 ethusdt
+busdusdt
+xrpusdt
