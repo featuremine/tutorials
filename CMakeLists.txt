@@ -55,3 +55,4 @@ find_package(FmConfig REQUIRED)
 fm_config()
 
 add_subdirectory(market-data01-feedhandler)
+add_subdirectory(market-data02-consolidated)

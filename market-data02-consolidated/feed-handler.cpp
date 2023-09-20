@@ -363,10 +363,10 @@ int main(int argc, const char **argv) {
   ostringstream ss;
   bool first = true;
   ss << "/stream?streams=";
+  constexpr string_view prefix = "raw/binance/";
   for (auto &&sec : secs) {
     for (auto &&tp : types) {
-      string chstr(sec);
-      chstr.append(tp);
+      string chstr = string(prefix) + sec + tp;
       auto stream = ytp_streams_announce(
           streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
           encoding.size(), encoding.data(), &error);
@@ -383,8 +383,9 @@ int main(int argc, const char **argv) {
       ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
                               &channel, &esz, &encoding, &original, &subscribed,
                               &error);
-      mco.streams.emplace(string_view(channel, csz), stream);
-      ss << (first ? "" : "/") << chstr;
+      auto chview = string_view(channel, csz).substr(prefix.size());
+      mco.streams.emplace(chview, stream);
+      ss << (first ? "" : "/") << chview;
       first = false;
     }
   }
