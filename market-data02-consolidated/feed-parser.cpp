@@ -38,8 +38,13 @@ struct channel_out_t
 
 struct channel_in_t
 {
+  using parser_t = std::function<bool(string_view, string&, uint64_t, fmc_error_t**)>;
   struct channel_out_t *outinfo = nullptr;
-  std::function<bool(string_view, string&)> parser;
+  // Parser gets the original data, string to write data to
+  // sequence number processed and error.
+  // Sets error if could not parse.
+  // Returns true is processed, false if duplicated.
+  parser_t parser;
 };
 
 // If you compiling with C++20 you don't need this
@@ -52,7 +57,7 @@ using channels_out_t = unordered_map<string_view, unique_ptr<channel_out_t>>;
 using channels_in_t = unordered_map<string_view, unique_ptr<channel_in_t>>;
 using streams_out_t = unordered_map<ytp_mmnode_offs, channel_out_t*>;
 using streams_in_t = unordered_map<ytp_mmnode_offs, channel_in_t*>;
-using info_in_getter_t = function(streams_in_t::iterator(std::string_view, fmc_error_t);
+using info_in_getter_t = function<streams_in_t::iterator(std::string_view, fmc_error_t**)>;
 channels_out_t chans_out;
 channels_in_t chans_in;
 // Hash map to keep track of outgoing streams
@@ -61,17 +66,43 @@ streams_in_t s_in;
 string_view prefix_out = "ore/";
 string_view prefix_in = "raw/";
 
+channels_out_t::iterator get_channel_out(string_view sv) {
+  
+}
+
+// This section here is binance parsing code
+bool parse_binance_bookTicker(string_view in, string &out, uint64_t seq, fmc_error_t**error) {
+
+}
+
+bool parse_binance_trade(string_view in, string &out, uint64_t seq, fmc_error_t**error) {
+
+}
+
+
 channels_in_t::iterator get_binance_channel_in(std::string_view sv, fmc_error_t **error) {
   auto pos = sv.find_last_of('@');
   if (pos == sv.npos) {
     fmc_error_set(error, "missing @ in the Binance stream name %s", string(sv).c_str());
     return chans_in.end();
   }
-  return
-  auto feedtype = sv.substr();
+
+  auto feedtype = sv.substr(pos + 1);
+  channel_in_t::parser_t parser;
+  if (feedtype == 'bookTicker') {
+    parser = parse_binance_bookTicker;
+  } else if (feedtype == 'trade') {
+    parser = parse_binance_trade;
+  } else {
+    fmc_error_set(error, "unknown Binance stream type %s", string(feedtype).c_str());
+    return chans_in.end();
+  }
+  auto *outinfo = get_channel_out(sv.substr(0, pos));
+  return chans_in.emplace(sv, {parser, outinfo});
 }
 
-unordered_map<string,  info_in_getter_t> gens_in = {
+// This map contains a context factory for each supported feed
+unordered_map<string,  info_in_getter_t> getters_in = {
   {"binance", get_binance_channel_in}
 };
 
@@ -84,12 +115,12 @@ channels_in_t::iterator get_channel_in(std::string_view sv, fmc_error_t **error)
 
   auto feed = sv.substr(0, sv.find_first_of('/'));
   
-  auto gen = gens_in.find(feed);
-  if (gen == gens_in.end()) {
+  auto getter = getters_in.find(feed);
+  if (getter == getters_in.end()) {
     fmc_error_set(error, "unknown feed %s", string(feed).c_str());
     return chans_in.end()
   }
-  return gen(sv, error);
+  return getter(sv, error);
 }
 
 
