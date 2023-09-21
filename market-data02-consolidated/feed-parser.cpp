@@ -24,20 +24,21 @@
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
 
-static int interrupted = 0;
+using namespace std;
 
+static int interrupted = 0;
 static void sigint_handler(int sig) { interrupted = 1; }
 
 // This is where we store information about channel processed
-struct out_channel_info
+struct channel_out_t
 {
   uint64_t count = 0;
   ytp_mmnode_offs stream;
 };
 
-struct in_channel_info
+struct channel_in_t
 {
-  struct out_channel_info *outinfo = nullptr;
+  struct channel_out_t *outinfo = nullptr;
   std::function<bool(string_view, string&)> parser;
 };
 
@@ -47,14 +48,50 @@ bool starts_with(std::string_view a, string_view b) {
 }
 
 // We use a hash map to store stream info
-unordered_map<string_view, unique_ptr<out_channel_info>> infos_out;
-unordered_map<string_view, unique_ptr<in_channel_info>> infos_in;
+using channels_out_t = unordered_map<string_view, unique_ptr<channel_out_t>>;
+using channels_in_t = unordered_map<string_view, unique_ptr<channel_in_t>>;
+using streams_out_t = unordered_map<ytp_mmnode_offs, channel_out_t*>;
+using streams_in_t = unordered_map<ytp_mmnode_offs, channel_in_t*>;
+using info_in_getter_t = function(streams_in_t::iterator(std::string_view, fmc_error_t);
+channels_out_t chans_out;
+channels_in_t chans_in;
 // Hash map to keep track of outgoing streams
-unordered_map<ytp_mmnode_offs, out_channel_info*> s_out;
-// Hash map to keep track of incoming streams
-unordered_map<ytp_mmnode_offs, in_channel_info*> s_in;
+streams_out_t s_out;
+streams_in_t s_in;
 string_view prefix_out = "ore/";
 string_view prefix_in = "raw/";
+
+channels_in_t::iterator get_binance_channel_in(std::string_view sv, fmc_error_t **error) {
+  auto pos = sv.find_last_of('@');
+  if (pos == sv.npos) {
+    fmc_error_set(error, "missing @ in the Binance stream name %s", string(sv).c_str());
+    return chans_in.end();
+  }
+  return
+  auto feedtype = sv.substr();
+}
+
+unordered_map<string,  info_in_getter_t> gens_in = {
+  {"binance", get_binance_channel_in}
+};
+
+channels_in_t::iterator get_channel_in(std::string_view sv, fmc_error_t **error) {
+  fmc_error_clear(error);
+
+  auto where = chans_in.find(sv);
+  if (where != chans_in.end())
+    return where;
+
+  auto feed = sv.substr(0, sv.find_first_of('/'));
+  
+  auto gen = gens_in.find(feed);
+  if (gen == gens_in.end()) {
+    fmc_error_set(error, "unknown feed %s", string(feed).c_str());
+    return chans_in.end()
+  }
+  return gen(sv, error);
+}
+
 
 int main(int argc, const char **argv) {
   using namespace std;
@@ -157,9 +194,9 @@ int main(int argc, const char **argv) {
         s_out.emplace(stream, nullptr);
         continue;
       }
-      auto *info = new out_channel_info();
+      auto *info = new channel_out_t();
       auto chview = string_view(channel, csz).substr(prefix.size());
-      infos_out[channel_sv.substr(prefix_out.size())].reset(info);
+      chans_out[channel_sv.substr(prefix_out.size())].reset(info);
       where = s_out.emplace(stream, info).first;
     }
     if (!where->second)
@@ -211,12 +248,13 @@ int main(int argc, const char **argv) {
         // we remove the prefix from the input channel name
         string_view channel_sv = channel_sv.substr(prefix_in.size());
 
-        // look up the input channel
-        auto channel_it = infos_out.find()
-        // if we can't find the input channel info, we need to create it
-        // we could have multiple peers writing to the same channel here.
-        if (channel_it == infos_out.end()) {
-          channel_it = create_input_channel_info(channel_sv);
+        // get up the input channel
+        auto channel_it = get_input_channel_info(channel_sv, &error);
+        if (channel_it == chans_out.end()) {
+          cerr << "could not create output channel for stream " << channel_sv
+               << " with error " << fmc_error_msg(error) << endl;
+          s_in.emplace(stream, nullptr);
+          continue;
         }
         where = s_in.emplace(stream, channel_it->second.get()).first;
       }
