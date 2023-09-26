@@ -69,32 +69,31 @@ bool starts_with(std::string_view a, string_view b) {
 
 struct parser_t {
   // This is where we store information about channel processed
-  struct channel_out_t {
+  struct stream_out_t {
     uint64_t count = 0;
     ytp_mmnode_offs stream;
   };
 
   struct channel_in_t {
     parser_t parser;
-    struct channel_out_t *outinfo = nullptr;
+    struct stream_out_t *outinfo = nullptr;
     uint64_t seqno = 0ULL;
   };
 
   void init(fmc_error_t **error);
   void recover(fmc_error_t **error);
-  channels_out_t::iterator get_channel_out(string_view sv);
+  channels_out_t::iterator get_stream_out(string_view sv);
   channels_in_t::iterator get_channel_in(std::string_view sv, fmc_error_t **error);
+  stream_out_t *emplace_stream_out(ytp_mmnode_offs stream);
 
   // We use a hash map to store stream info
-  using channels_out_t = unordered_map<string_view, unique_ptr<channel_out_t>>;
   using channels_in_t = unordered_map<string_view, unique_ptr<channel_in_t>>;
-  using streams_out_t = unordered_map<ytp_mmnode_offs, channel_out_t*>;
+  using streams_out_t = unordered_map<ytp_mmnode_offs, unique_ptr<stream_out_t>>;
   using streams_in_t = unordered_map<ytp_mmnode_offs, channel_in_t*>;
   // This map contains a context factory for each supported feed
   unordered_map<string, resolver_t> resolvers = {
     {"binance", get_binance_channel_in}
   };
-  channels_out_t chans_out;
   channels_in_t chans_in;
   // Hash map to keep track of outgoing streams
   streams_out_t s_out;
@@ -138,41 +137,44 @@ void parser_t::init(fmc_error_t **error) {
   }
 }
 
-channel_out_t *parser_t::get_channel_out(ytp_mmnode_offs stream, fmc_error_t **error)  {
-    auto where = s_out.find(stream);
-    // If we never seen this stream, we need to add it to the map of out streams
-    // and if we care about this particular channel create info for this channel.
-    if (where == s_out.end()) {
-      uint64_t seqno;
-      size_t psz, csz, esz;
-      const char *peer, *channel, *encoding;
-      ytp_mmnode_offs *original, *subscribed;
-      // This functions looks up stream announcement details
-      ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
-                              &channel, &esz, &encoding, &original, &subscribed,
-                              &error);
-      if (error) {
-        fmc_error_add(error, "; ", "could not look up stream");
-        return;
-      }
-      string_view channel_sv{channel, csz};
-      // if this stream is not one of ours or wrong format, skip
-      if (string_view(peer, psz) != pier_sv || !starts_with(channel_sv, prefix_out)) {
-        s_out.emplace(stream, nullptr);
-        continue;
-      }
-      auto *info = new channel_out_t();
-      auto chview = string_view(channel, csz).substr(prefix.size());
-      chans_out[channel_sv.substr(prefix_out.size())].reset(info);
-      where = s_out.emplace(stream, info).first;
-    }
+stream_out_t *parser_t::emplace_stream_out(ytp_mmnode_offs stream)  {
+  return s_out.emplace(stream, make_unique<stream_out_t>()).first.second.get();
 }
 
-channel_out_t *parser_t::get_channel_out(string_view sv, fmc_error_t **error)  {
-    auto *info = new channel_out_t();
-    auto chview = string_view(channel, csz).substr(prefix.size());
-    chans_out[channel_sv.substr(prefix_out.size())].reset(info);
-    where = s_out.emplace(stream, info).first;
+stream_out_t *parser_t::get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error)  {
+  auto where = s_out.find(stream);
+  // If we never seen this stream, we need to add it to the map of out streams
+  // and if we care about this particular channel create info for this channel.
+  if (where != s_out.end())
+    return where->second.get();
+
+  uint64_t seqno;
+  size_t psz, csz, esz;
+  const char *peer, *channel, *encoding;
+  ytp_mmnode_offs *original, *subscribed;
+  // This functions looks up stream announcement details
+  ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
+                          &channel, &esz, &encoding, &original, &subscribed,
+                          &error);
+  if (error) {
+    fmc_error_add(error, "; ", "could not look up stream");
+    return;
+  }
+  // if this stream is not one of ours or wrong format, skip
+  if (string_view(peer, psz) != pier_sv || !starts_with(string_view{channel, csz}, prefix_out)) {
+    return .emplace(stream, nullptr).first.second.get();
+  }
+  return emplace_stream_out(stream);
+}
+
+stream_out_t *parser_t::get_stream_out(string_view sv, fmc_error_t **error)  {
+  string chstr = string(prefix_out) + sv;
+  auto stream = ytp_streams_announce(
+      streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
+      encoding.size(), encoding.data(), &error);
+  if (*error)
+    return nullptr;
+  return emplace_stream_out(stream);
 }
 
 channels_in_t::iterator parser_t::get_channel_in(std::string_view sv, fmc_error_t **error) {
@@ -193,7 +195,7 @@ channels_in_t::iterator parser_t::get_channel_in(std::string_view sv, fmc_error_
   if (*error)
     return;
   
-  auto *outinfo = get_channel_out(outsv, error);
+  auto *outinfo = get_stream_out(outsv, error);
   if (*error)
     return;
 
@@ -220,7 +222,7 @@ void parser_t::recover(fmc_error_t **error) {
       fmc_error_add(error, "; ", "could not read data");
       return;
     }
-    auto *chan = get_channel_out(stream, error);
+    auto *chan = get_stream_out(stream, error);
     if (error) {
       fmc_error_add(error, "; ", "could not find output stream");
       return;
