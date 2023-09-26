@@ -26,183 +26,119 @@
 
 using namespace std;
 
+// Parser gets the original data, string to write data to
+// sequence number processed and error.
+// Sets error if could not parse.
+// Returns true is processed, false if duplicated.
+typedef bool parser_t(string_view, string&, uint64_t*, fmc_error_t**);
+typedef pair<string_view, parser_t> resolver_t(string_view, fmc_error_t**);
+
+// This section here is binance parsing code
+bool parse_binance_bookTicker(string_view in, string &out, uint64_t *seq, fmc_error_t**error) {
+
+}
+
+bool parse_binance_trade(string_view in, string &out, uint64_t *seq, fmc_error_t**error) {
+
+}
+
+pair<string_view, parser_t>  get_binance_channel_in(string_view sv, fmc_error_t **error) {
+  auto pos = sv.find_last_of('@');
+  if (pos == sv.npos) {
+    fmc_error_set(error, "missing @ in the Binance stream name %s", string(sv).c_str());
+    return {string_view(), nullptr};
+  }
+  auto feedtype = sv.substr(pos + 1);
+  auto outsv = sv.substr(0, pos);
+  if (feedtype == 'bookTicker') {
+    return {outsv, parse_binance_bookTicker};
+  } else if (feedtype == 'trade') {
+    return {outsv, parse_binance_trade};
+  }
+  fmc_error_set(error, "unknown Binance stream type %s", string(feedtype).c_str());
+  return {string_view(), nullptr};
+}
+
 static int interrupted = 0;
 static void sigint_handler(int sig) { interrupted = 1; }
-
-// This is where we store information about channel processed
-struct channel_out_t
-{
-  uint64_t count = 0;
-  ytp_mmnode_offs stream;
-};
-
-struct channel_in_t
-{
-  using parser_t = std::function<bool(string_view, string&, uint64_t, fmc_error_t**)>;
-  struct channel_out_t *outinfo = nullptr;
-  // Parser gets the original data, string to write data to
-  // sequence number processed and error.
-  // Sets error if could not parse.
-  // Returns true is processed, false if duplicated.
-  parser_t parser;
-};
 
 // If you compiling with C++20 you don't need this
 bool starts_with(std::string_view a, string_view b) {
   return a.substr(0, b.size()) == b;
 }
 
-// We use a hash map to store stream info
-using channels_out_t = unordered_map<string_view, unique_ptr<channel_out_t>>;
-using channels_in_t = unordered_map<string_view, unique_ptr<channel_in_t>>;
-using streams_out_t = unordered_map<ytp_mmnode_offs, channel_out_t*>;
-using streams_in_t = unordered_map<ytp_mmnode_offs, channel_in_t*>;
-using info_in_getter_t = function<streams_in_t::iterator(std::string_view, fmc_error_t**)>;
-channels_out_t chans_out;
-channels_in_t chans_in;
-// Hash map to keep track of outgoing streams
-streams_out_t s_out;
-streams_in_t s_in;
-string_view prefix_out = "ore/";
-string_view prefix_in = "raw/";
+struct parser_t {
+  // This is where we store information about channel processed
+  struct channel_out_t {
+    uint64_t count = 0;
+    ytp_mmnode_offs stream;
+  };
 
-channels_out_t::iterator get_channel_out(string_view sv) {
-  
-}
+  struct channel_in_t {
+    parser_t parser;
+    struct channel_out_t *outinfo = nullptr;
+    uint64_t seqno = 0ULL;
+  };
 
-// This section here is binance parsing code
-bool parse_binance_bookTicker(string_view in, string &out, uint64_t seq, fmc_error_t**error) {
+  void init(fmc_error_t **error);
+  void recover(fmc_error_t **error);
+  channels_out_t::iterator get_channel_out(string_view sv);
+  channels_in_t::iterator get_channel_in(std::string_view sv, fmc_error_t **error);
 
-}
-
-bool parse_binance_trade(string_view in, string &out, uint64_t seq, fmc_error_t**error) {
-
-}
-
-
-channels_in_t::iterator get_binance_channel_in(std::string_view sv, fmc_error_t **error) {
-  auto pos = sv.find_last_of('@');
-  if (pos == sv.npos) {
-    fmc_error_set(error, "missing @ in the Binance stream name %s", string(sv).c_str());
-    return chans_in.end();
-  }
-
-  auto feedtype = sv.substr(pos + 1);
-  channel_in_t::parser_t parser;
-  if (feedtype == 'bookTicker') {
-    parser = parse_binance_bookTicker;
-  } else if (feedtype == 'trade') {
-    parser = parse_binance_trade;
-  } else {
-    fmc_error_set(error, "unknown Binance stream type %s", string(feedtype).c_str());
-    return chans_in.end();
-  }
-  auto *outinfo = get_channel_out(sv.substr(0, pos));
-  return chans_in.emplace(sv, {parser, outinfo});
-}
-
-// This map contains a context factory for each supported feed
-unordered_map<string,  info_in_getter_t> getters_in = {
-  {"binance", get_binance_channel_in}
-};
-
-channels_in_t::iterator get_channel_in(std::string_view sv, fmc_error_t **error) {
-  fmc_error_clear(error);
-
-  auto where = chans_in.find(sv);
-  if (where != chans_in.end())
-    return where;
-
-  auto feed = sv.substr(0, sv.find_first_of('/'));
-  
-  auto getter = getters_in.find(feed);
-  if (getter == getters_in.end()) {
-    fmc_error_set(error, "unknown feed %s", string(feed).c_str());
-    return chans_in.end()
-  }
-  return getter(sv, error);
-}
-
-
-int main(int argc, const char **argv) {
-  using namespace std;
-
-  fmc_error_t *error = nullptr;
-
-  // set up signal handler
-  signal(SIGINT, sigint_handler);
-
-  // command line option processing
+  // We use a hash map to store stream info
+  using channels_out_t = unordered_map<string_view, unique_ptr<channel_out_t>>;
+  using channels_in_t = unordered_map<string_view, unique_ptr<channel_in_t>>;
+  using streams_out_t = unordered_map<ytp_mmnode_offs, channel_out_t*>;
+  using streams_in_t = unordered_map<ytp_mmnode_offs, channel_in_t*>;
+  // This map contains a context factory for each supported feed
+  unordered_map<string, resolver_t> resolvers = {
+    {"binance", get_binance_channel_in}
+  };
+  channels_out_t chans_out;
+  channels_in_t chans_in;
+  // Hash map to keep track of outgoing streams
+  streams_out_t s_out;
+  streams_in_t s_in;
+  string_view prefix_out = "ore/";
+  string_view prefix_in = "raw/";
   const char *peer = nullptr;
   const char *ytp_in = nullptr;
   const char *ytp_out = nullptr;
-  fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
-                                 /* 1 */ {"--peer", true, &peer},
-                                 /* 1 */ {"--ytp-input", true, &ytp_in},
-                                 /* 2 */ {"--ytp-output", true, &ytp_out},
-                                 {NULL}};
-  fmc_cmdline_opt_proc(argc, argv, options, &error);
-  if (options[0].set) {
-    printf("feed-parse --peer PEER --ytp-input FILE --ytp-output FILE\n\n"
-           "Feed Parser.\n\n"
-           "Application parses data produced by the feed handler.\n");
-    return 0;
-  }
-  if (error) {
-    fprintf(stderr, "could not process args: %s\n", fmc_error_msg(error));
-    return 1;
-  }
+};
 
+void parser_t::init(fmc_error_t **error) {
   int fd_in = fmc_fopen(ytp_in, fmc_fmode::READ, &error);
   if (error) {
-    fprintf(stderr, "could not open input yamal file %s with error %s\n", ytp_in, fmc_error_msg(error));
-    return 1;
+    fmc_error_add(error, "; ", "could not open input yamal file %s", ytp_in);
+    return;
   }
 
   int fd_out = fmc_fopen(ytp_out, fmc_fmode::READWRITE, &error);
   if (error) {
-    fprintf(stderr, "could not open output yamal file %s with error %s\n", ytp_out, fmc_error_msg(error));
-    return 1;
+    fmc_error_add(error, "; ", "could not open output yamal file %s", ytp_out);
+    return;
   }
 
   auto *y_in = ytp_yamal_new(fd_in, &error);
   if (error) {
-    fprintf(stderr, "could not create input yamal with error %s\n", fmc_error_msg(error));
-    return 1;
+    fmc_error_add(error, "; ", "could not create input yamal");
+    return;
   }
 
   auto *y_out = ytp_yamal_new(fd_out, &error);
   if (error) {
-    fprintf(stderr, "could not create output yamal with error %s\n", fmc_error_msg(error));
-    return 1;
+    fmc_error_add(error, "; ", "could not create output yamal");
+    return;
   }
   
   auto *streams = ytp_streams_new(y_out, &error);
   if (error) {
-    fprintf(stderr, "could not create stream with error %s\n", fmc_error_msg(error));
-    return 1;
+    fmc_error_add(error, "; ", "could not create stream");
+    return;
   }
+}
 
-  string_view pier_sv = peer;
-
-  // This is where we do recovery. We count the number of messages we written for each channel.
-  // Then we skip the correct number of messages for each channel from the input to recover
-  auto it_out = ytp_data_begin(y_out, &error);
-  for (; !ytp_yamal_term(it_out) && !interrupted; it_out = ytp_yamal_next(ytp_in, it_out, &error);) {
-    if (error) {
-      fprintf(stderr, "could not obtain iterator with error %s\n", fmc_error_msg(error));
-      return 1; 
-    }
-    uint64_t seqno;
-    int64_t ts;
-    ytp_mmnode_offs stream;
-    size_t sz;
-    const char *data;
-    ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, &error);
-    if (error) {
-      fprintf(stderr, "could not read data with error %s\n", fmc_error_msg(error));
-      return 1;
-    }
+channel_out_t *parser_t::get_channel_out(ytp_mmnode_offs stream, fmc_error_t **error)  {
     auto where = s_out.find(stream);
     // If we never seen this stream, we need to add it to the map of out streams
     // and if we care about this particular channel create info for this channel.
@@ -216,8 +152,8 @@ int main(int argc, const char **argv) {
                               &channel, &esz, &encoding, &original, &subscribed,
                               &error);
       if (error) {
-        fprintf(stderr, "could not look up stream with error %s\n", fmc_error_msg(error));
-        return 1;
+        fmc_error_add(error, "; ", "could not look up stream");
+        return;
       }
       string_view channel_sv{channel, csz};
       // if this stream is not one of ours or wrong format, skip
@@ -230,11 +166,72 @@ int main(int argc, const char **argv) {
       chans_out[channel_sv.substr(prefix_out.size())].reset(info);
       where = s_out.emplace(stream, info).first;
     }
-    if (!where->second)
-      continue;
-    ++where->second->count;
-  }
+}
 
+channel_out_t *parser_t::get_channel_out(string_view sv, fmc_error_t **error)  {
+    auto *info = new channel_out_t();
+    auto chview = string_view(channel, csz).substr(prefix.size());
+    chans_out[channel_sv.substr(prefix_out.size())].reset(info);
+    where = s_out.emplace(stream, info).first;
+}
+
+channels_in_t::iterator parser_t::get_channel_in(std::string_view sv, fmc_error_t **error) {
+  fmc_error_clear(error);
+
+  auto where = chans_in.find(sv);
+  if (where != chans_in.end())
+    return where;
+
+  auto feed = sv.substr(0, sv.find_first_of('/'));
+  
+  auto resolver = resolvers.find(feed);
+  if (resolver == resolvers.end()) {
+    fmc_error_set(error, "unknown feed %s", string(feed).c_str());
+    return chans_in.end()
+  }
+  auto [outsv, parser] = resolver(sv, error);
+  if (*error)
+    return;
+  
+  auto *outinfo = get_channel_out(outsv, error);
+  if (*error)
+    return;
+
+  return chans_in.emplace(sv, channel_in_t{.parser = parser; .outinfo = outinfo}).first;
+}
+
+void parser_t::recover(fmc_error_t **error) {
+  // This is where we do recovery. We count the number of messages we written for each channel.
+  // Then we skip the correct number of messages for each channel from the input to recover
+  string_view pier_sv = peer;
+  auto it_out = ytp_data_begin(y_out, error);
+  for (; !ytp_yamal_term(it_out) && !interrupted; it_out = ytp_yamal_next(ytp_in, it_out, error);) {
+    if (*error) {
+      fmc_error_add(error, "; ", "could not obtain iterator");
+      return; 
+    }
+    uint64_t seqno;
+    int64_t ts;
+    ytp_mmnode_offs stream;
+    size_t sz;
+    const char *data;
+    ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
+    if (error) {
+      fmc_error_add(error, "; ", "could not read data");
+      return;
+    }
+    auto *chan = get_channel_out(stream, error);
+    if (error) {
+      fmc_error_add(error, "; ", "could not find output stream");
+      return;
+    }
+    if (!chan)
+      continue;
+    ++chan->count;
+  }
+}
+
+void parser_t::run(fmc_error_t **error) {
   auto it_in = ytp_data_begin(y_in, &error);
   while (!interrupted) {
     for (; !ytp_yamal_term(it_in); it_in = ytp_yamal_next(ytp_in, it_in, &error);) {
@@ -300,6 +297,53 @@ int main(int argc, const char **argv) {
       }
       // parse the actual data and write it to the output stream
     }
+  }
+}
+
+int main(int argc, const char **argv) {
+  using namespace std;
+
+  fmc_error_t *error = nullptr;
+
+  // set up signal handler
+  signal(SIGINT, sigint_handler);
+
+  parser_t parser;
+
+  // command line option processing
+  fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
+                                 /* 1 */ {"--peer", true, &parser.peer},
+                                 /* 1 */ {"--ytp-input", true, &parser.ytp_in},
+                                 /* 2 */ {"--ytp-output", true, &parser.ytp_out},
+                                 {NULL}};
+  fmc_cmdline_opt_proc(argc, argv, options, &error);
+  if (options[0].set) {
+    printf("feed-parse --peer PEER --ytp-input FILE --ytp-output FILE\n\n"
+           "Feed Parser.\n\n"
+           "Application parses data produced by the feed handler.\n");
+    return 0;
+  }
+  if (error) {
+    fprintf(stderr, "could not process args: %s\n", fmc_error_msg(error));
+    return 1;
+  }
+
+  parser.init(&error);
+  if (error) {
+    fprintf(stderr, "could not initialize with error: %s\n", fmc_error_msg(error));
+    return 1;
+  }
+
+  parser.recover(&error);
+  if (error) {
+    fprintf(stderr, "could not recover with error: %s\n", fmc_error_msg(error));
+    return 1;
+  }
+
+  parser.run(&error);
+  if (error) {
+    fprintf(stderr, "run-time error: %s\n", fmc_error_msg(error));
+    return 1;
   }
 
   return 0;
