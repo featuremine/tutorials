@@ -97,8 +97,8 @@ static const lws_retry_bo_t retry = {
     .retry_ms_table_count = LWS_ARRAY_SIZE(backoff_ms),
     .conceal_count = LWS_ARRAY_SIZE(backoff_ms),
 
-    .secs_since_valid_ping = 400,   /* force PINGs after secs idle */
-    .secs_since_valid_hangup = 400, /* hangup after secs idle */
+    .secs_since_valid_ping = 0,   /* force PINGs after secs idle */
+    .secs_since_valid_hangup = 0, /* hangup after secs idle */
 
     .jitter_percent = 0,
 };
@@ -389,7 +389,6 @@ int main(int argc, const char **argv) {
       first = false;
     }
   }
-  cout << ss.str() << endl;
   mco.path = ss.str();
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)

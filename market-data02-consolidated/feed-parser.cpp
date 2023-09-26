@@ -30,16 +30,20 @@ using namespace std;
 // sequence number processed and error.
 // Sets error if could not parse.
 // Returns true is processed, false if duplicated.
-typedef bool parser_t(string_view, string&, uint64_t*, fmc_error_t**);
-typedef pair<string_view, parser_t> resolver_t(string_view, fmc_error_t**);
+typedef bool (*parser_t)(string_view, string&, uint64_t*, fmc_error_t**);
+typedef pair<string_view, parser_t> (*resolver_t)(string_view, fmc_error_t**);
 
 // This section here is binance parsing code
 bool parse_binance_bookTicker(string_view in, string &out, uint64_t *seq, fmc_error_t**error) {
-
+  ++(*seq);
+  out.append(in.data(), in.size());
+  return true;
 }
 
 bool parse_binance_trade(string_view in, string &out, uint64_t *seq, fmc_error_t**error) {
-
+  ++(*seq);
+  out.append(in.data(), in.size());
+  return true;
 }
 
 pair<string_view, parser_t>  get_binance_channel_in(string_view sv, fmc_error_t **error) {
@@ -50,9 +54,9 @@ pair<string_view, parser_t>  get_binance_channel_in(string_view sv, fmc_error_t 
   }
   auto feedtype = sv.substr(pos + 1);
   auto outsv = sv.substr(0, pos);
-  if (feedtype == 'bookTicker') {
+  if (feedtype == "bookTicker") {
     return {outsv, parse_binance_bookTicker};
-  } else if (feedtype == 'trade') {
+  } else if (feedtype == "trade") {
     return {outsv, parse_binance_trade};
   }
   fmc_error_set(error, "unknown Binance stream type %s", string(feedtype).c_str());
@@ -67,7 +71,7 @@ bool starts_with(std::string_view a, string_view b) {
   return a.substr(0, b.size()) == b;
 }
 
-struct parser_t {
+struct runner_t {
   // This is where we store information about channel processed
   struct stream_out_t {
     ytp_mmnode_offs stream = 0ULL;
@@ -80,13 +84,14 @@ struct parser_t {
     uint64_t seqno = 0ULL;
   };
 
+  ~runner_t();
   void init(fmc_error_t **error);
   void recover(fmc_error_t **error);
   void run(fmc_error_t **error);
 
   stream_out_t *get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error);
   stream_out_t *get_stream_out(string_view sv, fmc_error_t **error);
-  stream_in_t *get_channel_in(ytp_mmnode_offs stream, fmc_error_t **error);
+  stream_in_t *get_stream_in(ytp_mmnode_offs stream, fmc_error_t **error);
   stream_out_t *emplace_stream_out(ytp_mmnode_offs stream);
 
   // We use a hash map to store stream info
@@ -101,52 +106,67 @@ struct parser_t {
   streams_in_t s_in;
   string_view prefix_out = "ore/";
   string_view prefix_in = "raw/";
+  string_view encoding = "";
   const char *peer = nullptr;
-  const char *ytp_in = nullptr;
-  const char *ytp_out = nullptr;
+  const char *ytp_file_in = nullptr;
+  const char *ytp_file_out = nullptr;
+  fmc_fd fd_in = -1;
+  fmc_fd fd_out = -1;
+  ytp_yamal_t *ytp_in = nullptr;
+  ytp_yamal_t *ytp_out = nullptr;
+  ytp_streams_t *streams = nullptr;
 };
 
-void parser_t::init(fmc_error_t **error) {
-  int fd_in = fmc_fopen(ytp_in, fmc_fmode::READ, &error);
-  if (error) {
-    fmc_error_add(error, "; ", "could not open input yamal file %s", ytp_in);
+runner_t::~runner_t() {
+  fmc_error_t *error = nullptr;
+  ytp_streams_del(streams, &error);
+  ytp_yamal_del(ytp_in, &error);
+  ytp_yamal_del(ytp_out, &error);
+  fmc_fclose(fd_in, &error);
+  fmc_fclose(fd_out, &error);
+}
+
+void runner_t::init(fmc_error_t **error) {
+  fd_in = fmc_fopen(ytp_file_in, fmc_fmode::READ, error);
+  if (*error) {
+    fmc_error_add(error, "; ", "could not open input yamal file %s", ytp_file_in);
     return;
   }
 
-  int fd_out = fmc_fopen(ytp_out, fmc_fmode::READWRITE, &error);
-  if (error) {
-    fmc_error_add(error, "; ", "could not open output yamal file %s", ytp_out);
+  fd_out = fmc_fopen(ytp_file_out, fmc_fmode::READWRITE, error);
+  if (*error) {
+    fmc_error_add(error, "; ", "could not open output yamal file %s", ytp_file_out);
     return;
   }
 
-  auto *y_in = ytp_yamal_new(fd_in, &error);
-  if (error) {
+  ytp_in = ytp_yamal_new(fd_in, error);
+  if (*error) {
     fmc_error_add(error, "; ", "could not create input yamal");
     return;
   }
 
-  auto *y_out = ytp_yamal_new(fd_out, &error);
-  if (error) {
+  ytp_out = ytp_yamal_new(fd_out, error);
+  if (*error) {
     fmc_error_add(error, "; ", "could not create output yamal");
     return;
   }
   
-  auto *streams = ytp_streams_new(y_out, &error);
-  if (error) {
+  streams = ytp_streams_new(ytp_out, error);
+  if (*error) {
     fmc_error_add(error, "; ", "could not create stream");
     return;
   }
 }
 
-void parser_t::recover(fmc_error_t **error) {
+void runner_t::recover(fmc_error_t **error) {
   // This is where we do recovery. We count the number of messages we written for each channel.
   // Then we skip the correct number of messages for each channel from the input to recover
-  auto it_out = ytp_data_begin(y_out, error);
+  auto it_out = ytp_data_begin(ytp_out, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
     return; 
   }
-  for (; !ytp_yamal_term(it_out) && !interrupted; it_out = ytp_yamal_next(ytp_in, it_out, error);) {
+  for (; !ytp_yamal_term(it_out) && !interrupted; it_out = ytp_yamal_next(ytp_in, it_out, error)) {
     if (*error) {
       fmc_error_add(error, "; ", "could not obtain iterator");
       return; 
@@ -156,7 +176,7 @@ void parser_t::recover(fmc_error_t **error) {
     ytp_mmnode_offs stream;
     size_t sz;
     const char *data;
-    ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
+    ytp_data_read(ytp_in, it_out, &seqno, &ts, &stream, &sz, &data, error);
     if (error) {
       fmc_error_add(error, "; ", "could not read data");
       return;
@@ -172,15 +192,15 @@ void parser_t::recover(fmc_error_t **error) {
   }
 }
 
-void parser_t::run(fmc_error_t **error) {
+void runner_t::run(fmc_error_t **error) {
   string buf;
-  auto it_in = ytp_data_begin(y_in, &error);
+  auto it_in = ytp_data_begin(ytp_in, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
     return; 
   }
   while (!interrupted) {
-    for (; !ytp_yamal_term(it_in); it_in = ytp_yamal_next(ytp_in, it_in, &error);) {
+    for (; !ytp_yamal_term(it_in); it_in = ytp_yamal_next(ytp_in, it_in, error)) {
       if (*error) {
         fmc_error_add(error, "; ", "could not obtain iterator");
         return; 
@@ -190,39 +210,39 @@ void parser_t::run(fmc_error_t **error) {
       ytp_mmnode_offs stream;
       size_t sz;
       const char *data;
-      ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, &error);
+      ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
       if (*error) {
         fmc_error_add(error, "; ", "could not obtain iterator");
         return; 
       }
-      auto *info = get_stream_info(stream, error);
-      if (error)
+      auto *info = get_stream_in(stream, error);
+      if (*error)
         return;
       // if this channel not interesting, skip it
-      if (!info)
+      if (!info->parser)
         continue;
-      buf.reset();
-      uint64_t seq = info->seq;
-      bool res = info->parser(string_view(data, sz), buf, &seq, error);
+      buf.resize(0);
+      seqno = info->seqno;
+      bool res = info->parser(string_view(data, sz), buf, &seqno, error);
       if (*error)
         return;
       // duplicate
       if (!res)
         continue;
-      info->seq = seq;
+      info->seqno = seqno;
       // otherwise check if we still recovering
       if (info->outinfo->count) {
         --info->outinfo->count;
         continue;
       }
       auto dst = ytp_data_reserve(ytp_out, buf.size(), error);
-      if (error) {
+      if (*error) {
         fmc_error_add(error, "; ", "could not reserve message");
         return; 
       }
       memcpy(dst, buf.data(), buf.size());
       ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst, error);
-      if (error) {
+      if (*error) {
         fmc_error_add(error, "; ", "could not commit message");
         return; 
       }
@@ -230,11 +250,11 @@ void parser_t::run(fmc_error_t **error) {
   }
 }
 
-stream_out_t *parser_t::emplace_stream_out(ytp_mmnode_offs stream)  {
-  return s_out.emplace(stream, {stream, 0ULL}).first.second.get();
+runner_t::stream_out_t *runner_t::emplace_stream_out(ytp_mmnode_offs stream)  {
+  return s_out.emplace(stream, make_unique<stream_out_t>(stream_out_t{stream, 0ULL})).first->second.get();
 }
 
-stream_out_t *parser_t::get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error)  {
+runner_t::stream_out_t *runner_t::get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error)  {
   auto where = s_out.find(stream);
   // If we never seen this stream, we need to add it to the map of out streams
   // and if we care about this particular channel create info for this channel.
@@ -243,34 +263,39 @@ stream_out_t *parser_t::get_stream_out(ytp_mmnode_offs stream, fmc_error_t **err
 
   uint64_t seqno;
   size_t psz, csz, esz;
-  const char *peer, *channel, *encoding;
+  const char *origpeer, *channel, *encoding;
   ytp_mmnode_offs *original, *subscribed;
   // This functions looks up stream announcement details
-  ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
+  ytp_announcement_lookup(ytp_out, stream, &seqno, &psz, &origpeer, &csz,
                           &channel, &esz, &encoding, &original, &subscribed,
-                          &error);
-  if (error) {
+                          error);
+  if (*error) {
     fmc_error_add(error, "; ", "could not look up stream");
-    return;
+    return nullptr;
   }
   // if this stream is not one of ours or wrong format, skip
-  if (string_view(peer, psz) != pier_sv || !starts_with(string_view{channel, csz}, prefix_out)) {
-    return .emplace(stream, nullptr).first.second.get();
+  if (string_view(origpeer, psz) != peer || !starts_with(string_view{channel, csz}, prefix_out)) {
+    return s_out.emplace(stream, nullptr).first->second.get();
   }
   return emplace_stream_out(stream);
 }
 
-stream_out_t *parser_t::get_stream_out(string_view sv, fmc_error_t **error)  {
-  string chstr = string(prefix_out) + sv;
+runner_t::stream_out_t *runner_t::get_stream_out(string_view sv, fmc_error_t **error)  {
+  auto vpeer = string_view(peer);
+  string chstr;
+  chstr.append(prefix_out);
+  chstr.append(sv);
   auto stream = ytp_streams_announce(
       streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
       encoding.size(), encoding.data(), error);
-  if (*error)
+  if (*error) {
+    fmc_error_add(error, "; ", "could not announce stream");
     return nullptr;
+  }
   return emplace_stream_out(stream);
 }
 
-stream_in_t *parser_t::get_channel_in(ytp_mmnode_offs stream, fmc_error_t **error) {
+runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream, fmc_error_t **error) {
   fmc_error_clear(error);
 
   // Look up the stream in the input stream map
@@ -283,12 +308,12 @@ stream_in_t *parser_t::get_channel_in(ytp_mmnode_offs stream, fmc_error_t **erro
   // correct prefix. If so, add this to the channel map
   uint64_t seqno;
   size_t psz, csz, esz;
-  const char *peer, *channel, *encoding;
+  const char *origpeer, *channel, *encoding;
   ytp_mmnode_offs *original, *subscribed;
   // This functions looks up stream announcement details
-  ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
+  ytp_announcement_lookup(ytp_in, stream, &seqno, &psz, &origpeer, &csz,
                           &channel, &esz, &encoding, &original, &subscribed,
-                          &error);
+                          error);
   if (*error) {
     fmc_error_add(error, "; ", "could not look up stream announcement");
     return nullptr;
@@ -296,27 +321,26 @@ stream_in_t *parser_t::get_channel_in(ytp_mmnode_offs stream, fmc_error_t **erro
 
   string_view sv{channel, csz};
   // if this stream is one of ours or wrong format, skip
-  if (string_view(peer, psz) == pier_sv || !starts_with(sv, prefix_in)) {
-    return &s_in.emplace(stream, stream_in_t{nullptr}).first.second;
+  if (string_view(origpeer, psz) == peer || !starts_with(sv, prefix_in)) {
+    return &s_in.emplace(stream, stream_in_t{nullptr}).first->second;
   }
 
   // we remove the prefix from the input channel name
-  string_view sv = sv.substr(prefix_in.size());
-  auto feed = sv.substr(0, sv.find_first_of('/'));
+  sv = sv.substr(prefix_in.size());
+  auto feed = string(sv.substr(0, sv.find_first_of('/')));
   auto resolver = resolvers.find(feed);
   if (resolver == resolvers.end()) {
-    fmc_error_set(error, "unknown feed %s", string(feed).c_str());
+    fmc_error_set(error, "unknown feed %s", feed.c_str());
     return nullptr;
   }
-  auto [outsv, parser] = resolver(sv, error);
+  auto [outsv, parser] = resolver->second(sv, error);
   if (*error)
-    return;
+    return nullptr;
   auto *outinfo = get_stream_out(outsv, error);
   if (*error)
-    return;
-  return &s_in.emplace(sv, stream_in_t{.parser=parser; .outinfo=outinfo}).first.second;
+    return nullptr;
+  return &s_in.emplace(stream, stream_in_t{.parser=parser, .outinfo=outinfo}).first->second;
 }
-
 
 int main(int argc, const char **argv) {
   using namespace std;
@@ -326,13 +350,13 @@ int main(int argc, const char **argv) {
   // set up signal handler
   signal(SIGINT, sigint_handler);
 
-  parser_t parser;
+  runner_t runner;
 
   // command line option processing
   fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
-                                 /* 1 */ {"--peer", true, &parser.peer},
-                                 /* 1 */ {"--ytp-input", true, &parser.ytp_in},
-                                 /* 2 */ {"--ytp-output", true, &parser.ytp_out},
+                                 /* 1 */ {"--peer", true, &runner.peer},
+                                 /* 1 */ {"--ytp-input", true, &runner.ytp_file_in},
+                                 /* 2 */ {"--ytp-output", true, &runner.ytp_file_out},
                                  {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {
@@ -346,19 +370,19 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  parser.init(&error);
+  runner.init(&error);
   if (error) {
     fprintf(stderr, "could not initialize with error: %s\n", fmc_error_msg(error));
     return 1;
   }
 
-  parser.recover(&error);
+  runner.recover(&error);
   if (error) {
     fprintf(stderr, "could not recover with error: %s\n", fmc_error_msg(error));
     return 1;
   }
 
-  parser.run(&error);
+  runner.run(&error);
   if (error) {
     fprintf(stderr, "run-time error: %s\n", fmc_error_msg(error));
     return 1;
