@@ -23,26 +23,111 @@
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
+#include <cmp/cmp.h>
+#include <fmc++/serialization.hpp>
+#include <tuple>
 
 using namespace std;
+
+#define RETURN_ERROR_UNLESS(COND, ERR, RET, ...) \
+  if (__builtin_expect(!(COND), 0)) { \
+    fmc_error_set(ERR, __VA_ARGS__); \
+    return RET; \
+  }
+
+// If you compiling with C++20 you don't need this
+bool starts_with(string_view a, string_view b) {
+  return a.substr(0, b.size()) == b;
+}
+
+tuple<string_view, string_view, string_view> split(string_view a, string_view sep) {
+  auto pos = a.find_first_of(sep);
+  return {a.substr(0, pos), a.substr(pos, sep.size()), a.substr(pos + sep.size())};
+}
+
+template<class... Args>
+static void
+cmp_ore_write(cmp_str_t *cmp, fmc_error_t **error, Args &&... args)
+{
+    uint32_t left = sizeof...(Args);
+    cmp_ctx_t *ctx = &(cmp->ctx);
+    fmc_error_clear(error);
+
+    // Encode to cmp
+    bool ret = cmp_write_array(ctx, left);
+    if (!ret) {
+        FMC_ERROR_REPORT(error, cmp_strerror(ctx));
+        return;
+    }
+    ret = cmp_write_many(ctx, &left, args...);
+    if (!ret) {
+        FMC_ERROR_REPORT(error, cmp_strerror(ctx));
+        return;
+    }
+}
 
 // Parser gets the original data, string to write data to
 // sequence number processed and error.
 // Sets error if could not parse.
 // Returns true is processed, false if duplicated.
-typedef bool (*parser_t)(string_view, string&, uint64_t*, fmc_error_t**);
+using parser_t = function<bool(string_view, cmp_str_t *, uint64_t*, fmc_error_t**)>;
 typedef pair<string_view, parser_t> (*resolver_t)(string_view, fmc_error_t**);
 
-// This section here is binance parsing code
-bool parse_binance_bookTicker(string_view in, string &out, uint64_t *seq, fmc_error_t**error) {
-  ++(*seq);
-  out.append(in.data(), in.size());
-  return true;
-}
+struct binance_parse_ctx {
+  bool first = true;
+  string_view bidqt;
+  string_view askqt;
+  string_view bidpx;
+  string_view askpx;
+};
 
-bool parse_binance_trade(string_view in, string &out, uint64_t *seq, fmc_error_t**error) {
-  ++(*seq);
-  out.append(in.data(), in.size());
+// This section here is binance parsing code
+auto parse_binance_bookTicker =
+[ctx=binance_parse_ctx{}](string_view in, cmp_str_t *cmp, uint64_t *seq, fmc_error_t**error) mutable {
+  auto [prx, sep, rem] = split(in, "\"u\":");
+  RETURN_ERROR_UNLESS(sep.size(), error,, "could not parse message %s", string(in));
+  in = rem;
+  auto [seqn_sv, sep2, rem2] = split(in, ",");
+  auto seqn = atoll()
+  if (ctx.first) {
+    // ORE Product Announcement Message
+    // [15, receive, vendor offset, vendor seqno, batch, imnt id,
+    // symbol, price_tick, qty_tick]
+    cmp_ore_write(
+        cmp, error,
+        (uint8_t)15,                            // Message Type ID
+        (int64_t)receive_ns,                    // recv_time
+        (int64_t)vendor_offset_ns,              // vendor_offset
+        (uint64_t)seqno,  // vendor_seqno
+        0,                                      // batch = No batch
+        (int32_t)ytp_channel,                   // imnt id
+        channel_name,  // symbol = "prefix/imnts/market/instrument"
+        (uint64_t)PRICE_TICK,  // price_tick
+        (uint64_t)QTY_TICK     // qty_tick
+    );
+    if (*error) return false;
+
+    // ORE Book Control Message
+    // [13, receive, vendor offset, vendor seqno, batch, imnt id,
+    // uncross, command]
+    cmp_ore_write(
+        cmp, error,
+        (uint8_t)13,                            // Message Type ID
+        (int64_t)receive_ns,                    // recv_time
+        (int64_t)vendor_offset_ns,              // vendor_offset
+        (uint64_t)seqno,  // vendor_seqno
+        market.has_BBO_bid|market.has_BBO_ask,  // batch = No batch
+        (int32_t)ytp_channel,                   // imnt id
+        (uint8_t)0,                             // uncross
+        'C'                                     // command
+    );
+    if (*error) return false;
+  }
+  return true;
+};
+
+bool parse_binance_trade(string_view in, cmp_str_t *cmp, uint64_t *seq, fmc_error_t**error) {
+
   return true;
 }
 
@@ -65,11 +150,6 @@ pair<string_view, parser_t>  get_binance_channel_in(string_view sv, fmc_error_t 
 
 static int interrupted = 0;
 static void sigint_handler(int sig) { interrupted = 1; }
-
-// If you compiling with C++20 you don't need this
-bool starts_with(std::string_view a, string_view b) {
-  return a.substr(0, b.size()) == b;
-}
 
 struct runner_t {
   // This is where we store information about channel processed
@@ -193,7 +273,8 @@ void runner_t::recover(fmc_error_t **error) {
 }
 
 void runner_t::run(fmc_error_t **error) {
-  string buf;
+  cmp_str_t cmp;
+  cmp_str_init(&cmp);
   auto it_in = ytp_data_begin(ytp_in, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
@@ -221,9 +302,9 @@ void runner_t::run(fmc_error_t **error) {
       // if this channel not interesting, skip it
       if (!info->parser)
         continue;
-      buf.resize(0);
       seqno = info->seqno;
-      bool res = info->parser(string_view(data, sz), buf, &seqno, error);
+      cmp_str_reset(&cmp);
+      bool res = info->parser(string_view(data, sz), &cmp, &seqno, error);
       if (*error)
         return;
       // duplicate
@@ -235,12 +316,13 @@ void runner_t::run(fmc_error_t **error) {
         --info->outinfo->count;
         continue;
       }
-      auto dst = ytp_data_reserve(ytp_out, buf.size(), error);
+      size_t bufsz = cmp_str_size(&cmp);
+      auto dst = ytp_data_reserve(ytp_out, bufsz, error);
       if (*error) {
         fmc_error_add(error, "; ", "could not reserve message");
         return; 
       }
-      memcpy(dst, buf.data(), buf.size());
+      memcpy(dst, cmp_str_data(&cmp), bufsz);
       ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst, error);
       if (*error) {
         fmc_error_add(error, "; ", "could not commit message");
@@ -322,7 +404,7 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream, fmc_error
   string_view sv{channel, csz};
   // if this stream is one of ours or wrong format, skip
   if (string_view(origpeer, psz) == peer || !starts_with(sv, prefix_in)) {
-    return &s_in.emplace(stream, stream_in_t{nullptr}).first->second;
+    return &s_in.emplace(stream, stream_in_t{}).first->second;
   }
 
   // we remove the prefix from the input channel name
