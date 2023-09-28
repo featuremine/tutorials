@@ -17,13 +17,13 @@ target_link_libraries(
     fmc++ ytp
 )
 
-add_executable(
-    feed-parser
-    "feed-parser.cpp"
-)
-target_link_libraries(
-    feed-parser
-    PRIVATE
-    websockets ${LIBWEBSOCKETS_DEP_LIBS}
-    fmc++ ytp
-)
+#add_executable(
+#    feed-parser
+#    "feed-parser.cpp"
+#)
+#target_link_libraries(
+#    feed-parser
+#    PRIVATE
+#    websockets ${LIBWEBSOCKETS_DEP_LIBS}
+#    fmc++ ytp
+#)
