@@ -24,6 +24,5 @@ add_executable(
 target_link_libraries(
     feed-parser
     PRIVATE
-    websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
