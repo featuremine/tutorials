@@ -7,32 +7,32 @@
 
 #include <ctype.h>
 #include <signal.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <memory>
 
+#include <cmp/cmp.h>
+#include <fmc++/serialization.hpp>
 #include <fmc/cmdline.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
+#include <tuple>
 #include <ytp/announcement.h>
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
-#include <cmp/cmp.h>
-#include <fmc++/serialization.hpp>
-#include <tuple>
 
 using namespace std;
 
-#define RETURN_ERROR_UNLESS(COND, ERR, RET, ...) \
-  if (__builtin_expect(!(COND), 0)) { \
-    fmc_error_set(ERR, __VA_ARGS__); \
-    return RET; \
+#define RETURN_ERROR_UNLESS(COND, ERR, RET, ...)                               \
+  if (__builtin_expect(!(COND), 0)) {                                          \
+    fmc_error_set(ERR, __VA_ARGS__);                                           \
+    return RET;                                                                \
   }
 
 // If you compiling with C++20 you don't need this
@@ -40,38 +40,39 @@ bool starts_with(string_view a, string_view b) {
   return a.substr(0, b.size()) == b;
 }
 
-tuple<string_view, string_view, string_view> split(string_view a, string_view sep) {
+tuple<string_view, string_view, string_view> split(string_view a,
+                                                   string_view sep) {
   auto pos = a.find_first_of(sep);
-  return {a.substr(0, pos), a.substr(pos, sep.size()), a.substr(pos + sep.size())};
+  return {a.substr(0, pos), a.substr(pos, sep.size()),
+          a.substr(pos + sep.size())};
 }
 
-template<class... Args>
-static void
-cmp_ore_write(cmp_str_t *cmp, fmc_error_t **error, Args &&... args)
-{
-    uint32_t left = sizeof...(Args);
-    cmp_ctx_t *ctx = &(cmp->ctx);
-    fmc_error_clear(error);
+template <class... Args>
+static void cmp_ore_write(cmp_str_t *cmp, fmc_error_t **error, Args &&...args) {
+  uint32_t left = sizeof...(Args);
+  cmp_ctx_t *ctx = &(cmp->ctx);
+  fmc_error_clear(error);
 
-    // Encode to cmp
-    bool ret = cmp_write_array(ctx, left);
-    if (!ret) {
-        FMC_ERROR_REPORT(error, cmp_strerror(ctx));
-        return;
-    }
-    ret = cmp_write_many(ctx, &left, args...);
-    if (!ret) {
-        FMC_ERROR_REPORT(error, cmp_strerror(ctx));
-        return;
-    }
+  // Encode to cmp
+  bool ret = cmp_write_array(ctx, left);
+  if (!ret) {
+    FMC_ERROR_REPORT(error, cmp_strerror(ctx));
+    return;
+  }
+  ret = cmp_write_many(ctx, &left, args...);
+  if (!ret) {
+    FMC_ERROR_REPORT(error, cmp_strerror(ctx));
+    return;
+  }
 }
 
 // Parser gets the original data, string to write data to
 // sequence number processed and error.
 // Sets error if could not parse.
 // Returns true is processed, false if duplicated.
-using parser_t = function<bool(string_view, cmp_str_t *, uint64_t*, fmc_error_t**)>;
-typedef pair<string_view, parser_t> (*resolver_t)(string_view, fmc_error_t**);
+using parser_t =
+    function<bool(string_view, cmp_str_t *, uint64_t *, fmc_error_t **)>;
+typedef pair<string_view, parser_t> (*resolver_t)(string_view, fmc_error_t **);
 
 struct binance_parse_ctx {
   bool first = true;
@@ -82,59 +83,64 @@ struct binance_parse_ctx {
 };
 
 // This section here is binance parsing code
-auto parse_binance_bookTicker =
-[ctx=binance_parse_ctx{}](string_view in, cmp_str_t *cmp, uint64_t *seq, fmc_error_t**error) mutable {
+auto parse_binance_bookTicker = [ctx = binance_parse_ctx{}](
+                                    string_view in, cmp_str_t *cmp,
+                                    uint64_t *seq,
+                                    fmc_error_t **error) mutable {
   auto [prx, sep, rem] = split(in, "\"u\":");
-  RETURN_ERROR_UNLESS(sep.size(), error,, "could not parse message %s", string(in));
+  RETURN_ERROR_UNLESS(sep.size(), error, , "could not parse message %s",
+                      string(in));
   in = rem;
   auto [seqn_sv, sep2, rem2] = split(in, ",");
-  auto seqn = atoll()
-  if (ctx.first) {
+  auto seqn = atoll() if (ctx.first) {
     // ORE Product Announcement Message
     // [15, receive, vendor offset, vendor seqno, batch, imnt id,
     // symbol, price_tick, qty_tick]
-    cmp_ore_write(
-        cmp, error,
-        (uint8_t)15,                            // Message Type ID
-        (int64_t)receive_ns,                    // recv_time
-        (int64_t)vendor_offset_ns,              // vendor_offset
-        (uint64_t)seqno,  // vendor_seqno
-        0,                                      // batch = No batch
-        (int32_t)ytp_channel,                   // imnt id
-        channel_name,  // symbol = "prefix/imnts/market/instrument"
-        (uint64_t)PRICE_TICK,  // price_tick
-        (uint64_t)QTY_TICK     // qty_tick
+    cmp_ore_write(cmp, error,
+                  (uint8_t)15,               // Message Type ID
+                  (int64_t)receive_ns,       // recv_time
+                  (int64_t)vendor_offset_ns, // vendor_offset
+                  (uint64_t)seqno,           // vendor_seqno
+                  0,                         // batch = No batch
+                  (int32_t)ytp_channel,      // imnt id
+                  channel_name, // symbol = "prefix/imnts/market/instrument"
+                  (uint64_t)PRICE_TICK, // price_tick
+                  (uint64_t)QTY_TICK    // qty_tick
     );
-    if (*error) return false;
+    if (*error)
+      return false;
 
     // ORE Book Control Message
     // [13, receive, vendor offset, vendor seqno, batch, imnt id,
     // uncross, command]
-    cmp_ore_write(
-        cmp, error,
-        (uint8_t)13,                            // Message Type ID
-        (int64_t)receive_ns,                    // recv_time
-        (int64_t)vendor_offset_ns,              // vendor_offset
-        (uint64_t)seqno,  // vendor_seqno
-        market.has_BBO_bid|market.has_BBO_ask,  // batch = No batch
-        (int32_t)ytp_channel,                   // imnt id
-        (uint8_t)0,                             // uncross
-        'C'                                     // command
+    cmp_ore_write(cmp, error,
+                  (uint8_t)13,                             // Message Type ID
+                  (int64_t)receive_ns,                     // recv_time
+                  (int64_t)vendor_offset_ns,               // vendor_offset
+                  (uint64_t)seqno,                         // vendor_seqno
+                  market.has_BBO_bid | market.has_BBO_ask, // batch = No batch
+                  (int32_t)ytp_channel,                    // imnt id
+                  (uint8_t)0,                              // uncross
+                  'C'                                      // command
     );
-    if (*error) return false;
+    if (*error)
+      return false;
   }
   return true;
 };
 
-bool parse_binance_trade(string_view in, cmp_str_t *cmp, uint64_t *seq, fmc_error_t**error) {
+bool parse_binance_trade(string_view in, cmp_str_t *cmp, uint64_t *seq,
+                         fmc_error_t **error) {
 
   return true;
 }
 
-pair<string_view, parser_t>  get_binance_channel_in(string_view sv, fmc_error_t **error) {
+pair<string_view, parser_t> get_binance_channel_in(string_view sv,
+                                                   fmc_error_t **error) {
   auto pos = sv.find_last_of('@');
   if (pos == sv.npos) {
-    fmc_error_set(error, "missing @ in the Binance stream name %s", string(sv).c_str());
+    fmc_error_set(error, "missing @ in the Binance stream name %s",
+                  string(sv).c_str());
     return {string_view(), nullptr};
   }
   auto feedtype = sv.substr(pos + 1);
@@ -144,7 +150,8 @@ pair<string_view, parser_t>  get_binance_channel_in(string_view sv, fmc_error_t 
   } else if (feedtype == "trade") {
     return {outsv, parse_binance_trade};
   }
-  fmc_error_set(error, "unknown Binance stream type %s", string(feedtype).c_str());
+  fmc_error_set(error, "unknown Binance stream type %s",
+                string(feedtype).c_str());
   return {string_view(), nullptr};
 }
 
@@ -175,12 +182,12 @@ struct runner_t {
   stream_out_t *emplace_stream_out(ytp_mmnode_offs stream);
 
   // We use a hash map to store stream info
-  using streams_out_t = unordered_map<ytp_mmnode_offs, unique_ptr<stream_out_t>>;
+  using streams_out_t =
+      unordered_map<ytp_mmnode_offs, unique_ptr<stream_out_t>>;
   using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t>;
   // This map contains a context factory for each supported feed
   unordered_map<string, resolver_t> resolvers = {
-    {"binance", get_binance_channel_in}
-  };
+      {"binance", get_binance_channel_in}};
   // Hash map to keep track of outgoing streams
   streams_out_t s_out;
   streams_in_t s_in;
@@ -209,13 +216,15 @@ runner_t::~runner_t() {
 void runner_t::init(fmc_error_t **error) {
   fd_in = fmc_fopen(ytp_file_in, fmc_fmode::READ, error);
   if (*error) {
-    fmc_error_add(error, "; ", "could not open input yamal file %s", ytp_file_in);
+    fmc_error_add(error, "; ", "could not open input yamal file %s",
+                  ytp_file_in);
     return;
   }
 
   fd_out = fmc_fopen(ytp_file_out, fmc_fmode::READWRITE, error);
   if (*error) {
-    fmc_error_add(error, "; ", "could not open output yamal file %s", ytp_file_out);
+    fmc_error_add(error, "; ", "could not open output yamal file %s",
+                  ytp_file_out);
     return;
   }
 
@@ -230,7 +239,7 @@ void runner_t::init(fmc_error_t **error) {
     fmc_error_add(error, "; ", "could not create output yamal");
     return;
   }
-  
+
   streams = ytp_streams_new(ytp_out, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not create stream");
@@ -239,17 +248,19 @@ void runner_t::init(fmc_error_t **error) {
 }
 
 void runner_t::recover(fmc_error_t **error) {
-  // This is where we do recovery. We count the number of messages we written for each channel.
-  // Then we skip the correct number of messages for each channel from the input to recover
+  // This is where we do recovery. We count the number of messages we written
+  // for each channel. Then we skip the correct number of messages for each
+  // channel from the input to recover
   auto it_out = ytp_data_begin(ytp_out, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
-    return; 
+    return;
   }
-  for (; !ytp_yamal_term(it_out) && !interrupted; it_out = ytp_yamal_next(ytp_in, it_out, error)) {
+  for (; !ytp_yamal_term(it_out) && !interrupted;
+       it_out = ytp_yamal_next(ytp_in, it_out, error)) {
     if (*error) {
       fmc_error_add(error, "; ", "could not obtain iterator");
-      return; 
+      return;
     }
     uint64_t seqno;
     int64_t ts;
@@ -278,13 +289,14 @@ void runner_t::run(fmc_error_t **error) {
   auto it_in = ytp_data_begin(ytp_in, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
-    return; 
+    return;
   }
   while (!interrupted) {
-    for (; !ytp_yamal_term(it_in); it_in = ytp_yamal_next(ytp_in, it_in, error)) {
+    for (; !ytp_yamal_term(it_in);
+         it_in = ytp_yamal_next(ytp_in, it_in, error)) {
       if (*error) {
         fmc_error_add(error, "; ", "could not obtain iterator");
-        return; 
+        return;
       }
       uint64_t seqno;
       int64_t ts;
@@ -294,7 +306,7 @@ void runner_t::run(fmc_error_t **error) {
       ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
       if (*error) {
         fmc_error_add(error, "; ", "could not obtain iterator");
-        return; 
+        return;
       }
       auto *info = get_stream_in(stream, error);
       if (*error)
@@ -320,23 +332,27 @@ void runner_t::run(fmc_error_t **error) {
       auto dst = ytp_data_reserve(ytp_out, bufsz, error);
       if (*error) {
         fmc_error_add(error, "; ", "could not reserve message");
-        return; 
+        return;
       }
       memcpy(dst, cmp_str_data(&cmp), bufsz);
-      ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst, error);
+      ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
+                      error);
       if (*error) {
         fmc_error_add(error, "; ", "could not commit message");
-        return; 
+        return;
       }
     }
   }
 }
 
-runner_t::stream_out_t *runner_t::emplace_stream_out(ytp_mmnode_offs stream)  {
-  return s_out.emplace(stream, make_unique<stream_out_t>(stream_out_t{stream, 0ULL})).first->second.get();
+runner_t::stream_out_t *runner_t::emplace_stream_out(ytp_mmnode_offs stream) {
+  return s_out
+      .emplace(stream, make_unique<stream_out_t>(stream_out_t{stream, 0ULL}))
+      .first->second.get();
 }
 
-runner_t::stream_out_t *runner_t::get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error)  {
+runner_t::stream_out_t *runner_t::get_stream_out(ytp_mmnode_offs stream,
+                                                 fmc_error_t **error) {
   auto where = s_out.find(stream);
   // If we never seen this stream, we need to add it to the map of out streams
   // and if we care about this particular channel create info for this channel.
@@ -356,20 +372,22 @@ runner_t::stream_out_t *runner_t::get_stream_out(ytp_mmnode_offs stream, fmc_err
     return nullptr;
   }
   // if this stream is not one of ours or wrong format, skip
-  if (string_view(origpeer, psz) != peer || !starts_with(string_view{channel, csz}, prefix_out)) {
+  if (string_view(origpeer, psz) != peer ||
+      !starts_with(string_view{channel, csz}, prefix_out)) {
     return s_out.emplace(stream, nullptr).first->second.get();
   }
   return emplace_stream_out(stream);
 }
 
-runner_t::stream_out_t *runner_t::get_stream_out(string_view sv, fmc_error_t **error)  {
+runner_t::stream_out_t *runner_t::get_stream_out(string_view sv,
+                                                 fmc_error_t **error) {
   auto vpeer = string_view(peer);
   string chstr;
   chstr.append(prefix_out);
   chstr.append(sv);
-  auto stream = ytp_streams_announce(
-      streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
-      encoding.size(), encoding.data(), error);
+  auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
+                                     chstr.size(), chstr.data(),
+                                     encoding.size(), encoding.data(), error);
   if (*error) {
     fmc_error_add(error, "; ", "could not announce stream");
     return nullptr;
@@ -377,7 +395,8 @@ runner_t::stream_out_t *runner_t::get_stream_out(string_view sv, fmc_error_t **e
   return emplace_stream_out(stream);
 }
 
-runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream, fmc_error_t **error) {
+runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
+                                               fmc_error_t **error) {
   fmc_error_clear(error);
 
   // Look up the stream in the input stream map
@@ -421,7 +440,9 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream, fmc_error
   auto *outinfo = get_stream_out(outsv, error);
   if (*error)
     return nullptr;
-  return &s_in.emplace(stream, stream_in_t{.parser=parser, .outinfo=outinfo}).first->second;
+  return &s_in.emplace(stream,
+                       stream_in_t{.parser = parser, .outinfo = outinfo})
+              .first->second;
 }
 
 int main(int argc, const char **argv) {
@@ -435,11 +456,12 @@ int main(int argc, const char **argv) {
   runner_t runner;
 
   // command line option processing
-  fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
-                                 /* 1 */ {"--peer", true, &runner.peer},
-                                 /* 1 */ {"--ytp-input", true, &runner.ytp_file_in},
-                                 /* 2 */ {"--ytp-output", true, &runner.ytp_file_out},
-                                 {NULL}};
+  fmc_cmdline_opt_t options[] = {
+      /* 0 */ {"--help", false, NULL},
+      /* 1 */ {"--peer", true, &runner.peer},
+      /* 1 */ {"--ytp-input", true, &runner.ytp_file_in},
+      /* 2 */ {"--ytp-output", true, &runner.ytp_file_out},
+      {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {
     printf("feed-parse --peer PEER --ytp-input FILE --ytp-output FILE\n\n"
@@ -454,7 +476,8 @@ int main(int argc, const char **argv) {
 
   runner.init(&error);
   if (error) {
-    fprintf(stderr, "could not initialize with error: %s\n", fmc_error_msg(error));
+    fprintf(stderr, "could not initialize with error: %s\n",
+            fmc_error_msg(error));
     return 1;
   }
 
