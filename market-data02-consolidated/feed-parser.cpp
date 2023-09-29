@@ -98,49 +98,20 @@ struct binance_parse_ctx {
   string_view bidpx = "null"sv;
   string_view askpx = "null"sv;
   string_view symbol
+  bool first = true;
 };
 
 constexpr int32_t chanid = 100;
-void cmp_ore_announce(cmp_str_t *cmp, int64_t tm, bool batch, fmc_error_t**error) {
-  // ORE Product Announcement Message
-  // [15, receive, vendor offset, vendor seqno, batch, imnt id,
-  // symbol, price_tick, qty_tick]
-  cmp_ore_write(
-      cmp, error,
-      (uint8_t)15,                            // Message Type ID
-      (int64_t)tm,                            // recv_time
-      (int64_t)0,                             // vendor_offset
-      (uint64_t)0,                            // vendor_seqno
-      0,                                      // batch = No batch
-      (int32_t)chanid,                           // imnt id
-      ctx.symbol                              // symbol = "prefix/imnts/market/instrument"
-  );
-  if (*error) return;
-
-  // ORE Book Control Message
-  // [13, receive, vendor offset, vendor seqno, batch, imnt id,
-  // uncross, command]
-  cmp_ore_write(
-      cmp, error,
-      (uint8_t)13,                            // Message Type ID
-      (int64_t)tm,                            // recv_time
-      (int64_t)0,                             // vendor_offset
-      (uint64_t)0,                            // vendor_seqno
-      batch,                                  // batch = No batch
-      (int32_t)chanid,                           // imnt id
-      (uint8_t)0,                             // uncross
-      'C'                                     // command
-  );
-}
 
 // This section here is binance parsing code
 auto parse_binance_bookTicker =
-[ctx=binance_parse_ctx{}](string_view in, cmp_str_t *cmp, bool first, int64_t tm, uint64_t *last, fmc_error_t**error) mutable {
+[ctx=binance_parse_ctx{}](string_view in, cmp_str_t *cmp, int64_t tm, uint64_t *last, bool skip, fmc_error_t**error) mutable {
   auto [val, rem] = simple_json_parse(in, "\"u\":");
   RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message %s", string(in));
   auto [seqno, parsed] = from_string_view(val);
   RETURN_ERROR_UNLESS(val.size() == parsed.size(), error, false, "could not parse message %s", string(in));
   if (seqno <= last) return false;
+  *last = seqno;
   string_view bidqt;
   string_view askqt;
   string_view bidpx;
@@ -153,11 +124,6 @@ auto parse_binance_bookTicker =
   RETURN_ERROR_UNLESS(askpx.size(), error, false, "could not parse message %s", string(in));
   tie(askqt, rem) = simple_json_parse(rem, "\"A\":\"", "\"}");
   RETURN_ERROR_UNLESS(askqt.size(), error, false, "could not parse message %s", string(in));
-
-  if (first) {
-    cmp_ore_announce(cmp, tm, true, error)
-    if (*error) return false;
-  }
 
   // TODO: need to fix this
   bool has_bid = bidpx != "null";
@@ -177,6 +143,27 @@ auto parse_binance_bookTicker =
   ctx.bidqt = bidqt;
   ctx.askpx = askpx;
   crx.askqt = askqt;
+  
+  if (skip) return;
+
+  if (ctx.first) {
+    ctx.first = false;
+    // ORE Book Control Message
+    // [13, receive, vendor offset, vendor seqno, batch, imnt id,
+    // uncross, command]
+    cmp_ore_write(
+        cmp, error,
+        (uint8_t)13,                            // Message Type ID
+        (int64_t)tm,                            // recv_time
+        (int64_t)0,                             // vendor_offset
+        (uint64_t)0,                            // vendor_seqno
+        batch,                                  // batch
+        (int32_t)chanid,                        // imnt id
+        (uint8_t)0,                             // uncross
+        'C'                                     // command
+    );
+    if (*error) return false;
+  }
 
   if (bid_mod) {
     // ORE Order Modify Message
@@ -191,8 +178,8 @@ auto parse_binance_bookTicker =
                   (int32_t)chanid,          // imnt_id
                   (int32_t)chanid,          // order_id
                   (int32_t)chanid,          // new_order_id
-                  (int64_t)bidpx,           // price
-                  (int32_t)bidqt,           // qty
+                  bidpx,           // price
+                  bidqt,           // qty
                   (uint8_t)true             // is_bid
     );
   } else if (bid_add) {
@@ -207,8 +194,8 @@ auto parse_binance_bookTicker =
                   (uint8_t)batch,  // batch (firts message)
                   (int32_t)chanid,   // imnt_id
                   (int32_t)chanid,      // order_id
-                  (int64_t)bidpx, // price
-                  (int32_t)bidqt, // qty
+                  bidpx, // price
+                  bidqt, // qty
                   true                               // is_bid
     );
   } else if (bid_del) {
@@ -240,8 +227,8 @@ auto parse_binance_bookTicker =
         (int32_t)chanid, // imnt_id
         (int32_t)(chanid + 1), // order_id
         (int32_t)(chanid + 1), // new_order_id
-        (int64_t)askpx,                   // price
-        (int32_t)askqt         // qty
+        askpx,                   // price
+        askqt         // qty
     );
   } else if (ask_add) {
     // ORE Order Add Message
@@ -256,8 +243,8 @@ auto parse_binance_bookTicker =
         (uint8_t)0,           // batch (last batch message)
         (int32_t)chanid, // imnt_id
         (int32_t)(chanid + 1), // order_id
-        (int64_t)askpx,                   // price
-        (int32_t)askqt,        // qty
+        askpx,                   // price
+        askqt,        // qty
         false                                     // is_bid
     );
   } else if (ask_del) {
@@ -278,10 +265,46 @@ auto parse_binance_bookTicker =
   return *error == nullptr;
 };
 
-bool parse_binance_trade(string_view in, cmp_str_t *cmp, uint64_t *seq,
-                         fmc_error_t **error) {
+bool parse_binance_trade(string_view in, cmp_str_t *cmp, int64_t tm, uint64_t *last, bool skip, fmc_error_t**error) {
+  auto [val, rem] = simple_json_parse(in, "\"E\":");
+  RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message %s", string(in));
+  auto [etime_ms, parsed] = from_string_view(val);
+  RETURN_ERROR_UNLESS(val.size() == parsed.size(), error, false, "could not parse message %s", string(in));
 
-  return true;
+  tie(val, rem) = simple_json_parse(rem, "\"E\":");
+  RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message %s", string(in));
+  auto [seqno, parsed2] = from_string_view(val);
+  RETURN_ERROR_UNLESS(val.size() == parsed2.size(), error, false, "could not parse message %s", string(in));
+  
+  if (seqno <= last) return false;
+  *last = seqno;
+  string_view trdpx;
+  string_view trdqt;
+  string_view isbid;
+  tie(trdpx, rem) = simple_json_parse(rem, "\"p\":\"", "\",");
+  RETURN_ERROR_UNLESS(bidpx.size(), error, false, "could not parse message %s", string(in));
+  tie(trdqt, rem) = simple_json_parse(rem, "\"q\":\"", "\",");
+  RETURN_ERROR_UNLESS(bidqt.size(), error, false, "could not parse message %s", string(in));
+
+  tie(isbid, rem) = simple_json_parse(rem, "\"m\":");
+  RETURN_ERROR_UNLESS(bidqt.size(), error, false, "could not parse message %s", string(in));
+
+  // ORE Off Book Trade Message
+  // [11, receive, vendor offset, vendor seqno, batch, imnt id, trade
+  // price, qty, decorator]
+  cmp_ore_write(cmp, error,
+                (uint8_t)11,             // Message Type ID
+                (int64_t)tm,             // receive
+                (int64_t)vendoroff,      // vendor offset
+                (uint64_t)seqno,         // vendor seqno
+                (uint8_t)0,              // batch
+                (uint64_t)chanid,        // imnt_id
+                trdpx,                   // trade price
+                trdqt,                   // qty
+                (uint8_t)(isbid == 'true' ? 'b' : 'a')
+  );
+  
+  return *error == nullptr;
 }
 
 pair<string_view, parser_t> get_binance_channel_in(string_view sv,
