@@ -88,17 +88,49 @@ using parser_t = function<bool(string_view, cmp_str_t *, uint64_t*, fmc_error_t*
 typedef pair<string_view, parser_t> (*resolver_t)(string_view, fmc_error_t**);
 
 struct binance_parse_ctx {
-  bool first = true;
-  string_view bidqt;
-  string_view askqt;
-  string_view bidpx;
-  string_view askpx;
+  string_view bidqt = "null"sv;
+  string_view askqt = "null"sv;
+  string_view bidpx = "null"sv;
+  string_view askpx = "null"sv;
   string_view symbol
 };
 
+constexpr int32_t chanid = 100;
+void cmp_ore_announce(cmp_str_t *cmp, int64_t tm, bool batch, fmc_error_t**error) {
+  // ORE Product Announcement Message
+  // [15, receive, vendor offset, vendor seqno, batch, imnt id,
+  // symbol, price_tick, qty_tick]
+  cmp_ore_write(
+      cmp, error,
+      (uint8_t)15,                            // Message Type ID
+      (int64_t)tm,                            // recv_time
+      (int64_t)0,                             // vendor_offset
+      (uint64_t)0,                            // vendor_seqno
+      0,                                      // batch = No batch
+      (int32_t)chanid,                           // imnt id
+      ctx.symbol                              // symbol = "prefix/imnts/market/instrument"
+  );
+  if (*error) return;
+
+  // ORE Book Control Message
+  // [13, receive, vendor offset, vendor seqno, batch, imnt id,
+  // uncross, command]
+  cmp_ore_write(
+      cmp, error,
+      (uint8_t)13,                            // Message Type ID
+      (int64_t)tm,                            // recv_time
+      (int64_t)0,                             // vendor_offset
+      (uint64_t)0,                            // vendor_seqno
+      batch,                                  // batch = No batch
+      (int32_t)chanid,                           // imnt id
+      (uint8_t)0,                             // uncross
+      'C'                                     // command
+  );
+}
+
 // This section here is binance parsing code
 auto parse_binance_bookTicker =
-[ctx=binance_parse_ctx{}](string_view in, cmp_str_t *cmp, int64_t tm, uint64_t *last, fmc_error_t**error) mutable {
+[ctx=binance_parse_ctx{}](string_view in, cmp_str_t *cmp, bool first, int64_t tm, uint64_t *last, fmc_error_t**error) mutable {
   auto [val, rem] = simple_json_parse(in, "\"u\":");
   RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message %s", string(in));
   auto [seqno, parsed] = from_string_view(val);
@@ -117,155 +149,128 @@ auto parse_binance_bookTicker =
   tie(askqt, rem) = simple_json_parse(rem, "\"A\":\"", "\"}");
   RETURN_ERROR_UNLESS(askqt.size(), error, false, "could not parse message %s", string(in));
 
-  if (ctx.first) {
-    // ORE Product Announcement Message
-    // [15, receive, vendor offset, vendor seqno, batch, imnt id,
-    // symbol, price_tick, qty_tick]
-    cmp_ore_write(
-        cmp, error,
-        (uint8_t)15,                            // Message Type ID
-        (int64_t)tm,                            // recv_time
-        (int64_t)0,                             // vendor_offset
-        (uint64_t)seqno,                        // vendor_seqno
-        0,                                      // batch = No batch
-        (int32_t)100,                           // imnt id
-        ctx.symbol                              // symbol = "prefix/imnts/market/instrument"
-    );
-    if (*error) return false;
-
-    // ORE Book Control Message
-    // [13, receive, vendor offset, vendor seqno, batch, imnt id,
-    // uncross, command]
-    cmp_ore_write(
-        cmp, error,
-        (uint8_t)13,                            // Message Type ID
-        (int64_t)tm,                            // recv_time
-        (int64_t)tm,                            // vendor_offset
-        (uint64_t)seqno,                        // vendor_seqno
-        has_bid|has_ask,                        // batch = No batch
-        (int32_t)ytp_channel,                   // imnt id
-        (uint8_t)0,                             // uncross
-        'C'                                     // command
-    );
+  if (first) {
+    cmp_ore_announce(cmp, tm, true, error)
     if (*error) return false;
   }
 
-  int has_bid = static_cast<int>(bbo_quote.is_bid_price_present()) *
-                static_cast<int>(bbo_quote.bid_price().value() != 0) *
-                static_cast<int>(bbo_quote.is_bid_quantity_present()) *
-                static_cast<int>(bbo_quote.bid_quantity() != 0);
+  // TODO: need to fix this
+  bool has_bid = bidpx != "null";
+  bool has_ask = askpx != "null";
+  bool had_bid = ctx.bidpx != "null";
+  bool had_ask = ctx.askpx != "null";
+  bool bid_mod = had_bid & has_bid & (bidpx == ctx.bidpx);
+  bool ask_mod = had_ask & has_ask & (askpx == ctx.askpx);
+  bool bid_add = !had_bid & has_bid;
+  bool ask_add = !had_ask & has_ask;
+  bool bid_del = had_bid & !has_bid;
+  bool ask_del = had_ask & !has_ask;
 
-  int has_ask = static_cast<int>(bbo_quote.is_ask_price_present()) *
-                static_cast<int>(bbo_quote.ask_price().value() != 0) *
-                static_cast<int>(bbo_quote.is_ask_quantity_present()) *
-                static_cast<int>(bbo_quote.ask_quantity() != 0);
-
-  int64_t bid_price_num = bbo_quote.bid_price().Extract(PRICE_TICK);
-  int bid_add = has_bid * !market_imnt.has_BBO_bid;
-  int bid_modify = has_bid * (market_imnt.has_BBO_bid == true) *
-                    ((bbo_quote.bid_quantity() != market_imnt.bid_qty) +
-                    (bid_price_num != market_imnt.bid_price));
-
-  int64_t ask_price_num = bbo_quote.ask_price().Extract(PRICE_TICK);
-  int ask_add = has_ask * !market_imnt.has_BBO_ask;
-  int ask_modify = has_ask * (market_imnt.has_BBO_ask == true) *
-                    ((bbo_quote.ask_quantity() != market_imnt.ask_qty) +
-                    (ask_price_num != market_imnt.ask_price));
-  int batch = (ask_add + ask_modify) * (bid_add + bid_modify);
-
-  if (bid_modify) {
-      // ORE Order Modify Message
-      // [6, receive, vendor offset, vendor seqno, batch, imnt id, id, new
-      // id, new price, new qty]
-      cmp_ore_msg_encode_write(
-          g_ytp_seq, g_peer, ytp_channel, receive_ns_, &g_cmp, &error,
-          (uint8_t)6,                 // Message Type ID
-          (int64_t)receive_ns_,        // recv_time
-          (int64_t)vendor_offset_ns,  // vendor_offset
-          (uint64_t)bbo_quote.sequence_number(),
-          (uint8_t)(batch != 0),             // batch (firts message)
-          (int32_t)ytp_channel,              // imnt_id
-          (int32_t)order_id,                 // order_id
-          (int32_t)order_id,                 // new_order_id
-          (int64_t)bid_price_num,            // price
-          (int32_t)bbo_quote.bid_quantity()  // qty
-      );
-      fmc_runtime_error_unless(!error) << "Failed to write the ORE "
-                                          "message "
-                                          "modify: "
-                                        << fmc_error_msg(error);
-  } else if (bid_add) {
-      // ORE Order Add Message
-      // [1, receive, vendor offset, vendor seqno, batch, imnt id, id,
-      // price, qty, is bid]
-      cmp_ore_msg_encode_write(
-          g_ytp_seq, g_peer, ytp_channel, receive_ns_, &g_cmp, &error,
-          (uint8_t)1,                 // Message Type ID
-          (int64_t)receive_ns_,        // recv_time
-          (int64_t)vendor_offset_ns,  // vendor_offset
-          (uint64_t)bbo_quote.sequence_number(),
-          (uint8_t)(batch != 0),              // batch (firts message)
-          (int32_t)ytp_channel,               // imnt_id
-          (int32_t)order_id,                  // order_id
-          (int64_t)bid_price_num,             // price
-          (int32_t)bbo_quote.bid_quantity(),  // qty
-          true                                // is_bid
-      );
-      fmc_runtime_error_unless(!error) << "Failed to write the ORE "
-                                          "message add: "
-                                        << fmc_error_msg(error);
-      market_imnt.has_BBO_bid = true;
-  }
-  if (bid_modify + bid_add) {
-      market_imnt.bid_price = bid_price_num;
-      market_imnt.bid_qty = bbo_quote.bid_quantity();
-  }
-
-  if (ask_modify) {
-      // ORE Order Modify Message
-      // [6, receive, vendor offset, vendor seqno, batch, imnt id, id, new
-      // id, new price, new qty]
-      cmp_ore_msg_encode_write(
-          g_ytp_seq, g_peer, ytp_channel, receive_ns_, &g_cmp, &error,
-          (uint8_t)6,                 // Message Type ID
-          (int64_t)receive_ns_,        // recv_time
-          (int64_t)vendor_offset_ns,  // vendor_offset
-          (uint64_t)bbo_quote.sequence_number(),
-          (uint8_t)0,            // batch (last batch message)
-          (int32_t)ytp_channel,  // imnt_id
-          (int32_t)(order_id + MAX_PARTICIPANT_ID),  // order_id
-          (int32_t)(order_id + MAX_PARTICIPANT_ID),  // new_order_id
-          (int64_t)ask_price_num,                    // price
-          (int32_t)bbo_quote.ask_quantity()          // qty
-      );
-      fmc_runtime_error_unless(!error) << "Failed to write the ORE "
-                                          "message "
-                                          "modify: "
-                                        << fmc_error_msg(error);
-  } else if (ask_add) {
-      // ORE Order Add Message
-      // [1, receive, vendor offset, vendor seqno, batch, imnt id, id,
-      // price, qty, is bid]
-      cmp_ore_msg_encode_write(
-          g_ytp_seq, g_peer, ytp_channel, receive_ns_, &g_cmp, &error,
-          (uint8_t)1,                 // Message Type ID
-          (int64_t)receive_ns_,        // recv_time
-          (int64_t)vendor_offset_ns,  // vendor_offset
-          (uint64_t)bbo_quote.sequence_number(),
-          (uint8_t)0,            // batch (last batch message)
-          (int32_t)ytp_channel,  // imnt_id
-          (int32_t)(order_id + MAX_PARTICIPANT_ID),  // order_id
-          (int64_t)ask_price_num,                    // price
-          (int32_t)bbo_quote.ask_quantity(),         // qty
-          false                                      // is_bid
-      );
-      fmc_runtime_error_unless(!error) << "Failed to write the ORE "
-                                          "message add: "
-                                        << fmc_error_msg(error);
-      market_imnt.has_BBO_ask = true;
-  }
+  bool batch = ask_mod | ask_add | ask_del;
   
-  return true;
+  ctx.bidpx = bidpx;
+  ctx.bidqt = bidqt;
+  ctx.askpx = askpx;
+  crx.askqt = askqt;
+
+  if (bid_mod) {
+    // ORE Order Modify Message
+    // [6, receive, vendor offset, vendor seqno, batch, imnt id, id, new
+    // id, new price, new qty]
+    cmp_ore_write(cmp, error,
+                  (uint8_t)6,               // Message Type ID
+                  (int64_t)tm,              // recv_time
+                  (int64_t)0,               // vendor_offset
+                  (uint64_t)seqno,
+                  (uint8_t)batch,         // batch (firts message)
+                  (int32_t)chanid,          // imnt_id
+                  (int32_t)chanid,          // order_id
+                  (int32_t)chanid,          // new_order_id
+                  (int64_t)bidpx,           // price
+                  (int32_t)bidqt,           // qty
+                  (uint8_t)true             // is_bid
+    );
+  } else if (bid_add) {
+    // ORE Order Add Message
+    // [1, receive, vendor offset, vendor seqno, batch, imnt id, id,
+    // price, qty, is bid]
+    cmp_ore_write(cmp, &error,
+                  (uint8_t)1,                // Message Type ID
+                  (int64_t)tm,      // recv_time
+                  (int64_t)0,          // vendor_offset
+                  (uint64_t)seqno,
+                  (uint8_t)batch,  // batch (firts message)
+                  (int32_t)chanid,   // imnt_id
+                  (int32_t)chanid,      // order_id
+                  (int64_t)bidpx, // price
+                  (int32_t)bidqt, // qty
+                  true                               // is_bid
+    );
+  } else if (bid_del) {
+    // ORE Order Delete Message
+    // [5, receive, vendor offset, vendor seqno, batch, imnt id, id]
+    cmp_ore_write(cmp, &error,
+                  (uint8_t)5,                // Message Type ID
+                  (int64_t)tm,      // recv_time
+                  (int64_t)0, // vendor_offset
+                  (uint64_t)seqno,
+                  (uint8_t)batch, // batch (firts message)
+                  (int32_t)chanid,  // imnt_id
+                  (int32_t)chanid      // order_id
+    );
+  }
+  if (*error) return false;
+
+  if (ask_mod) {
+    // ORE Order Modify Message
+    // [6, receive, vendor offset, vendor seqno, batch, imnt id, id, new
+    // id, new price, new qty]
+    cmp_ore_write(
+        cmp, &error,
+        (uint8_t)6,                // Message Type ID
+        (int64_t)tm,      // recv_time
+        (int64_t)0, // vendor_offset
+        (uint64_t)seqno,
+        (uint8_t)0,           // batch (last batch message)
+        (int32_t)chanid, // imnt_id
+        (int32_t)(chanid + 1), // order_id
+        (int32_t)(chanid + 1), // new_order_id
+        (int64_t)askpx,                   // price
+        (int32_t)askqt         // qty
+    );
+  } else if (ask_add) {
+    // ORE Order Add Message
+    // [1, receive, vendor offset, vendor seqno, batch, imnt id, id,
+    // price, qty, is bid]
+    cmp_ore_write(
+        cmp, &error,
+        (uint8_t)1,                // Message Type ID
+        (int64_t)tm,      // recv_time
+        (int64_t)0, // vendor_offset
+        (uint64_t)seqno,
+        (uint8_t)0,           // batch (last batch message)
+        (int32_t)chanid, // imnt_id
+        (int32_t)(chanid + 1), // order_id
+        (int64_t)askpx,                   // price
+        (int32_t)askqt,        // qty
+        false                                     // is_bid
+    );
+  } else if (ask_del) {
+    // ORE Order Delete Message
+    // [5, receive, vendor offset, vendor seqno, batch, imnt id, id]
+    cmp_ore_write(
+        cmp, &error,
+        (uint8_t)5,                // Message Type ID
+        (int64_t)tm,      // recv_time
+        (int64_t)0, // vendor_offset
+        (uint64_t)seqno,
+        (uint8_t)0,                              // batch (last batch message)
+        (int32_t)chanid,                    // imnt_id
+        (int32_t)(chanid + 1) // order_id
+    );
+  }
+
+  return *error == nullptr;
 };
 
 bool parse_binance_trade(string_view in, cmp_str_t *cmp, uint64_t *seq, fmc_error_t**error) {
