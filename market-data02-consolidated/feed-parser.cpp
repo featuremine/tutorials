@@ -58,7 +58,7 @@ simple_json_parse(string_view a, string_view key, string_view sep = ","sv) {
   pos = a.find_first_of(sep);
   if (pos == string_view::npos)
     return {string_view(), string_view()};
-  return { a.substr(0, pos), a.substr(pos + sep.size()) };
+  return {a.substr(0, pos), a.substr(pos + sep.size())};
 }
 
 template <class... Args>
@@ -204,9 +204,9 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
             // [1, receive, vendor offset, vendor seqno, batch, imnt id, id,
             // price, qty, is bid]
             cmp_ore_write(cmp, error,
-                          (uint8_t)1,                // Message Type ID
-                          (int64_t)tm,      // recv_time
-                          (int64_t)0,          // vendor_offset
+                          (uint8_t)1,  // Message Type ID
+                          (int64_t)tm, // recv_time
+                          (int64_t)0,  // vendor_offset
                           (uint64_t)seqno,
                           (uint8_t)batch,  // batch (firts message)
                           (int32_t)chanid, // imnt_id
@@ -219,9 +219,9 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
             // ORE Order Delete Message
             // [5, receive, vendor offset, vendor seqno, batch, imnt id, id]
             cmp_ore_write(cmp, error,
-                          (uint8_t)5,                // Message Type ID
-                          (int64_t)tm,      // recv_time
-                          (int64_t)0, // vendor_offset
+                          (uint8_t)5,  // Message Type ID
+                          (int64_t)tm, // recv_time
+                          (int64_t)0,  // vendor_offset
                           (uint64_t)seqno,
                           (uint8_t)batch,  // batch (firts message)
                           (int32_t)chanid, // imnt_id
@@ -244,8 +244,8 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                           (int32_t)chanid,       // imnt_id
                           (int32_t)(chanid + 1), // order_id
                           (int32_t)(chanid + 1), // new_order_id
-                          askpx,        // price
-                          askqt         // qty
+                          askpx,                 // price
+                          askqt                  // qty
             );
           } else if (ask_add) {
             // ORE Order Add Message
@@ -259,8 +259,8 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                           (uint8_t)0,            // batch (last batch message)
                           (int32_t)chanid,       // imnt_id
                           (int32_t)(chanid + 1), // order_id
-                          askpx,        // price
-                          askqt,        // qty
+                          askpx,                 // price
+                          askqt,                 // qty
                           false                  // is_bid
             );
           } else if (ask_del) {
@@ -285,15 +285,15 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                                   uint64_t *last, bool skip,
                                   fmc_error_t **error) {
       auto [val, rem] = simple_json_parse(in, "\"E\":");
-      RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message %s",
-                          string(in));
+      RETURN_ERROR_UNLESS(val.size(), error, false,
+                          "could not parse message %s", string(in));
       auto [vend_ms, parsed] = fmc::from_string_view<int64_t>(val);
       RETURN_ERROR_UNLESS(val.size() == parsed.size(), error, false,
                           "could not parse message %s", string(in));
 
       tie(val, rem) = simple_json_parse(rem, "\"E\":");
-      RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message %s",
-                          string(in));
+      RETURN_ERROR_UNLESS(val.size(), error, false,
+                          "could not parse message %s", string(in));
       auto [seqno, parsed2] = fmc::from_string_view<uint64_t>(val);
       RETURN_ERROR_UNLESS(val.size() == parsed2.size(), error, false,
                           "could not parse message %s", string(in));
@@ -305,15 +305,15 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
       string_view trdqt;
       string_view isbid;
       tie(trdpx, rem) = simple_json_parse(rem, "\"p\":\"", "\",");
-      RETURN_ERROR_UNLESS(trdpx.size(), error, false, "could not parse message %s",
-                          string(in));
+      RETURN_ERROR_UNLESS(trdpx.size(), error, false,
+                          "could not parse message %s", string(in));
       tie(trdqt, rem) = simple_json_parse(rem, "\"q\":\"", "\",");
-      RETURN_ERROR_UNLESS(trdqt.size(), error, false, "could not parse message %s",
-                          string(in));
+      RETURN_ERROR_UNLESS(trdqt.size(), error, false,
+                          "could not parse message %s", string(in));
 
       tie(isbid, rem) = simple_json_parse(rem, "\"m\":");
-      RETURN_ERROR_UNLESS(isbid.size(), error, false, "could not parse message %s",
-                          string(in));
+      RETURN_ERROR_UNLESS(isbid.size(), error, false,
+                          "could not parse message %s", string(in));
 
       // ORE Off Book Trade Message
       // [11, receive, vendor offset, vendor seqno, batch, imnt id, trade
@@ -322,11 +322,11 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                     (uint8_t)11,                         // Message Type ID
                     (int64_t)tm,                         // receive
                     (int64_t)(tm - vend_ms * 1000000LL), // vendor offset in ns
-                    (uint64_t)seqno,    // vendor seqno
-                    (uint8_t)0,         // batch
-                    (uint64_t)chanid,   // imnt_id
-                    trdpx,              // trade price
-                    trdqt,              // qty
+                    (uint64_t)seqno,                     // vendor seqno
+                    (uint8_t)0,                          // batch
+                    (uint64_t)chanid,                    // imnt_id
+                    trdpx,                               // trade price
+                    trdqt,                               // qty
                     (uint8_t)(isbid == "true" ? 'b' : 'a'));
 
       return *error == nullptr;
@@ -500,7 +500,8 @@ void runner_t::run(fmc_error_t **error) {
       seqno = info->seqno;
       cmp_str_reset(&cmp);
       bool skip = info->outinfo->count > 0;
-      bool nodup = info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
+      bool nodup =
+          info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
       if (*error)
         return;
       // duplicate
