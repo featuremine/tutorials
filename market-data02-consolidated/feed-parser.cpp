@@ -376,7 +376,9 @@ struct runner_t {
   streams_in_t s_in;
   string_view prefix_out = "ore/";
   string_view prefix_in = "raw/";
-  string_view encoding = "";
+  string_view encoding =
+    "Content-Type application/msgpack\n"
+    "Content-Schema ore1.1.3";
   const char *peer = nullptr;
   const char *ytp_file_in = nullptr;
   const char *ytp_file_out = nullptr;
