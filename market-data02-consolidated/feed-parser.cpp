@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <functional>
 #include <memory>
@@ -28,6 +29,15 @@
 #include <ytp/yamal.h>
 
 using namespace std;
+
+#define notice(FMT, ...) \
+  ({time_t timer; char buffer[26]; \
+    struct tm* tm_info; \
+    timer = time(NULL); \
+    tm_info = localtime(&timer); \
+    strftime(buffer, 26, "%Y/%m/%d %H:%M:%S", tm_info); \
+    printf("%s %s: " FMT "\n", buffer, __func__, __VA_ARGS__); \
+  })
 
 #define RETURN_ERROR_UNLESS(COND, ERR, RET, ...)                               \
   if (__builtin_expect(!(COND), 0)) {                                          \
@@ -435,6 +445,10 @@ void runner_t::recover(fmc_error_t **error) {
   // This is where we do recovery. We count the number of messages we written
   // for each channel. Then we skip the correct number of messages for each
   // channel from the input to recover
+  uint64_t msg_count = 0ULL;
+  uint64_t chn_count = 0ULL;
+  constexpr auto msg_batch = 1000000ULL;
+  constexpr auto chn_batch = 1000ULL;
   auto it_out = ytp_data_begin(ytp_out, error);
   if (*error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
@@ -463,8 +477,15 @@ void runner_t::recover(fmc_error_t **error) {
     }
     if (!chan)
       continue;
+    chn_count += chan->count == 0ULL;
     ++chan->count;
+    if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
+      notice("Recovered %" PRIu64 " messages on %" PRIu64 " channels", msg_count, chn_count);
+    }
   }
+  if (++msg_count % msg_batch != 0 && chn_count % chn_batch != 0) {
+    notice("Recovered %" PRIu64 " messages on %" PRIu64 " channels", msg_count, chn_count);
+  } 
 }
 
 void runner_t::run(fmc_error_t **error) {
@@ -475,6 +496,10 @@ void runner_t::run(fmc_error_t **error) {
     fmc_error_add(error, "; ", "could not obtain iterator");
     return;
   }
+  int64_t last = fmc_cur_time_ns();
+  constexpr auto delay = 1000000LL;
+  uint64_t msg_count = 0ULL;
+  uint64_t dup_count = 0ULL;
   while (!interrupted) {
     for (; !ytp_yamal_term(it_in);
          it_in = ytp_yamal_next(ytp_in, it_in, error)) {
@@ -506,8 +531,10 @@ void runner_t::run(fmc_error_t **error) {
       if (*error)
         return;
       // duplicate
-      if (!nodup)
+      if (!nodup) {
+        ++dup_count;
         continue;
+      }
       info->seqno = seqno;
       // otherwise check if we still recovering
       if (skip) {
@@ -523,10 +550,17 @@ void runner_t::run(fmc_error_t **error) {
       memcpy(dst, cmp_str_data(&cmp), bufsz);
       ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
                       error);
+      ++msg_count;
       if (*error) {
         fmc_error_add(error, "; ", "could not commit message");
         return;
       }
+    }
+    if (auto now = fmc_cur_time_ns(); last + delay < now) {
+      last = now;
+      notice("Written %" PRIu64 " messages with %" PRIu64 " duplicates", msg_count, dup_count);
+      msg_count = 0ULL;
+      dup_count = 0ULL;
     }
   }
 }
