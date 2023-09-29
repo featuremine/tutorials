@@ -5,10 +5,10 @@
  *****************************************************************************/
 
 #include <ctype.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include <functional>
 #include <memory>
@@ -30,13 +30,15 @@
 
 using namespace std;
 
-#define notice(FMT, ...) \
-  ({time_t timer; char buffer[26]; \
-    struct tm* tm_info; \
-    timer = time(NULL); \
-    tm_info = localtime(&timer); \
-    strftime(buffer, 26, "%Y/%m/%d %H:%M:%S", tm_info); \
-    printf("%s %s: " FMT "\n", buffer, __func__, __VA_ARGS__); \
+#define notice(FMT, ...)                                                       \
+  ({                                                                           \
+    time_t timer;                                                              \
+    char buffer[26];                                                           \
+    struct tm *tm_info;                                                        \
+    timer = time(NULL);                                                        \
+    tm_info = localtime(&timer);                                               \
+    strftime(buffer, 26, "%Y/%m/%d %H:%M:%S", tm_info);                        \
+    printf("%s %s: " FMT "\n", buffer, __func__, __VA_ARGS__);                 \
   })
 
 #define RETURN_ERROR_UNLESS(COND, ERR, RET, ...)                               \
@@ -480,12 +482,14 @@ void runner_t::recover(fmc_error_t **error) {
     chn_count += chan->count == 0ULL;
     ++chan->count;
     if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
-      notice("Recovered %" PRIu64 " messages on %" PRIu64 " channels", msg_count, chn_count);
+      notice("Recovered %" PRIu64 " messages on %" PRIu64 " channels",
+             msg_count, chn_count);
     }
   }
   if (++msg_count % msg_batch != 0 && chn_count % chn_batch != 0) {
-    notice("Recovered %" PRIu64 " messages on %" PRIu64 " channels", msg_count, chn_count);
-  } 
+    notice("Recovered %" PRIu64 " messages on %" PRIu64 " channels", msg_count,
+           chn_count);
+  }
 }
 
 void runner_t::run(fmc_error_t **error) {
@@ -558,7 +562,8 @@ void runner_t::run(fmc_error_t **error) {
     }
     if (auto now = fmc_cur_time_ns(); last + delay < now) {
       last = now;
-      notice("Written %" PRIu64 " messages with %" PRIu64 " duplicates", msg_count, dup_count);
+      notice("Written %" PRIu64 " messages with %" PRIu64 " duplicates",
+             msg_count, dup_count);
       msg_count = 0ULL;
       dup_count = 0ULL;
     }
