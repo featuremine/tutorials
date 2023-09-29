@@ -12,16 +12,16 @@
 
 #include <functional>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <sstream>
 
 #include <cmp/cmp.h>
-#include <fmc++/serialization.hpp>
-#include <fmc++/time.hpp>
-#include <fmc++/strings.hpp>
 #include <fmc++/mpl.hpp>
+#include <fmc++/serialization.hpp>
+#include <fmc++/strings.hpp>
+#include <fmc++/time.hpp>
 #include <fmc/cmdline.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
@@ -49,13 +49,18 @@ struct logger_t {
 #define STR(a) #a
 #define XSTR(a) STR(a)
 
-#define notice(...) ({logger_t logger{std::cout}; logger.info(__VA_ARGS__); })
+#define notice(...)                                                            \
+  ({                                                                           \
+    logger_t logger{std::cout};                                                \
+    logger.info(__VA_ARGS__);                                                  \
+  })
 
 #define RETURN_ERROR_UNLESS(COND, ERR, RET, ...)                               \
   if (__builtin_expect(!(COND), 0)) {                                          \
-    ostringstream ss; \
-    logger_t logger{ss}; \
-    logger.info(string_view("(" __FILE__ ":" XSTR(__LINE__) ")"), __VA_ARGS__); \
+    ostringstream ss;                                                          \
+    logger_t logger{ss};                                                       \
+    logger.info(string_view("(" __FILE__ ":" XSTR(__LINE__) ")"),              \
+                __VA_ARGS__);                                                  \
     fmc_error_set(ERR, "%s", ss.str().c_str());                                \
     return RET;                                                                \
   }
@@ -310,15 +315,15 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                                   uint64_t *last, bool skip,
                                   fmc_error_t **error) {
       auto [val, rem] = simple_json_parse(in, "\"E\":");
-      RETURN_ERROR_UNLESS(val.size(), error, false,
-                          "could not parse message", in);
+      RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message",
+                          in);
       auto [vend_ms, parsed] = fmc::from_string_view<int64_t>(val);
       RETURN_ERROR_UNLESS(val.size() == parsed.size(), error, false,
                           "could not parse message", in);
 
       tie(val, rem) = simple_json_parse(rem, "\"t\":");
-      RETURN_ERROR_UNLESS(val.size(), error, false,
-                          "could not parse message", in);
+      RETURN_ERROR_UNLESS(val.size(), error, false, "could not parse message",
+                          in);
       auto [seqno, parsed2] = fmc::from_string_view<uint64_t>(val);
       RETURN_ERROR_UNLESS(val.size() == parsed2.size(), error, false,
                           "could not parse message", in);
@@ -330,15 +335,15 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
       string_view trdqt;
       string_view isbid;
       tie(trdpx, rem) = simple_json_parse(rem, "\"p\":\"", "\",");
-      RETURN_ERROR_UNLESS(trdpx.size(), error, false,
-                          "could not parse message", in);
+      RETURN_ERROR_UNLESS(trdpx.size(), error, false, "could not parse message",
+                          in);
       tie(trdqt, rem) = simple_json_parse(rem, "\"q\":\"", "\",");
-      RETURN_ERROR_UNLESS(trdqt.size(), error, false,
-                          "could not parse message", in);
+      RETURN_ERROR_UNLESS(trdqt.size(), error, false, "could not parse message",
+                          in);
 
       tie(isbid, rem) = simple_json_parse(rem, "\"m\":");
-      RETURN_ERROR_UNLESS(isbid.size(), error, false,
-                          "could not parse message", in);
+      RETURN_ERROR_UNLESS(isbid.size(), error, false, "could not parse message",
+                          in);
 
       // ORE Off Book Trade Message
       // [11, receive, vendor offset, vendor seqno, batch, imnt id, trade
@@ -415,11 +420,16 @@ struct runner_t {
 
 runner_t::~runner_t() {
   fmc_error_t *error = nullptr;
-  if (streams) ytp_streams_del(streams, &error);
-  if (ytp_in) ytp_yamal_del(ytp_in, &error);
-  if (ytp_out) ytp_yamal_del(ytp_out, &error);
-  if (fd_in != -1) fmc_fclose(fd_in, &error);
-  if (fd_out != -1) fmc_fclose(fd_out, &error);
+  if (streams)
+    ytp_streams_del(streams, &error);
+  if (ytp_in)
+    ytp_yamal_del(ytp_in, &error);
+  if (ytp_out)
+    ytp_yamal_del(ytp_out, &error);
+  if (fd_in != -1)
+    fmc_fclose(fd_in, &error);
+  if (fd_out != -1)
+    fmc_fclose(fd_out, &error);
 }
 
 void runner_t::init(fmc_error_t **error) {
@@ -495,7 +505,8 @@ void runner_t::recover(fmc_error_t **error) {
     chn_count += chan->count == 0ULL;
     ++chan->count;
     if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
-      notice("so far recovered", msg_count, "messages on", chn_count, "channels...");
+      notice("so far recovered", msg_count, "messages on", chn_count,
+             "channels...");
     }
   }
   notice("recovered", msg_count, "messages on", chn_count, "channels");
