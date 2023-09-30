@@ -66,7 +66,7 @@ struct logger_t {
   }
 
 #define RETURN_ON_ERROR(ERR, RET, ...)                                         \
-  if (__builtin_expect((*ERR)!=nullptr, 0)) {                                  \
+  if (__builtin_expect((*ERR) != nullptr, 0)) {                                \
     ostringstream ss;                                                          \
     logger_t logger{ss};                                                       \
     logger.info(__VA_ARGS__);                                                  \
@@ -74,7 +74,8 @@ struct logger_t {
     return RET;                                                                \
   }
 
-#define RETURN_ERROR(ERR, RET, ...) RETURN_ERROR_UNLESS(false, ERR, RET, __VA_ARGS__)
+#define RETURN_ERROR(ERR, RET, ...)                                            \
+  RETURN_ERROR_UNLESS(false, ERR, RET, __VA_ARGS__)
 
 // If you compiling with C++20 you don't need this
 inline bool starts_with(string_view a, string_view b) {
@@ -137,7 +138,7 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                                                    fmc_error_t **error) {
   auto pos = sv.find_last_of('@');
   auto none = make_pair<string_view, parser_t>(string_view(), nullptr);
-  RETURN_ERROR_UNLESS(pos != sv.npos, error, none, \
+  RETURN_ERROR_UNLESS(pos != sv.npos, error, none,
                       "missing @ in the Binance stream name", sv);
 
   auto feedtype = sv.substr(pos + 1);
@@ -436,15 +437,15 @@ runner_t::~runner_t() {
 
 void runner_t::init(fmc_error_t **error) {
   fd_in = fmc_fopen(ytp_file_in, fmc_fmode::READ, error);
-  RETURN_ON_ERROR(error,, "could not open input yamal file", ytp_file_in);
+  RETURN_ON_ERROR(error, , "could not open input yamal file", ytp_file_in);
   fd_out = fmc_fopen(ytp_file_out, fmc_fmode::READWRITE, error);
-  RETURN_ON_ERROR(error,, "could not open output yamal file", ytp_file_out);
+  RETURN_ON_ERROR(error, , "could not open output yamal file", ytp_file_out);
   ytp_in = ytp_yamal_new(fd_in, error);
-  RETURN_ON_ERROR(error,, "could not create input yamal");
+  RETURN_ON_ERROR(error, , "could not create input yamal");
   ytp_out = ytp_yamal_new(fd_out, error);
-  RETURN_ON_ERROR(error,, "could not create output yamal");
+  RETURN_ON_ERROR(error, , "could not create output yamal");
   streams = ytp_streams_new(ytp_out, error);
-  RETURN_ON_ERROR(error,, "could not create stream");
+  RETURN_ON_ERROR(error, , "could not create stream");
 }
 
 void runner_t::recover(fmc_error_t **error) {
@@ -456,19 +457,19 @@ void runner_t::recover(fmc_error_t **error) {
   constexpr auto msg_batch = 1000000ULL;
   constexpr auto chn_batch = 1000ULL;
   auto it_out = ytp_data_begin(ytp_out, error);
-  RETURN_ON_ERROR(error,, "could not obtain iterator");
+  RETURN_ON_ERROR(error, , "could not obtain iterator");
   for (; !ytp_yamal_term(it_out) && !interrupted;
        it_out = ytp_yamal_next(ytp_out, it_out, error)) {
-    RETURN_ON_ERROR(error,, "could not obtain iterator");
+    RETURN_ON_ERROR(error, , "could not obtain iterator");
     uint64_t seqno;
     int64_t ts;
     ytp_mmnode_offs stream;
     size_t sz;
     const char *data;
     ytp_data_read(ytp_out, it_out, &seqno, &ts, &stream, &sz, &data, error);
-    RETURN_ON_ERROR(error,, "could not read data");
+    RETURN_ON_ERROR(error, , "could not read data");
     auto *chan = get_stream_out(stream, error);
-    RETURN_ON_ERROR(error,, "could not create output stream");
+    RETURN_ON_ERROR(error, , "could not create output stream");
     if (!chan)
       continue;
     chn_count += chan->count == 0ULL;
@@ -485,7 +486,7 @@ void runner_t::run(fmc_error_t **error) {
   cmp_str_t cmp;
   cmp_str_init(&cmp);
   auto it_in = ytp_data_begin(ytp_in, error);
-  RETURN_ON_ERROR(error,, "could not obtain iterator");
+  RETURN_ON_ERROR(error, , "could not obtain iterator");
   int64_t last = fmc_cur_time_ns();
   constexpr auto delay = 1000000000LL;
   uint64_t msg_count = 0ULL;
@@ -493,14 +494,14 @@ void runner_t::run(fmc_error_t **error) {
   while (!interrupted) {
     for (; !ytp_yamal_term(it_in);
          it_in = ytp_yamal_next(ytp_in, it_in, error)) {
-      RETURN_ON_ERROR(error,, "could not obtain iterator");
+      RETURN_ON_ERROR(error, , "could not obtain iterator");
       uint64_t seqno;
       int64_t ts;
       ytp_mmnode_offs stream;
       size_t sz;
       const char *data;
       ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
-      RETURN_ON_ERROR(error,, "could not obtain iterator");
+      RETURN_ON_ERROR(error, , "could not obtain iterator");
       auto *info = get_stream_in(stream, error);
       if (*error)
         return;
@@ -527,11 +528,11 @@ void runner_t::run(fmc_error_t **error) {
       }
       size_t bufsz = cmp_str_size(&cmp);
       auto dst = ytp_data_reserve(ytp_out, bufsz, error);
-      RETURN_ON_ERROR(error,, "could not reserve message");
+      RETURN_ON_ERROR(error, , "could not reserve message");
       memcpy(dst, cmp_str_data(&cmp), bufsz);
       ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
                       error);
-      RETURN_ON_ERROR(error,, "could not commit message");
+      RETURN_ON_ERROR(error, , "could not commit message");
       ++msg_count;
     }
     if (auto now = fmc_cur_time_ns(); last + delay < now) {
@@ -619,7 +620,8 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   auto [feedsv, sep, rem] = split(sv, "/");
   auto feed = string(feedsv);
   auto resolver = resolvers.find(feed);
-  RETURN_ERROR_UNLESS(resolver != resolvers.end(), error, nullptr, "unknown feed", feed);
+  RETURN_ERROR_UNLESS(resolver != resolvers.end(), error, nullptr,
+                      "unknown feed", feed);
   auto [outsv, parser] = resolver->second(sv, error);
   RETURN_ON_ERROR(error, nullptr, "could not find a parser");
   auto *outinfo = get_stream_out(outsv, error);
