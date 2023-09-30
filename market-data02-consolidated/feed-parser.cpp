@@ -480,7 +480,7 @@ void runner_t::recover(fmc_error_t **error) {
     return;
   }
   for (; !ytp_yamal_term(it_out) && !interrupted;
-       it_out = ytp_yamal_next(ytp_in, it_out, error)) {
+       it_out = ytp_yamal_next(ytp_out, it_out, error)) {
     if (*error) {
       fmc_error_add(error, "; ", "could not obtain iterator");
       return;
@@ -490,7 +490,7 @@ void runner_t::recover(fmc_error_t **error) {
     ytp_mmnode_offs stream;
     size_t sz;
     const char *data;
-    ytp_data_read(ytp_in, it_out, &seqno, &ts, &stream, &sz, &data, error);
+    ytp_data_read(ytp_out, it_out, &seqno, &ts, &stream, &sz, &data, error);
     if (*error) {
       fmc_error_add(error, "; ", "could not read data");
       return;
