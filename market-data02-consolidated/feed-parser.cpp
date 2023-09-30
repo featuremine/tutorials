@@ -75,14 +75,13 @@ struct logger_t {
   }
 
 #define EXIT_ON_ERROR(ERR, ...)                                                \
-  if (__builtin_expect((*ERR)!=nullptr, 0)) {                                  \
+  if (__builtin_expect((*ERR) != nullptr, 0)) {                                \
     fprintf(stderr, "%s\n", fmc_error_msg(error));                             \
     return 1;                                                                  \
   }
 
 #define RETURN_ERROR(ERR, RET, ...)                                            \
   RETURN_ERROR_UNLESS(false, ERR, RET, __VA_ARGS__)
-
 
 // If you compiling with C++20 you don't need this
 inline bool starts_with(string_view a, string_view b) {
