@@ -65,6 +65,17 @@ struct logger_t {
     return RET;                                                                \
   }
 
+#define RETURN_ON_ERROR(ERR, RET, ...)                                         \
+  if (__builtin_expect((*ERR)!=nullptr, 0)) {                                  \
+    ostringstream ss;                                                          \
+    logger_t logger{ss};                                                       \
+    logger.info(__VA_ARGS__);                                                  \
+    fmc_error_add(ERR, "; ", "%s", ss.str().c_str());                          \
+    return RET;                                                                \
+  }
+
+#define RETURN_ERROR(ERR, RET, ...) RETURN_ERROR_UNLESS(false, ERR, RET, __VA_ARGS__)
+
 // If you compiling with C++20 you don't need this
 inline bool starts_with(string_view a, string_view b) {
   return a.substr(0, b.size()) == b;
@@ -99,15 +110,9 @@ static void cmp_ore_write(cmp_str_t *cmp, fmc_error_t **error, Args &&...args) {
 
   // Encode to cmp
   bool ret = cmp_write_array(ctx, left);
-  if (!ret) {
-    FMC_ERROR_REPORT(error, cmp_strerror(ctx));
-    return;
-  }
+  RETURN_ERROR_UNLESS(ret, error, , "could not parse:", cmp_strerror(ctx));
   ret = cmp_write_many(ctx, &left, args...);
-  if (!ret) {
-    FMC_ERROR_REPORT(error, cmp_strerror(ctx));
-    return;
-  }
+  RETURN_ERROR_UNLESS(ret, error, , "could not parse:", cmp_strerror(ctx));
 }
 
 // Parser gets the original data, string to write data to
@@ -131,11 +136,10 @@ struct binance_parse_ctx {
 pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                                                    fmc_error_t **error) {
   auto pos = sv.find_last_of('@');
-  if (pos == sv.npos) {
-    fmc_error_set(error, "missing @ in the Binance stream name %s",
-                  string(sv).c_str());
-    return {string_view(), nullptr};
-  }
+  auto none = make_pair<string_view, parser_t>(string_view(), nullptr);
+  RETURN_ERROR_UNLESS(pos != sv.npos, error, none, \
+                      "missing @ in the Binance stream name", sv);
+
   auto feedtype = sv.substr(pos + 1);
   auto outsv = sv.substr(0, pos);
   if (feedtype == "bookTicker") {
@@ -363,9 +367,7 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
     };
     return {outsv, parse_binance_trade};
   }
-  fmc_error_set(error, "unknown Binance stream type %s",
-                string(feedtype).c_str());
-  return {string_view(), nullptr};
+  RETURN_ERROR(error, none, "unknown Binance stream type", feedtype);
 }
 
 static int interrupted = 0;
@@ -434,36 +436,15 @@ runner_t::~runner_t() {
 
 void runner_t::init(fmc_error_t **error) {
   fd_in = fmc_fopen(ytp_file_in, fmc_fmode::READ, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not open input yamal file %s",
-                  ytp_file_in);
-    return;
-  }
-
+  RETURN_ON_ERROR(error,, "could not open input yamal file", ytp_file_in);
   fd_out = fmc_fopen(ytp_file_out, fmc_fmode::READWRITE, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not open output yamal file %s",
-                  ytp_file_out);
-    return;
-  }
-
+  RETURN_ON_ERROR(error,, "could not open output yamal file", ytp_file_out);
   ytp_in = ytp_yamal_new(fd_in, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not create input yamal");
-    return;
-  }
-
+  RETURN_ON_ERROR(error,, "could not create input yamal");
   ytp_out = ytp_yamal_new(fd_out, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not create output yamal");
-    return;
-  }
-
+  RETURN_ON_ERROR(error,, "could not create output yamal");
   streams = ytp_streams_new(ytp_out, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not create stream");
-    return;
-  }
+  RETURN_ON_ERROR(error,, "could not create stream");
 }
 
 void runner_t::recover(fmc_error_t **error) {
@@ -475,31 +456,19 @@ void runner_t::recover(fmc_error_t **error) {
   constexpr auto msg_batch = 1000000ULL;
   constexpr auto chn_batch = 1000ULL;
   auto it_out = ytp_data_begin(ytp_out, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not obtain iterator");
-    return;
-  }
+  RETURN_ON_ERROR(error,, "could not obtain iterator");
   for (; !ytp_yamal_term(it_out) && !interrupted;
        it_out = ytp_yamal_next(ytp_out, it_out, error)) {
-    if (*error) {
-      fmc_error_add(error, "; ", "could not obtain iterator");
-      return;
-    }
+    RETURN_ON_ERROR(error,, "could not obtain iterator");
     uint64_t seqno;
     int64_t ts;
     ytp_mmnode_offs stream;
     size_t sz;
     const char *data;
     ytp_data_read(ytp_out, it_out, &seqno, &ts, &stream, &sz, &data, error);
-    if (*error) {
-      fmc_error_add(error, "; ", "could not read data");
-      return;
-    }
+    RETURN_ON_ERROR(error,, "could not read data");
     auto *chan = get_stream_out(stream, error);
-    if (*error) {
-      fmc_error_add(error, "; ", "could not create output stream");
-      return;
-    }
+    RETURN_ON_ERROR(error,, "could not create output stream");
     if (!chan)
       continue;
     chn_count += chan->count == 0ULL;
@@ -516,10 +485,7 @@ void runner_t::run(fmc_error_t **error) {
   cmp_str_t cmp;
   cmp_str_init(&cmp);
   auto it_in = ytp_data_begin(ytp_in, error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not obtain iterator");
-    return;
-  }
+  RETURN_ON_ERROR(error,, "could not obtain iterator");
   int64_t last = fmc_cur_time_ns();
   constexpr auto delay = 1000000000LL;
   uint64_t msg_count = 0ULL;
@@ -527,20 +493,14 @@ void runner_t::run(fmc_error_t **error) {
   while (!interrupted) {
     for (; !ytp_yamal_term(it_in);
          it_in = ytp_yamal_next(ytp_in, it_in, error)) {
-      if (*error) {
-        fmc_error_add(error, "; ", "could not obtain iterator");
-        return;
-      }
+      RETURN_ON_ERROR(error,, "could not obtain iterator");
       uint64_t seqno;
       int64_t ts;
       ytp_mmnode_offs stream;
       size_t sz;
       const char *data;
       ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
-      if (*error) {
-        fmc_error_add(error, "; ", "could not obtain iterator");
-        return;
-      }
+      RETURN_ON_ERROR(error,, "could not obtain iterator");
       auto *info = get_stream_in(stream, error);
       if (*error)
         return;
@@ -567,18 +527,12 @@ void runner_t::run(fmc_error_t **error) {
       }
       size_t bufsz = cmp_str_size(&cmp);
       auto dst = ytp_data_reserve(ytp_out, bufsz, error);
-      if (*error) {
-        fmc_error_add(error, "; ", "could not reserve message");
-        return;
-      }
+      RETURN_ON_ERROR(error,, "could not reserve message");
       memcpy(dst, cmp_str_data(&cmp), bufsz);
       ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
                       error);
+      RETURN_ON_ERROR(error,, "could not commit message");
       ++msg_count;
-      if (*error) {
-        fmc_error_add(error, "; ", "could not commit message");
-        return;
-      }
     }
     if (auto now = fmc_cur_time_ns(); last + delay < now) {
       last = now;
@@ -611,10 +565,7 @@ runner_t::stream_out_t *runner_t::get_stream_out(ytp_mmnode_offs stream,
   ytp_announcement_lookup(ytp_out, stream, &seqno, &psz, &origpeer, &csz,
                           &channel, &esz, &encoding, &original, &subscribed,
                           error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not look up stream");
-    return nullptr;
-  }
+  RETURN_ON_ERROR(error, nullptr, "could not look up stream");
   // if this stream is not one of ours or wrong format, skip
   if (string_view(origpeer, psz) != peer ||
       !starts_with(string_view{channel, csz}, prefix_out)) {
@@ -632,10 +583,7 @@ runner_t::stream_out_t *runner_t::get_stream_out(string_view sv,
   auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
                                      chstr.size(), chstr.data(),
                                      encoding.size(), encoding.data(), error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not announce stream");
-    return nullptr;
-  }
+  RETURN_ON_ERROR(error, nullptr, "could not announce stream");
   return emplace_stream_out(stream);
 }
 
@@ -659,11 +607,7 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   ytp_announcement_lookup(ytp_in, stream, &seqno, &psz, &origpeer, &csz,
                           &channel, &esz, &encoding, &original, &subscribed,
                           error);
-  if (*error) {
-    fmc_error_add(error, "; ", "could not look up stream announcement");
-    return nullptr;
-  }
-
+  RETURN_ON_ERROR(error, nullptr, "could not look up stream announcement");
   string_view sv{channel, csz};
   // if this stream is one of ours or wrong format, skip
   if (string_view(origpeer, psz) == peer || !starts_with(sv, prefix_in)) {
@@ -675,16 +619,11 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   auto [feedsv, sep, rem] = split(sv, "/");
   auto feed = string(feedsv);
   auto resolver = resolvers.find(feed);
-  if (resolver == resolvers.end()) {
-    fmc_error_set(error, "unknown feed %s", feed.c_str());
-    return nullptr;
-  }
+  RETURN_ERROR_UNLESS(resolver != resolvers.end(), error, nullptr, "unknown feed", feed);
   auto [outsv, parser] = resolver->second(sv, error);
-  if (*error)
-    return nullptr;
+  RETURN_ON_ERROR(error, nullptr, "could not find a parser");
   auto *outinfo = get_stream_out(outsv, error);
-  if (*error)
-    return nullptr;
+  RETURN_ON_ERROR(error, nullptr, "could not get out stream");
   return &s_in.emplace(stream,
                        stream_in_t{.parser = parser, .outinfo = outinfo})
               .first->second;
@@ -721,14 +660,13 @@ int main(int argc, const char **argv) {
 
   runner.init(&error);
   if (error) {
-    fprintf(stderr, "could not initialize with error: %s\n",
-            fmc_error_msg(error));
+    fprintf(stderr, "%s\n", fmc_error_msg(error));
     return 1;
   }
 
   runner.recover(&error);
   if (error) {
-    fprintf(stderr, "could not recover with error: %s\n", fmc_error_msg(error));
+    fprintf(stderr, "%s\n", fmc_error_msg(error));
     return 1;
   }
 
