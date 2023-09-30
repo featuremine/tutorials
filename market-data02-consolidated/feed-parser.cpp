@@ -74,6 +74,12 @@ struct logger_t {
     return RET;                                                                \
   }
 
+#define EXIT_ON_ERROR(ERR, ...)                                                \
+  if (__builtin_expect((*ERR)!=nullptr, 0)) {                                  \
+    fprintf(stderr, "%s\n", fmc_error_msg(error));                             \
+    return 1;                                                                  \
+  }
+
 #define RETURN_ERROR(ERR, RET, ...) RETURN_ERROR_UNLESS(false, ERR, RET, __VA_ARGS__)
 
 // If you compiling with C++20 you don't need this
@@ -653,28 +659,16 @@ int main(int argc, const char **argv) {
            "Application parses data produced by the feed handler.\n");
     return 0;
   }
-  if (error) {
-    fprintf(stderr, "could not process args: %s\n", fmc_error_msg(error));
-    return 1;
-  }
+  EXIT_ON_ERROR(&error);
 
   runner.init(&error);
-  if (error) {
-    fprintf(stderr, "%s\n", fmc_error_msg(error));
-    return 1;
-  }
+  EXIT_ON_ERROR(&error);
 
   runner.recover(&error);
-  if (error) {
-    fprintf(stderr, "%s\n", fmc_error_msg(error));
-    return 1;
-  }
-
+  EXIT_ON_ERROR(&error);
+  
   runner.run(&error);
-  if (error) {
-    fprintf(stderr, "%s\n", fmc_error_msg(error));
-    return 1;
-  }
+  EXIT_ON_ERROR(&error);
 
   return 0;
 }
