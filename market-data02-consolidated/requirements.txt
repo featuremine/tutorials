@@ -1,4 +1,5 @@
 numpy
 matplotlib
-yamal==8.0.1
+yamal==8.0.5
+msgpack
 featuremine-extractor==7.0.3

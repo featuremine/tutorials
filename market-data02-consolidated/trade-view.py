@@ -7,19 +7,20 @@
 """
 
 import argparse
-from yamal import ytp
+import extractor
 import numpy as np
 import matplotlib.pyplot as plt
-import json
+from datetime import timedelta
 
 class TradePlotter:
-    def __init__(self, n):
+    def __init__(self, n, callback):
         self.tms = np.zeros(n, dtype='datetime64[ms]')
         self.tds = np.zeros((n,5), dtype=np.float64)
         self.bid = None
         self.ask = None
         self.idx = 0
         self.done = False
+        self.callback = callback
     def times(self):
         return self.tms
     def trade(self, tm, px, qt, isbid):
@@ -33,6 +34,8 @@ class TradePlotter:
         self.tds[self.idx, 4] = isbid
         self.idx += 1
         self.done = self.idx == self.tms.shape[0]
+        if (self.done):
+            self.callback(self)
     def bids(self):
         return self.tds[:,0]
     def asks(self):
@@ -50,17 +53,10 @@ class TradePlotter:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--ytp-file", help="ytp file name", required=True)
+    parser.add_argument("--market", help="market of security to display", required=False)
     parser.add_argument("--security", help="security to display", required=True)
     parser.add_argument("--points", help="number of trades", type=int, required=True)
     args = parser.parse_args()
-
-    # First create a sequence object, which represents a sequence of messages in yamal
-    sequence = ytp.sequence(args.ytp_file)
-
-    #Create a peer object using the desired peer name with the help of your sequence object
-    peer = sequence.peer("reader")
-
-    plotter = TradePlotter(args.points)
 
     def draw_plot(data):
         fig = plt.figure()
@@ -77,23 +73,52 @@ if __name__ == '__main__':
         plt.plot(data.times(), data.asks(), c='r', linewidth = '2')
         plt.grid()
         plt.show()
+    
+    plotter = TradePlotter(args.points, draw_plot)
 
-    def trade_plotter(plotter, data):
-        ev = json.loads(data)
-        plotter.trade(np.datetime64(ev['T'], 'ms'), ev['p'], ev['q'], ev['m'])
-    def quote_plotter(plotter, data):
-        ev = json.loads(data)
-        plotter.quote(ev['b'], ev['a'])
+    graph = extractor.system.comp_graph()
+    op = graph.features
+
+    channel = ("ore/{0}/{1}".format(args.market, args.security),)
+    upds = op.seq_ore_live_split(args.ytp_file, channel)
+    headers = [op.book_header(upd) for upd in upds]
+
+    levels = [op.book_build(upd, 1) for upd in upds]
+    lvlhdrs = [op.asof(hdr, lvl) for hdr, lvl in zip(headers, levels)]
+    bbos = [op.combine(
+        level, (
+            ("bid_prx_0", "bidprice"),
+            ("ask_prx_0", "askprice"),
+            ("bid_shr_0", "bidqty"),
+            ("ask_shr_0", "askqty")
+        ),
+        hdr, (("receive", "receive"),)) for level, hdr in zip(levels, lvlhdrs)]
+
+    const_b = op.constant(('decoration', extractor.Array(extractor.Char, 4), 'b'))
+    const_a = op.constant(('decoration', extractor.Array(extractor.Char, 4), 'a'))
+    const_u = op.constant(('decoration', extractor.Array(extractor.Char, 4), 'u'))
+    def normalize_trade(trade):
+        decoration_equals_a = trade.decoration == const_a
+        decoration_equals_b = trade.decoration == const_b
+        const_n_value_b = op.constant(('side', extractor.Int32, 0))
+        const_n_value_a = op.constant(('side', extractor.Int32, 1))
+        const_n_value_u = op.constant(('side', extractor.Int32, 2))
+        eq_b = op.cond(decoration_equals_b, const_n_value_b, const_n_value_u)
+        side = op.cond(decoration_equals_a, const_n_value_a, eq_b)
+
+        return op.combine(
+            trade, (
+                ("trade_price", "price"),
+                ("receive", "receive"),
+                ("qty", "qty")
+            ),
+            side, (("side", "side"),))
+
+    trades = [normalize_trade(op.book_trades(upd)) for upd in upds]
 
     # Then subscribe to message callbacks.
-    # Specify the current time or zero, and the channel you want to subscribe to
-    # Each callback receives the peer, channel, time of the message and the message itself
-    peer.channel(0, f"{args.security}@trade").data_callback(lambda peer, chan, tm, data: trade_plotter(plotter, data))
-    peer.channel(0, f"{args.security}@bookTicker").data_callback(lambda peer, chan, tm, data: quote_plotter(plotter, data))
+    graph.callback(trades[0], lambda ev: plotter.trade(np.datetime64(ev[0].receive), ev[0].price, ev[0].qty, ev[0].side))
+    graph.callback(bbos[0], lambda ev: plotter.quote(ev[0].bidprice, ev[0].askprice))
 
-    while not plotter.done:
-        # Call poll to process the next message.
-        # If no messages have been processed, poll returns False
-        sequence.poll()
+    graph.stream_ctx().run_live()
 
-    draw_plot(plotter)
