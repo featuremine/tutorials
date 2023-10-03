@@ -22,6 +22,8 @@
 #include <fmc++/serialization.hpp>
 #include <fmc++/strings.hpp>
 #include <fmc++/time.hpp>
+#include <fmc++/logger.hpp>
+#include <fmc++/error.hpp>
 #include <fmc/cmdline.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
@@ -32,56 +34,7 @@
 #include <ytp/yamal.h>
 
 using namespace std;
-
-struct logger_t {
-  template <typename... Args> void info(Args &&...args) {
-    out << '[';
-    out << std::chrono::system_clock::now().time_since_epoch();
-    out << ']';
-    fmc::for_each(
-        [&](auto &&arg) { out << ' ' << std::forward<decltype(arg)>(arg); },
-        std::forward<Args>(args)...);
-    out << std::endl;
-  }
-  std::ostream &out;
-};
-
-#define STR(a) #a
-#define XSTR(a) STR(a)
-
-#define notice(...)                                                            \
-  ({                                                                           \
-    logger_t logger{std::cout};                                                \
-    logger.info(__VA_ARGS__);                                                  \
-  })
-
-#define RETURN_ERROR_UNLESS(COND, ERR, RET, ...)                               \
-  if (__builtin_expect(!(COND), 0)) {                                          \
-    ostringstream ss;                                                          \
-    logger_t logger{ss};                                                       \
-    logger.info(string_view("(" __FILE__ ":" XSTR(__LINE__) ")"),              \
-                __VA_ARGS__);                                                  \
-    fmc_error_set(ERR, "%s", ss.str().c_str());                                \
-    return RET;                                                                \
-  }
-
-#define RETURN_ON_ERROR(ERR, RET, ...)                                         \
-  if (__builtin_expect((*ERR) != nullptr, 0)) {                                \
-    ostringstream ss;                                                          \
-    logger_t logger{ss};                                                       \
-    logger.info(__VA_ARGS__);                                                  \
-    fmc_error_add(ERR, "; ", "%s", ss.str().c_str());                          \
-    return RET;                                                                \
-  }
-
-#define EXIT_ON_ERROR(ERR, ...)                                                \
-  if (__builtin_expect((*ERR) != nullptr, 0)) {                                \
-    fprintf(stderr, "%s\n", fmc_error_msg(error));                             \
-    return 1;                                                                  \
-  }
-
-#define RETURN_ERROR(ERR, RET, ...)                                            \
-  RETURN_ERROR_UNLESS(false, ERR, RET, __VA_ARGS__)
+using namespace fmc;
 
 // If you compiling with C++20 you don't need this
 inline bool starts_with(string_view a, string_view b) {
