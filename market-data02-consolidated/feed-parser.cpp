@@ -368,7 +368,7 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
                     (uint64_t)chanid,                    // imnt_id
                     trdpx,                               // trade price
                     trdqt,                               // qty
-                    (uint8_t)(isbid == "true" ? 'b' : 'a'));
+                    string_view(isbid == "true" ? "b" : "a"));
 
       return *error == nullptr;
     };

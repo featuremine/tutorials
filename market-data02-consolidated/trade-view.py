@@ -26,11 +26,12 @@ class TradePlotter:
     def trade(self, tm, px, qt, isbid):
         if self.bid is None or self.ask is None:
             return
-        self.tms[self.idx] = tm
+        tm_us = int(tm / timedelta(microseconds=1))
+        self.tms[self.idx] = np.datetime64(tm_us, 'us')
         self.tds[self.idx, 0] = self.bid
         self.tds[self.idx, 1] = self.ask
-        self.tds[self.idx, 2] = px
-        self.tds[self.idx, 3] = qt
+        self.tds[self.idx, 2] = float(px)
+        self.tds[self.idx, 3] = float(qt)
         self.tds[self.idx, 4] = isbid
         self.idx += 1
         self.done = self.idx == self.tms.shape[0]
@@ -47,8 +48,8 @@ class TradePlotter:
         sel = self.tds[:,4] == False
         return self.tms[sel], self.tds[sel,2], self.tds[sel,3]
     def quote(self, bid, ask):
-        self.bid = bid
-        self.ask = ask
+        self.bid = float(bid)
+        self.ask = float(ask)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -73,6 +74,7 @@ if __name__ == '__main__':
         plt.plot(data.times(), data.asks(), c='r', linewidth = '2')
         plt.grid()
         plt.show()
+        exit()
     
     plotter = TradePlotter(args.points, draw_plot)
 
@@ -117,7 +119,7 @@ if __name__ == '__main__':
     trades = [normalize_trade(op.book_trades(upd)) for upd in upds]
 
     # Then subscribe to message callbacks.
-    graph.callback(trades[0], lambda ev: plotter.trade(np.datetime64(ev[0].receive), ev[0].price, ev[0].qty, ev[0].side))
+    graph.callback(trades[0], lambda ev: plotter.trade(ev[0].receive, ev[0].price, ev[0].qty, ev[0].side))
     graph.callback(bbos[0], lambda ev: plotter.quote(ev[0].bidprice, ev[0].askprice))
 
     graph.stream_ctx().run_live()
