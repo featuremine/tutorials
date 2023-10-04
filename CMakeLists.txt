@@ -49,6 +49,18 @@ add_custom_target(
     yamal-stats
 )
 
+if (BUILD_DOCUMENTATION)
+    set(FmDocumentation_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+    find_package(FmDocumentation REQUIRED)
+    add_documentation(
+        NAME tutorials-docs
+        BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs"
+        SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/docs"
+        TITLE "Tutorials"
+        VERSION "${PROJECT_VERSION}"
+    )
+endif()
+
 set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(FmConfig REQUIRED)
 fm_config()
@@ -78,7 +90,7 @@ add_bin_to_package(binance-feed-handler)
 
 add_subdirectory(market-data02-consolidated)
 add_bin_to_package(feed-handler)
-#add_bin_to_package(feed-parser)
+add_bin_to_package(feed-parser)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")
 add_custom_command(
