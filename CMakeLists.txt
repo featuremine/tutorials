@@ -29,14 +29,13 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
-    VERSION "8.0.2"
-    GIT_REVISION "v8.0.2"
+    VERSION "8.0.6"
+    GIT_REVISION "v8.0.6"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
 add_subproject(
     NAME websockets
-    VERSION "v4.3.2"
     GIT_REVISION "v4.3.2"
     GIT_URL "https://github.com/warmcat/libwebsockets.git"
     TARGETS websockets
@@ -50,8 +49,64 @@ add_custom_target(
     yamal-stats
 )
 
+if (BUILD_DOCUMENTATION)
+    set(FmDocumentation_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+    find_package(FmDocumentation REQUIRED)
+    add_documentation(
+        NAME tutorials-docs
+        BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs"
+        SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/docs"
+        TITLE "Tutorials"
+        VERSION "${PROJECT_VERSION}"
+    )
+endif()
+
 set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(FmConfig REQUIRED)
 fm_config()
 
+set(package_DEP "")
+set(package_FILES "")
+macro(add_bin_to_package TARGET)
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE:${TARGET}>"
+        "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}"
+
+        DEPENDS
+        ${TARGET}
+    )
+    list(APPEND package_DEP "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}")
+    list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}")
+endmacro()
+
 add_subdirectory(market-data01-feedhandler)
+add_bin_to_package(minimal-ws-client-binance)
+add_bin_to_package(binance-feed-handler)
+
+add_subdirectory(market-data02-consolidated)
+add_bin_to_package(feed-handler)
+add_bin_to_package(feed-parser)
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")
+add_custom_command(
+    OUTPUT
+    "${CMAKE_BINARY_DIR}/output/tutorials-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}.tar.gz"
+
+    COMMAND
+    ${CMAKE_COMMAND} -E chdir "${CMAKE_CURRENT_BINARY_DIR}/package"
+    ${CMAKE_COMMAND} -E tar "czvf" "${CMAKE_BINARY_DIR}/output/tutorials-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}.tar.gz"
+    ${package_FILES}
+
+    DEPENDS
+    ${package_DEP}
+)
+
+add_custom_target(
+    tutorials-package ALL
+    DEPENDS "${CMAKE_BINARY_DIR}/output/tutorials-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}.tar.gz"
+)
