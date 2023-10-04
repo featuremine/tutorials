@@ -16,6 +16,7 @@ import os
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--ytp-file", help="ytp file name", required=True)
+    parser.add_argument("--follow", help="ytp file name", type=bool, default=False, required=False)
     args = parser.parse_args()
 
     y = yamal(args.ytp_file)
@@ -27,3 +28,5 @@ if __name__ == '__main__':
             unpacker = msgpack.Unpacker(BytesIO(msg), raw=False)
             for unpacked in unpacker:
                 print(strm.channel, unpacked)
+        if not args.follow:
+            break

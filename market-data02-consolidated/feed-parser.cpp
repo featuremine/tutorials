@@ -359,12 +359,14 @@ struct runner_t {
   // We use a hash map to store stream info
   using streams_out_t =
       unordered_map<ytp_mmnode_offs, unique_ptr<stream_out_t>>;
-  using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t>;
+  using channels_in_t = unordered_map<string_view, unique_ptr<stream_in_t>>;
+  using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t*>;
   // This map contains a context factory for each supported feed
   unordered_map<string, resolver_t> resolvers = {
       {"binance", get_binance_channel_in}};
   // Hash map to keep track of outgoing streams
   streams_out_t s_out;
+  channels_in_t ch_in;
   streams_in_t s_in;
   string_view prefix_out = "ore/";
   string_view prefix_in = "raw/";
@@ -448,6 +450,7 @@ void runner_t::run(fmc_error_t **error) {
   RETURN_ON_ERROR(error, , "could not obtain iterator");
   int64_t last = fmc_cur_time_ns();
   constexpr auto delay = 1000000000LL;
+  uint64_t read_count = 0ULL;
   uint64_t msg_count = 0ULL;
   uint64_t dup_count = 0ULL;
   while (!interrupted) {
@@ -465,8 +468,9 @@ void runner_t::run(fmc_error_t **error) {
       if (*error)
         return;
       // if this channel not interesting, skip it
-      if (!info->parser)
+      if (!info)
         continue;
+      ++read_count;
       seqno = info->seqno;
       cmp_str_reset(&cmp);
       bool skip = info->outinfo->count > 0;
@@ -496,7 +500,8 @@ void runner_t::run(fmc_error_t **error) {
     }
     if (auto now = fmc_cur_time_ns(); last + delay < now) {
       last = now;
-      notice("written", msg_count, "messages with", dup_count, "duplicates");
+      notice("read:", read_count, "written:", msg_count, "duplicates:", dup_count);
+      read_count = 0ULL;
       msg_count = 0ULL;
       dup_count = 0ULL;
     }
@@ -554,7 +559,7 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   // Look up the stream in the input stream map
   auto where = s_in.find(stream);
   if (where != s_in.end())
-    return &where->second;
+    return where->second;
 
   // if we don't know this input stream, look up stream info,
   // check if it is one of ours, if not check it starts with
@@ -571,23 +576,27 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   string_view sv{channel, csz};
   // if this stream is one of ours or wrong format, skip
   if (string_view(origpeer, psz) == peer || !starts_with(sv, prefix_in)) {
-    return &s_in.emplace(stream, stream_in_t{}).first->second;
+    return s_in.emplace(stream, nullptr).first->second;
   }
 
-  // we remove the prefix from the input channel name
   sv = sv.substr(prefix_in.size());
-  auto [feedsv, sep, rem] = split(sv, "/");
-  auto feed = string(feedsv);
-  auto resolver = resolvers.find(feed);
-  RETURN_ERROR_UNLESS(resolver != resolvers.end(), error, nullptr,
-                      "unknown feed", feed);
-  auto [outsv, parser] = resolver->second(sv, error);
-  RETURN_ON_ERROR(error, nullptr, "could not find a parser");
-  auto *outinfo = get_stream_out(outsv, error);
-  RETURN_ON_ERROR(error, nullptr, "could not get out stream");
-  return &s_in.emplace(stream,
-                       stream_in_t{.parser = parser, .outinfo = outinfo})
-              .first->second;
+  auto chan_it = ch_in.find(sv);
+  if (chan_it == ch_in.end()) {
+    // we remove the prefix from the input channel name
+    auto [feedsv, sep, rem] = split(sv, "/");
+    auto feed = string(feedsv);
+    auto resolver = resolvers.find(feed);
+    RETURN_ERROR_UNLESS(resolver != resolvers.end(), error, nullptr,
+                        "unknown feed", feed);
+    auto [outsv, parser] = resolver->second(sv, error);
+    RETURN_ON_ERROR(error, nullptr, "could not find a parser");
+    auto *outinfo = get_stream_out(outsv, error);
+    RETURN_ON_ERROR(error, nullptr, "could not get out stream");
+    chan_it = ch_in
+      .emplace(sv, make_unique<stream_in_t>(stream_in_t{.parser = parser, .outinfo = outinfo}))
+      .first;
+  }
+  return s_in.emplace(stream, chan_it->second.get()).first->second;
 }
 
 int main(int argc, const char **argv) {
