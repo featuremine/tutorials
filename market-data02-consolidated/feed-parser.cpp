@@ -360,7 +360,7 @@ struct runner_t {
   using streams_out_t =
       unordered_map<ytp_mmnode_offs, unique_ptr<stream_out_t>>;
   using channels_in_t = unordered_map<string_view, unique_ptr<stream_in_t>>;
-  using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t*>;
+  using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t *>;
   // This map contains a context factory for each supported feed
   unordered_map<string, resolver_t> resolvers = {
       {"binance", get_binance_channel_in}};
@@ -500,7 +500,8 @@ void runner_t::run(fmc_error_t **error) {
     }
     if (auto now = fmc_cur_time_ns(); last + delay < now) {
       last = now;
-      notice("read:", read_count, "written:", msg_count, "duplicates:", dup_count);
+      notice("read:", read_count, "written:", msg_count,
+             "duplicates:", dup_count);
       read_count = 0ULL;
       msg_count = 0ULL;
       dup_count = 0ULL;
@@ -593,8 +594,9 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
     auto *outinfo = get_stream_out(outsv, error);
     RETURN_ON_ERROR(error, nullptr, "could not get out stream");
     chan_it = ch_in
-      .emplace(sv, make_unique<stream_in_t>(stream_in_t{.parser = parser, .outinfo = outinfo}))
-      .first;
+                  .emplace(sv, make_unique<stream_in_t>(stream_in_t{
+                                   .parser = parser, .outinfo = outinfo}))
+                  .first;
   }
   return s_in.emplace(stream, chan_it->second.get()).first->second;
 }
