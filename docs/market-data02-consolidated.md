@@ -13,7 +13,7 @@ cd tutorials
 cmake -B release -DCMAKE_BUILD_TYPE=Release
 cmake --build release
 ```
-Post-build, you should be able to find the tutorial binaries under **release/market-data02-consolidated**. All of the relevant sources are in the market-data02-consolidated directory of the repository.
+Post-build, you should be able to find the tutorial binaries under **release/market-data02-consolidated**. All of the relevant sources are in the **market-data02-consolidated** directory of the repository.
 
 ### **Validating and Assessing Performance**
 
