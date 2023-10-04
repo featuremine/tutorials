@@ -37,4 +37,4 @@ debug
 release
 .vscode
 
-*.ytp
+*.ytp*

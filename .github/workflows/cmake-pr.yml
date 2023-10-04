@@ -12,7 +12,21 @@ on:
 permissions: write-all
 
 jobs:
+  utility:
+    runs-on: ubuntu-20.04
+    outputs:
+      release-check: ${{ steps.release-check.outputs.release-check }}
+
+    steps:
+    - name: Utility tasks
+      id: release-check
+      uses: featuremine/actions/utility@v2
+      with:
+        gh_token: ${{ secrets.GITHUB_TOKEN }}
+        utility_token: ${{ secrets.UTILITY_COMMIT_TOKEN }}
+
   build-manylinux:
+    needs: utility
     runs-on: ubuntu-20.04
     container:
       image: public.ecr.aws/p0w8t0l8/ci-hosted-gh-centos7-gcc10.2.0
@@ -26,11 +40,12 @@ jobs:
       uses: featuremine/actions/package/build@v2
       with:
         gh_token: ${{ secrets.GITHUB_TOKEN }}
-        docs: false
+        docs: true
         wheel: false
-        upload: false
+        upload: ${{ needs.utility.outputs.release-check == 'release' }}
 
   build-macos:
+    needs: utility
     runs-on: macos-11
 
     steps:
@@ -47,4 +62,4 @@ jobs:
         gh_token: ${{ secrets.GITHUB_TOKEN }}
         docs: false
         wheel: false
-        upload: false
+        upload: ${{ needs.utility.outputs.release-check == 'release' }}
