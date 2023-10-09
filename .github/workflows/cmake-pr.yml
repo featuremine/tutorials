@@ -63,3 +63,24 @@ jobs:
         docs: false
         wheel: false
         upload: ${{ needs.utility.outputs.release-check == 'release' }}
+
+  build-macos-13-arm:
+    needs: utility
+    if: needs.utility.outputs.release-check == 'release'
+    runs-on: macos-13-xlarge
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: brew install pkg-config cmake openssl
+
+    - name: Build ${{ github.event.repository.name }} with fm gcc
+      uses: featuremine/actions/package/build@v2
+      with:
+        gh_token: ${{ secrets.GITHUB_TOKEN }}
+        docs: false
+        wheel: false
+        upload: ${{ needs.utility.outputs.release-check == 'release' }}
