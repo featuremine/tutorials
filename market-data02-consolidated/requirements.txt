@@ -1,5 +1,5 @@
 numpy
 matplotlib
-yamal==8.0.5
+yamal==8.0.7
 msgpack
-featuremine-extractor==7.0.3
+featuremine-extractor==7.0.5
