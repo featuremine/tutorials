@@ -29,8 +29,8 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
-    VERSION "8.0.7"
-    GIT_REVISION "v8.0.7"
+    VERSION "8.0.8"
+    GIT_REVISION "v8.0.8"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
