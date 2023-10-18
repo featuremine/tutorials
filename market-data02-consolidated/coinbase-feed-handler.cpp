@@ -198,19 +198,14 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
     break;
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
-    p = lws_json_simple_find((const char *)in, len, "\"stream\"", &alen);
+    //TODO: Validate subscriptions message as a response
+    p = lws_json_simple_find((const char *)in, len, "\"product_id\"", &alen);
     if (!p) {
-      lwsl_err("%s, message does not contain \"stream\":\n", __func__);
+      lwsl_err("%s, message does not contain \"product_id\":\n", __func__);
       break;
     }
     stream = std::string_view((const char *)p + 2, alen - 3);
-    p = lws_json_simple_find((const char *)in, len, "\"data\"", &alen);
-    if (!p) {
-      lwsl_err("%s, message does not contain \"data\":\n", __func__);
-      break;
-    }
-    data =
-        std::string_view((const char *)p + 1, len - (p - (const char *)in) - 2);
+    data = std::string_view((const char *)in, len);
     if (auto where = mco->streams.find(stream); where != mco->streams.end()) {
       auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
       if (err) {
@@ -438,32 +433,29 @@ int main(int argc, const char **argv) {
   string_view vpeer(peer);
   string encoding = "Content-Type application/json\n"
                     "Content-Schema Coinbase";
-  vector<string> types = {"heartbeat", "full"};
   ostringstream ss;
   bool first = true;
   constexpr string_view prefix = "raw/coinbase/";
   for (auto &&sec : secs) {
-    for (auto &&tp : types) {
-      string chstr = string(prefix) + sec + tp;
-      auto stream = ytp_streams_announce(
-          streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
-          encoding.size(), encoding.data(), &error);
-      uint64_t seqno;
-      size_t psz;
-      const char *peer;
-      size_t csz;
-      const char *channel;
-      size_t esz;
-      const char *encoding;
-      ytp_mmnode_offs *original;
-      ytp_mmnode_offs *subscribed;
+    string chstr = string(prefix) + sec + "full";
+    auto stream = ytp_streams_announce(
+        streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
+        encoding.size(), encoding.data(), &error);
+    uint64_t seqno;
+    size_t psz;
+    const char *peer;
+    size_t csz;
+    const char *channel;
+    size_t esz;
+    const char *encoding;
+    ytp_mmnode_offs *original;
+    ytp_mmnode_offs *subscribed;
 
-      ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
-                              &channel, &esz, &encoding, &original, &subscribed,
-                              &error);
-      auto chview = string_view(channel, csz).substr(prefix.size());
-      mco.streams.emplace(chview, stream);
-    }
+    ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
+                            &channel, &esz, &encoding, &original, &subscribed,
+                            &error);
+    auto chview = string_view(channel, csz).substr(prefix.size());
+    mco.streams.emplace(sec, stream);
     ss << (first ? "" : ",") << "\""<<sec << "\"";
     first = false;
   }
