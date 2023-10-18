@@ -18,6 +18,17 @@ target_link_libraries(
 )
 
 add_executable(
+    coinbase-feed-handler
+    "coinbase-feed-handler.cpp"
+)
+target_link_libraries(
+    coinbase-feed-handler
+    PRIVATE
+    websockets ${LIBWEBSOCKETS_DEP_LIBS}
+    fmc++ ytp
+)
+
+add_executable(
     feed-parser
     "feed-parser.cpp"
 )
