@@ -199,6 +199,7 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
   string_view channelName;
   string_view pairName;
   string_view data;
+  string_view::size_type offset1, offset2;
 
   switch (reason) {
 
@@ -208,25 +209,22 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
     break;
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
-    std::cout<<"Message received:"<<std::string_view((const char *)in, len)<<std::endl;
-    p = lws_json_simple_find((const char *)in, len, "\"channelName\"", &alen);
-    if (!p) {
-      lwsl_err("%s, message does not contain \"channelName\":\n", __func__);
-      break;
-    }
-    channelName = std::string_view((const char *)p + 2, alen - 3);
-    p = lws_json_simple_find((const char *)in, len, "\"pair\"", &alen);
-    if (!p) {
-      lwsl_err("%s, message does not contain \"pair\":\n", __func__);
-      break;
-    }
-    pairName = std::string_view((const char *)p + 2, alen - 3);
-    p = lws_json_simple_find((const char *)in, len, "\"data\"", &alen);
-    if (!p) {
-      lwsl_err("%s, message does not contain \"data\":\n", __func__);
-      break;
-    }
     data = std::string_view((const char *)in, len);
+    if (data[0] == '{') {
+      // Not data messages, either heartbeat or subscription confirmation
+      // We may want to check integrity of the subscriptions
+      break;
+    }
+    offset2 = data.rfind("\"");
+    //TODO: Check for error
+    offset1 = data.rfind("\"", offset2 - 1);
+    //TODO: Check for error
+    channelName = data.substr(offset1 + 1, offset2 - offset1 - 1);
+    offset2 = data.rfind("\"", offset1 - 1);
+    //TODO: Check for error
+    offset1 = data.rfind("\"", offset2 - 1);
+    //TODO: Check for error
+    pairName = data.substr(offset1 + 1, offset2 - offset1 - 1);
     if (auto where = mco->streams.find(std::pair<std::string_view, std::string_view>(channelName, pairName)); where != mco->streams.end()) {
       auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
       if (err) {
@@ -259,7 +257,6 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
                                mco->tickers +
                                "],\"subscription\":{\"name\":\"spread\"}}" +
                                std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    std::cout<<"subscription string is:"<<subscription<<std::endl;
     //TODO: Check for error writing
     lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
               subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
@@ -269,7 +266,6 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
                    mco->tickers +
                    "],\"subscription\":{\"name\":\"trade\"}}" +
                    std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    std::cout<<"subscription string is:"<<subscription<<std::endl;
     //TODO: Check for error writing
     lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
               subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
