@@ -18,6 +18,17 @@ target_link_libraries(
 )
 
 add_executable(
+    kraken-feed-handler
+    "kraken-feed-handler.cpp"
+)
+target_link_libraries(
+    kraken-feed-handler
+    PRIVATE
+    websockets ${LIBWEBSOCKETS_DEP_LIBS}
+    fmc++ ytp
+)
+
+add_executable(
     feed-parser
     "feed-parser.cpp"
 )
