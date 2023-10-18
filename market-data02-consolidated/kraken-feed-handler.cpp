@@ -216,14 +216,30 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
       break;
     }
     offset2 = data.rfind("\"");
-    //TODO: Check for error
+    if (offset2 == std::string_view::npos) {
+      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
+               static_cast<int>(data.size()), data.data());
+      break;
+    }
     offset1 = data.rfind("\"", offset2 - 1);
-    //TODO: Check for error
+    if (offset1 == std::string_view::npos) {
+      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
+               static_cast<int>(data.size()), data.data());
+      break;
+    }
     channelName = data.substr(offset1 + 1, offset2 - offset1 - 1);
     offset2 = data.rfind("\"", offset1 - 1);
-    //TODO: Check for error
+    if (offset2 == std::string_view::npos) {
+      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
+               static_cast<int>(data.size()), data.data());
+      break;
+    }
     offset1 = data.rfind("\"", offset2 - 1);
-    //TODO: Check for error
+    if (offset1 == std::string_view::npos) {
+      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
+               static_cast<int>(data.size()), data.data());
+      break;
+    }
     pairName = data.substr(offset1 + 1, offset2 - offset1 - 1);
     if (auto where = mco->streams.find(std::pair<std::string_view, std::string_view>(channelName, pairName)); where != mco->streams.end()) {
       auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
