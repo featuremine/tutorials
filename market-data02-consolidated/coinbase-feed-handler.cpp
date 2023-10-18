@@ -365,10 +365,11 @@ int main(int argc, const char **argv) {
                                  /* 1 */ {"--securities", true, &securities},
                                  /* 2 */ {"--peer", true, &peer},
                                  /* 3 */ {"--ytp-file", true, &ytpfile},
-                                 /* 4 */ {"--api-key", true, &apikey},
-                                 /* 5 */ {"--secret", true, &secret},
-                                 /* 6 */ {"--password", true, &password},
+                                 /* 4 */ {"--api-key", false, &apikey},
+                                 /* 5 */ {"--secret", false, &secret},
+                                 /* 6 */ {"--password", false, &password},
                                  /* 7 */ {"--public", false, NULL},
+                                 /* 7 */ {"--batch", false, NULL},
                                  {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {
