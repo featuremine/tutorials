@@ -198,7 +198,6 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
     break;
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
-    std::cout<<"RECEIVED DATA:"<<(const char *)in<<std::endl;
     p = lws_json_simple_find((const char *)in, len, "\"stream\"", &alen);
     if (!p) {
       lwsl_err("%s, message does not contain \"stream\":\n", __func__);
@@ -472,9 +471,9 @@ int main(int argc, const char **argv) {
   std::string what = timestamp + "GET" + "/users/self/verify";
   std::string signature = hmac_base64(mco.secret, what);
   mco.subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') +
-    "{\"type\":\"subscribe\",\"product_ids\":["+ss.str()+"],\"channels\":[\"full\",\"heartbeat\"]" +
-    "\"key\":\"" + mco.apikey + "\",\"signature\"\"" + signature + 
-    "\",\"timestamp\":"+timestamp+",\"passphrase\":\"" + mco.passphrase + "}" +
+    "{\"type\":\"subscribe\",\"product_ids\":["+ss.str()+"],\"channels\":[\"full\",\"heartbeat\"]," +
+    "\"key\":\"" + mco.apikey + "\",\"signature\":\"" + signature + 
+    "\",\"timestamp\":"+timestamp+",\"passphrase\":\"" + mco.passphrase + "\"}" +
     std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
