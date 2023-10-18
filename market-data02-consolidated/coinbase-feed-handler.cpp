@@ -364,11 +364,17 @@ int main(int argc, const char **argv) {
   const char *securities = nullptr;
   const char *peer = nullptr;
   const char *ytpfile = nullptr;
+  const char *apikey = nullptr;
+  const char *secret = nullptr;
+  const char *password = nullptr;
   fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
                                  /* 1 */ {"--securities", true, &securities},
                                  /* 2 */ {"--peer", true, &peer},
                                  /* 3 */ {"--ytp-file", true, &ytpfile},
-                                 /* 4 */ {"--public", false, NULL},
+                                 /* 4 */ {"--api-key", true, &apikey},
+                                 /* 5 */ {"--secret", true, &secret},
+                                 /* 6 */ {"--password", true, &password},
+                                 /* 7 */ {"--public", false, NULL},
                                  {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {
@@ -389,7 +395,11 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  if (options[4].set) {
+  mco.apikey = apikey;
+  mco.secret = secret;
+  mco.passphrase = password;
+
+  if (options[7].set) {
     address = "ws-feed.exchange.coinbase.com";
     port = 443;
   }
