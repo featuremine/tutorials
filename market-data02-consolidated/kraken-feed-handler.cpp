@@ -210,6 +210,7 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
     data = std::string_view((const char *)in, len);
+    std::cout<<"found data: "<<data<<std::endl;
     if (data[0] == '{') {
       p = lws_json_simple_find((const char *)in, len, "\"event\"", &alen);
       if (!p) {
@@ -454,7 +455,7 @@ int main(int argc, const char **argv) {
   constexpr string_view prefix = "raw/kraken/";
   for (auto &&sec : secs) {
     for (auto &&tp : types) {
-      string chstr = string(prefix) + sec + tp;
+      string chstr = string(prefix) + sec + "@" + tp;
       auto stream = ytp_streams_announce(
           streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
           encoding.size(), encoding.data(), &error);
