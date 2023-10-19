@@ -211,8 +211,43 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
   case LWS_CALLBACK_CLIENT_RECEIVE:
     data = std::string_view((const char *)in, len);
     if (data[0] == '{') {
-      // Not data messages, either heartbeat or subscription confirmation
-      // We may want to check integrity of the subscriptions
+      p = lws_json_simple_find((const char *)in, len, "\"event\"", &alen);
+      if (!p) {
+        lwsl_err("%s, message does not contain \"event\":\n", __func__);
+        break;
+      }
+      std::string_view event = std::string_view((const char *)p + 2, alen - 3);
+      if (event == "heratbeat") {
+        break;
+      } else if (event == "subscriptionStatus") {
+        p = lws_json_simple_find((const char *)in, len, "\"status\"", &alen);
+        if (!p) {
+          lwsl_err("%s, message does not contain \"status\":\n", __func__);
+          break;
+        }
+        std::string_view status = std::string_view((const char *)p + 2, alen - 3);
+        if (status != "subscribed")
+        {
+          lwsl_err("%s, unable to complete subscription, \"status\" value is %.*s:\n", __func__, static_cast<int>(status.size()), status.data());
+          interrupted = 1;
+          break;
+        }
+      } else if (event == "systemStatus") {
+        p = lws_json_simple_find((const char *)in, len, "\"status\"", &alen);
+        if (!p) {
+          lwsl_err("%s, message does not contain \"status\":\n", __func__);
+          break;
+        }
+        std::string_view status = std::string_view((const char *)p + 2, alen - 3);
+        if (status != "online")
+        {
+          lwsl_err("%s, unable to complete subscription, \"status\" value is %.*s:\n", __func__, static_cast<int>(status.size()), status.data());
+          interrupted = 1;
+          break;
+        }
+      } else {
+        // Unexpected message
+      }
       break;
     }
     offset2 = data.rfind("\"");
@@ -273,19 +308,27 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
                                mco->tickers +
                                "],\"subscription\":{\"name\":\"spread\"}}" +
                                std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    //TODO: Check for error writing
-    lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
+    auto wret = lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
               subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
               LWS_WRITE_TEXT);
+    if (wret == -1) {
+      lwsl_err("%s: unable to write subscription message\n", __func__);
+      interrupted = 1;
+      break;
+    }
     subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') + 
                    "{\"event\":\"subscribe\",\"pair\":[" +
                    mco->tickers +
                    "],\"subscription\":{\"name\":\"trade\"}}" +
                    std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    //TODO: Check for error writing
-    lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
+    wret = lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
               subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
               LWS_WRITE_TEXT);
+    if (wret == -1) {
+      lwsl_err("%s: unable to write subscription message\n", __func__);
+      interrupted = 1;
+      break;
+    }
     break;
   }
   case LWS_CALLBACK_CLIENT_CLOSED:
