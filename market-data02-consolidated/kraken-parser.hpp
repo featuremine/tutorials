@@ -56,20 +56,6 @@ pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
   auto feedtype = sv.substr(pos + 1);
   auto outsv = sv.substr(0, pos);
   if (feedtype == "spread") {
-    /*
-    [
-      0, Channel ID of subscription - deprecated
-      [
-        "5698.40000", bid price
-        "5700.00000", ask price
-        "1542057299.545897", seconds since epoch
-        "1.01234567", bid volume
-        "0.98765432" ask volume
-      ],
-      "spread", message type
-      "XBT/USD" ticker
-    ]
-    */
     // This section here is kraken parsing code
     auto parse_kraken_spread =
         [ctx = kraken_parse_ctx{}](string_view in, cmp_str_t *cmp, int64_t tm,
@@ -239,31 +225,6 @@ pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
         };
     return {outsv, parse_kraken_spread};
   } else if (feedtype == "trade") {
-    /*
-    [
-      0,
-      [
-        [
-          "5541.20000",
-          "0.15850568",
-          "1534614057.321597",
-          "s",
-          "l",
-          ""
-        ],
-        [
-          "6060.00000",
-          "0.02455000",
-          "1534614057.324998",
-          "b",
-          "l",
-          ""
-        ]
-      ],
-      "trade",
-      "XBT/USD"
-    ]
-    */
     auto parse_kraken_trade = [ocurrence = 0](string_view in, cmp_str_t *cmp, int64_t tm,
                                   uint64_t *last, bool skip,
                                   fmc_error_t **error) mutable {
