@@ -32,58 +32,12 @@
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
+#include "kraken-parser.hpp"
+#include "common.hpp"
 
 using namespace std;
 using namespace fmc;
 
-// If you compiling with C++20 you don't need this
-inline bool starts_with(string_view a, string_view b) {
-  return a.substr(0, b.size()) == b;
-}
-
-inline tuple<string_view, string_view, string_view> split(string_view a,
-                                                          string_view sep) {
-  auto pos = a.find_first_of(sep);
-  return {a.substr(0, pos), a.substr(pos, sep.size()),
-          a.substr(pos + sep.size())};
-}
-
-// passing json string and json key
-// return parsed value and remainder after value
-inline pair<string_view, string_view>
-simple_json_parse(string_view a, string_view key, string_view sep = ","sv) {
-  auto pos = a.find(key);
-  if (pos == string_view::npos)
-    return {string_view(), string_view()};
-  a = a.substr(pos + key.size());
-  pos = a.find_first_of(sep);
-  if (pos == string_view::npos)
-    return {string_view(), string_view()};
-  return {a.substr(0, pos), a.substr(pos + sep.size())};
-}
-
-template <class... Args>
-static void cmp_ore_write(cmp_str_t *cmp, fmc_error_t **error, Args &&...args) {
-  uint32_t left = sizeof...(Args);
-  cmp_ctx_t *ctx = &(cmp->ctx);
-  fmc_error_clear(error);
-
-  // Encode to cmp
-  bool ret = cmp_write_array(ctx, left);
-  RETURN_ERROR_UNLESS(ret, error, , "could not parse:", cmp_strerror(ctx));
-  ret = cmp_write_many(ctx, &left, args...);
-  RETURN_ERROR_UNLESS(ret, error, , "could not parse:", cmp_strerror(ctx));
-}
-
-// Parser gets the original data, string to write data to
-// sequence number processed and error.
-// Sets error if could not parse.
-// Returns true is processed, false if duplicated.
-using parser_t = function<bool(
-    (string_view, cmp_str_t *, int64_t, uint64_t *, bool, fmc_error_t **))>;
-typedef pair<string_view, parser_t> (*resolver_t)(string_view, fmc_error_t **);
-
-constexpr int32_t chanid = 100;
 struct binance_parse_ctx {
   string_view bidqt = "null"sv;
   string_view askqt = "null"sv;
@@ -363,7 +317,8 @@ struct runner_t {
   using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t *>;
   // This map contains a context factory for each supported feed
   unordered_map<string, resolver_t> resolvers = {
-      {"binance", get_binance_channel_in}};
+      {"binance", get_binance_channel_in},
+      {"kraken", get_kraken_channel_in}};
   // Hash map to keep track of outgoing streams
   streams_out_t s_out;
   channels_in_t ch_in;

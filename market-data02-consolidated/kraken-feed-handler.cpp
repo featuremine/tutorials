@@ -210,7 +210,6 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
     data = std::string_view((const char *)in, len);
-    std::cout<<"found data: "<<data<<std::endl;
     if (data[0] == '{') {
       p = lws_json_simple_find((const char *)in, len, "\"event\"", &alen);
       if (!p) {
