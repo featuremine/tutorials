@@ -10,7 +10,7 @@ import argparse
 import extractor
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import partial
 
 class TradePlotter:
@@ -50,8 +50,6 @@ class TradePlotter:
     def quote(self, bid, ask):
         self.bid = float(bid)
         self.ask = float(ask)
-
-from datetime import datetime
 
 def valid_date(s):
     try:
