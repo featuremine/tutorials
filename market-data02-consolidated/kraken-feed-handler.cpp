@@ -20,10 +20,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include <fmc/alignment.h>
 #include <fmc/cmdline.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
-#include <fmc/alignment.h>
 #include <ytp/announcement.h>
 #include <ytp/data.h>
 #include <ytp/streams.h>
@@ -39,8 +39,7 @@ typedef struct range {
  */
 
 namespace std {
-template<>
-struct hash<std::pair<std::string_view, std::string_view>> {
+template <> struct hash<std::pair<std::string_view, std::string_view>> {
   hash() = default;
   using argument_type = std::pair<std::string_view, std::string_view>;
   using result_type = std::size_t;
@@ -60,7 +59,9 @@ static struct mco {
   struct lws *wsi;      /* related wsi if any */
   uint16_t retry_count; /* count of consequetive retries */
 
-  std::unordered_map<std::pair<std::string_view, std::string_view>, ytp_mmnode_offs> streams;
+  std::unordered_map<std::pair<std::string_view, std::string_view>,
+                     ytp_mmnode_offs>
+      streams;
   ytp_yamal_t *yamal = nullptr;
   std::string tickers; /* storing the tickers for stream subscription */
 } mco;
@@ -225,10 +226,12 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
           lwsl_err("%s, message does not contain \"status\":\n", __func__);
           break;
         }
-        std::string_view status = std::string_view((const char *)p + 2, alen - 3);
-        if (status != "subscribed")
-        {
-          lwsl_err("%s, unable to complete subscription, \"status\" value is %.*s:\n", __func__, static_cast<int>(status.size()), status.data());
+        std::string_view status =
+            std::string_view((const char *)p + 2, alen - 3);
+        if (status != "subscribed") {
+          lwsl_err("%s, unable to complete subscription, \"status\" value is "
+                   "%.*s:\n",
+                   __func__, static_cast<int>(status.size()), status.data());
           interrupted = 1;
           break;
         }
@@ -238,10 +241,12 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
           lwsl_err("%s, message does not contain \"status\":\n", __func__);
           break;
         }
-        std::string_view status = std::string_view((const char *)p + 2, alen - 3);
-        if (status != "online")
-        {
-          lwsl_err("%s, unable to complete subscription, \"status\" value is %.*s:\n", __func__, static_cast<int>(status.size()), status.data());
+        std::string_view status =
+            std::string_view((const char *)p + 2, alen - 3);
+        if (status != "online") {
+          lwsl_err("%s, unable to complete subscription, \"status\" value is "
+                   "%.*s:\n",
+                   __func__, static_cast<int>(status.size()), status.data());
           interrupted = 1;
           break;
         }
@@ -252,31 +257,38 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
     }
     offset2 = data.rfind("\"");
     if (offset2 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
-               static_cast<int>(data.size()), data.data());
+      lwsl_err("%s, could not find expected quote character in message, "
+               "invalid data received \"%.*s\":\n",
+               __func__, static_cast<int>(data.size()), data.data());
       break;
     }
     offset1 = data.rfind("\"", offset2 - 1);
     if (offset1 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
-               static_cast<int>(data.size()), data.data());
+      lwsl_err("%s, could not find expected quote character in message, "
+               "invalid data received \"%.*s\":\n",
+               __func__, static_cast<int>(data.size()), data.data());
       break;
     }
     channelName = data.substr(offset1 + 1, offset2 - offset1 - 1);
     offset2 = data.rfind("\"", offset1 - 1);
     if (offset2 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
-               static_cast<int>(data.size()), data.data());
+      lwsl_err("%s, could not find expected quote character in message, "
+               "invalid data received \"%.*s\":\n",
+               __func__, static_cast<int>(data.size()), data.data());
       break;
     }
     offset1 = data.rfind("\"", offset2 - 1);
     if (offset1 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, invalid data received \"%.*s\":\n", __func__,
-               static_cast<int>(data.size()), data.data());
+      lwsl_err("%s, could not find expected quote character in message, "
+               "invalid data received \"%.*s\":\n",
+               __func__, static_cast<int>(data.size()), data.data());
       break;
     }
     pairName = data.substr(offset1 + 1, offset2 - offset1 - 1);
-    if (auto where = mco->streams.find(std::pair<std::string_view, std::string_view>(channelName, pairName)); where != mco->streams.end()) {
+    if (auto where =
+            mco->streams.find(std::pair<std::string_view, std::string_view>(
+                channelName, pairName));
+        where != mco->streams.end()) {
       auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
       if (err) {
         lwsl_err("%s, could not reserve yamal message with error %s:\n",
@@ -303,27 +315,32 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
                      LWS_US_PER_SEC);
     mco->wsi = wsi;
     stats_reset(&mco->stats);
-    std::string subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') + 
+    std::string subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') +
                                "{\"event\":\"subscribe\",\"pair\":[" +
                                mco->tickers +
                                "],\"subscription\":{\"name\":\"spread\"}}" +
                                std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    auto wret = lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
-              subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
-              LWS_WRITE_TEXT);
+    auto wret = lws_write(mco->wsi,
+                          (unsigned char *)subscription.data() +
+                              LWS_SEND_BUFFER_PRE_PADDING,
+                          subscription.size() - LWS_SEND_BUFFER_PRE_PADDING -
+                              LWS_SEND_BUFFER_POST_PADDING,
+                          LWS_WRITE_TEXT);
     if (wret == -1) {
       lwsl_err("%s: unable to write subscription message\n", __func__);
       interrupted = 1;
       break;
     }
-    subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') + 
-                   "{\"event\":\"subscribe\",\"pair\":[" +
-                   mco->tickers +
+    subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') +
+                   "{\"event\":\"subscribe\",\"pair\":[" + mco->tickers +
                    "],\"subscription\":{\"name\":\"trade\"}}" +
                    std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    wret = lws_write(mco->wsi, (unsigned char *) subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
-              subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
-              LWS_WRITE_TEXT);
+    wret = lws_write(mco->wsi,
+                     (unsigned char *)subscription.data() +
+                         LWS_SEND_BUFFER_PRE_PADDING,
+                     subscription.size() - LWS_SEND_BUFFER_PRE_PADDING -
+                         LWS_SEND_BUFFER_POST_PADDING,
+                     LWS_WRITE_TEXT);
     if (wret == -1) {
       lwsl_err("%s: unable to write subscription message\n", __func__);
       interrupted = 1;
@@ -471,7 +488,8 @@ int main(int argc, const char **argv) {
       ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
                               &channel, &esz, &encoding, &original, &subscribed,
                               &error);
-      mco.streams.emplace(std::pair<std::string_view, std::string_view>(sec, tp), stream);
+      mco.streams.emplace(
+          std::pair<std::string_view, std::string_view>(sec, tp), stream);
     }
     ss << (first ? "" : ",") << "\"" << sec << "\"";
     first = false;

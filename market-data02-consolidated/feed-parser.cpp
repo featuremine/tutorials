@@ -10,14 +10,16 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <fstream>
 
+#include "common.hpp"
+#include "kraken-parser.hpp"
 #include <cmp/cmp.h>
 #include <fmc++/error.hpp>
 #include <fmc++/logger.hpp>
@@ -33,8 +35,6 @@
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
-#include "kraken-parser.hpp"
-#include "common.hpp"
 
 using namespace std;
 using namespace fmc;
@@ -318,8 +318,7 @@ struct runner_t {
   using streams_in_t = unordered_map<ytp_mmnode_offs, stream_in_t *>;
   // This map contains a context factory for each supported feed
   unordered_map<string, resolver_t> resolvers = {
-      {"binance", get_binance_channel_in},
-      {"kraken", get_kraken_channel_in}};
+      {"binance", get_binance_channel_in}, {"kraken", get_kraken_channel_in}};
   // Hash map to keep track of outgoing streams
   streams_out_t s_out;
   channels_in_t ch_in;
@@ -330,14 +329,13 @@ struct runner_t {
                          "Content-Schema ore1.1.3";
   const char *peer = nullptr;
   const char *mappings_file = nullptr;
-  struct string_hash
-  {
-      using hash_type = hash<string_view>;
-      using is_transparent = void;
-  
-      size_t operator()(const char* str) const        { return hash_type{}(str); }
-      size_t operator()(string_view str) const   { return hash_type{}(str); }
-      size_t operator()(string const& str) const { return hash_type{}(str); }
+  struct string_hash {
+    using hash_type = hash<string_view>;
+    using is_transparent = void;
+
+    size_t operator()(const char *str) const { return hash_type{}(str); }
+    size_t operator()(string_view str) const { return hash_type{}(str); }
+    size_t operator()(string const &str) const { return hash_type{}(str); }
   };
   unordered_map<string, string, string_hash, equal_to<>> mappings;
   const char *ytp_file_in = nullptr;
@@ -377,14 +375,16 @@ void runner_t::init(fmc_error_t **error) {
   if (mappings_file) {
     ifstream mppings{mappings_file};
     if (!mppings) {
-      RETURN_ON_ERROR(error, , "failed to open mappings file %s", mappings_file);
+      RETURN_ON_ERROR(error, , "failed to open mappings file %s",
+                      mappings_file);
     }
     vector<string> secs{istream_iterator<string>(mppings),
                         istream_iterator<string>()};
-    for (auto &sec :secs) {
-        auto [mkt, sep, tickers] = split(sec, ",");
-        auto [mkt_ticker, sep2, norm_ticker] = split(tickers, ",");
-        mappings.emplace(string(mkt) + "/" + string(mkt_ticker), string(mkt) + "/" + string(norm_ticker));
+    for (auto &sec : secs) {
+      auto [mkt, sep, tickers] = split(sec, ",");
+      auto [mkt_ticker, sep2, norm_ticker] = split(tickers, ",");
+      mappings.emplace(string(mkt) + "/" + string(mkt_ticker),
+                       string(mkt) + "/" + string(norm_ticker));
     }
   }
 }
@@ -525,7 +525,7 @@ runner_t::stream_out_t *runner_t::get_stream_out(string_view sv,
   auto vpeer = string_view(peer);
   string chstr;
   chstr.append(prefix_out);
-  if (auto it = mappings.find(sv);it != mappings.end()) {
+  if (auto it = mappings.find(sv); it != mappings.end()) {
     chstr.append(it->second);
   } else {
     chstr.append(sv);

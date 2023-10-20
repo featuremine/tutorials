@@ -17,6 +17,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "common.hpp"
 #include <cmp/cmp.h>
 #include <fmc++/error.hpp>
 #include <fmc++/logger.hpp>
@@ -32,7 +33,6 @@
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
-#include "common.hpp"
 
 using namespace std;
 using namespace fmc;
@@ -47,7 +47,7 @@ struct kraken_parse_ctx {
 };
 
 pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
-                                                   fmc_error_t **error) {
+                                                  fmc_error_t **error) {
   auto pos = sv.find_last_of('@');
   auto none = make_pair<string_view, parser_t>(string_view(), nullptr);
   RETURN_ERROR_UNLESS(pos != sv.npos, error, none,
@@ -59,8 +59,8 @@ pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
     // This section here is kraken parsing code
     auto parse_kraken_spread =
         [ctx = kraken_parse_ctx{}](string_view in, cmp_str_t *cmp, int64_t tm,
-                                    uint64_t *last, bool skip,
-                                    fmc_error_t **error) mutable {
+                                   uint64_t *last, bool skip,
+                                   fmc_error_t **error) mutable {
           *last = tm;
           std::string_view bidpx;
           std::string_view bidqt;
@@ -225,18 +225,20 @@ pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
         };
     return {outsv, parse_kraken_spread};
   } else if (feedtype == "trade") {
-    auto parse_kraken_trade = [ocurrence = 0](string_view in, cmp_str_t *cmp, int64_t tm,
-                                  uint64_t *last, bool skip,
-                                  fmc_error_t **error) mutable {
+    auto parse_kraken_trade = [ocurrence = 0](string_view in, cmp_str_t *cmp,
+                                              int64_t tm, uint64_t *last,
+                                              bool skip,
+                                              fmc_error_t **error) mutable {
       auto trades_pos = in.find("[", 1);
-      RETURN_ERROR_UNLESS(trades_pos != std::string_view::npos, error, false, "Invalid trade message", in);
+      RETURN_ERROR_UNLESS(trades_pos != std::string_view::npos, error, false,
+                          "Invalid trade message", in);
       auto first_trade_pos = in.find("[", trades_pos);
-      RETURN_ERROR_UNLESS(first_trade_pos != std::string_view::npos, error, false, "Invalid trade message", in);
+      RETURN_ERROR_UNLESS(first_trade_pos != std::string_view::npos, error,
+                          false, "Invalid trade message", in);
       auto rem = in.substr(first_trade_pos);
       std::string_view trademsg;
       uint64_t seqno = 0;
-      while (true)
-      {
+      while (true) {
         tie(trademsg, rem) = simple_json_parse(rem, "[", "]");
         if (!trademsg.size()) {
           break;
@@ -248,23 +250,28 @@ pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
         string_view side;
         string_view tmp;
         tie(trdpx, trademsg) = simple_json_parse(trademsg, "\"", "\"");
-        RETURN_ERROR_UNLESS(trdpx.size(), error, false, "could not parse trade price in message",
-                            in);
+        RETURN_ERROR_UNLESS(trdpx.size(), error, false,
+                            "could not parse trade price in message", in);
         tie(trdqt, trademsg) = simple_json_parse(trademsg, "\"", "\"");
-        RETURN_ERROR_UNLESS(trdqt.size(), error, false, "could not parse trade quantity in message",
-                            in);
+        RETURN_ERROR_UNLESS(trdqt.size(), error, false,
+                            "could not parse trade quantity in message", in);
         tie(vendorsecs, tmp) = simple_json_parse(trademsg, "\"", ".");
-        RETURN_ERROR_UNLESS(vendorsecs.size(), error, false, "could not parse vendor seconds price in message",
+        RETURN_ERROR_UNLESS(vendorsecs.size(), error, false,
+                            "could not parse vendor seconds price in message",
                             in);
         auto [vendor_s, parsed_s] = fmc::from_string_view<uint64_t>(vendorsecs);
         RETURN_ERROR_UNLESS(vendorsecs.size() == parsed_s.size(), error, false,
-                            "could not parse integer from seconds in message", in);
-        tie(vendorus, trademsg) = simple_json_parse(trademsg, ".", "\"");
-        RETURN_ERROR_UNLESS(vendorus.size(), error, false, "could not parse vendor microseconds in message",
+                            "could not parse integer from seconds in message",
                             in);
-        auto [vendor_us, parsed_us] = fmc::from_string_view<uint64_t>(vendorsecs);
-        RETURN_ERROR_UNLESS(vendorsecs.size() == parsed_us.size(), error, false,
-                            "could not parse integer from microseconds in message", in);
+        tie(vendorus, trademsg) = simple_json_parse(trademsg, ".", "\"");
+        RETURN_ERROR_UNLESS(vendorus.size(), error, false,
+                            "could not parse vendor microseconds in message",
+                            in);
+        auto [vendor_us, parsed_us] =
+            fmc::from_string_view<uint64_t>(vendorsecs);
+        RETURN_ERROR_UNLESS(
+            vendorsecs.size() == parsed_us.size(), error, false,
+            "could not parse integer from microseconds in message", in);
         auto vendor_ns = vendor_s * 1000000000ULL + vendor_us * 1000ULL;
         if (seqno == 0) {
           ocurrence += *last == vendor_ns;
@@ -274,23 +281,22 @@ pair<string_view, parser_t> get_kraken_channel_in(string_view sv,
         }
 
         tie(side, trademsg) = simple_json_parse(trademsg, "\"", "\"");
-        RETURN_ERROR_UNLESS(side.size(), error, false, "could not parse side in message",
-                            in);
+        RETURN_ERROR_UNLESS(side.size(), error, false,
+                            "could not parse side in message", in);
 
         // ORE Off Book Trade Message
         // [11, receive, vendor offset, vendor seqno, batch, imnt id, trade
         // price, qty, decorator]
         cmp_ore_write(cmp, error,
-                      (uint8_t)11,                         // Message Type ID
-                      (int64_t)tm,                         // receive
-                      (int64_t)(tm - vendor_ns),             // vendor offset in ns
-                      (uint64_t)seqno,                     // vendor seqno
-                      (uint8_t)0,                          // batch
-                      (uint64_t)chanid,                    // imnt_id
-                      trdpx,                               // trade price
-                      trdqt,                               // qty
+                      (uint8_t)11,               // Message Type ID
+                      (int64_t)tm,               // receive
+                      (int64_t)(tm - vendor_ns), // vendor offset in ns
+                      (uint64_t)seqno,           // vendor seqno
+                      (uint8_t)0,                // batch
+                      (uint64_t)chanid,          // imnt_id
+                      trdpx,                     // trade price
+                      trdqt,                     // qty
                       string_view(side == "b" ? "b" : "a"));
-
       }
 
       return *error == nullptr;
