@@ -16,7 +16,7 @@ import os
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--ytp-file", help="ytp file name", required=True)
-    parser.add_argument("--follow", help="ytp file name", type=bool, default=False, required=False)
+    parser.add_argument("--follow", help="ytp file name", default=False, required=False, action='store_true')
     args = parser.parse_args()
 
     y = yamal(args.ytp_file)
