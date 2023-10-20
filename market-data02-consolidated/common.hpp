@@ -11,6 +11,7 @@
 
 #include <fmc/error.h>
 #include <fmc++/serialization.hpp>
+#include <fmc++/error.hpp>
 
 using namespace std;
 
