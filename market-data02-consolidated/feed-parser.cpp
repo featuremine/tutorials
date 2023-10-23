@@ -374,6 +374,7 @@ void runner_t::init(fmc_error_t **error) {
     }
     vector<string> secs{istream_iterator<string>(mppings),
                         istream_iterator<string>()};
+    chnls.reserve(secs.size());
     for (auto &sec : secs) {
       auto [mkt, sep, tickers] = split(sec, ",");
       auto [mkt_ticker, sep2, norm_ticker] = split(tickers, ",");
