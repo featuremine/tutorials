@@ -378,8 +378,7 @@ void runner_t::init(fmc_error_t **error) {
       auto [mkt, sep, tickers] = split(sec, ",");
       auto [mkt_ticker, sep2, norm_ticker] = split(tickers, ",");
       chnls.emplace_back(string(mkt) + "/" + string(mkt_ticker));
-      mappings.emplace(chnls.back(),
-                       string(mkt) + "/" + string(norm_ticker));
+      mappings.emplace(chnls.back(), string(mkt) + "/" + string(norm_ticker));
     }
   }
 }
