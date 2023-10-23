@@ -329,9 +329,6 @@ struct runner_t {
   string_view encoding = "Content-Type application/msgpack\n"
                          "Content-Schema ore1.1.3";
   const char *peer = nullptr;
-  const char *mappings_file = nullptr;
-  vector<string> chnls;
-  unordered_map<string_view, string> mappings;
   const char *ytp_file_in = nullptr;
   const char *ytp_file_out = nullptr;
   fmc_fd fd_in = -1;
@@ -366,22 +363,6 @@ void runner_t::init(fmc_error_t **error) {
   RETURN_ON_ERROR(error, , "could not create output yamal");
   streams = ytp_streams_new(ytp_out, error);
   RETURN_ON_ERROR(error, , "could not create stream");
-  if (mappings_file) {
-    ifstream mppings{mappings_file};
-    if (!mppings) {
-      RETURN_ON_ERROR(error, , "failed to open mappings file %s",
-                      mappings_file);
-    }
-    vector<string> secs{istream_iterator<string>(mppings),
-                        istream_iterator<string>()};
-    chnls.reserve(secs.size());
-    for (auto &sec : secs) {
-      auto [mkt, sep, tickers] = split(sec, ",");
-      auto [mkt_ticker, sep2, norm_ticker] = split(tickers, ",");
-      chnls.emplace_back(string(mkt) + "/" + string(mkt_ticker));
-      mappings.emplace(chnls.back(), string(mkt) + "/" + string(norm_ticker));
-    }
-  }
 }
 
 void runner_t::recover(fmc_error_t **error) {
@@ -520,11 +501,7 @@ runner_t::stream_out_t *runner_t::get_stream_out(string_view sv,
   auto vpeer = string_view(peer);
   string chstr;
   chstr.append(prefix_out);
-  if (auto it = mappings.find(sv); it != mappings.end()) {
-    chstr.append(it->second);
-  } else {
-    chstr.append(sv);
-  }
+  chstr.append(sv);
   auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
                                      chstr.size(), chstr.data(),
                                      encoding.size(), encoding.data(), error);
@@ -594,9 +571,8 @@ int main(int argc, const char **argv) {
   fmc_cmdline_opt_t options[] = {
       /* 0 */ {"--help", false, NULL},
       /* 1 */ {"--peer", true, &runner.peer},
-      /* 2 */ {"--mappings", false, &runner.mappings_file},
-      /* 3 */ {"--ytp-input", true, &runner.ytp_file_in},
-      /* 4 */ {"--ytp-output", true, &runner.ytp_file_out},
+      /* 2 */ {"--ytp-input", true, &runner.ytp_file_in},
+      /* 3 */ {"--ytp-output", true, &runner.ytp_file_out},
       {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {

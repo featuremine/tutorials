@@ -235,6 +235,7 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
           interrupted = 1;
           break;
         }
+        std::cout<<"Subscription message: "<<data<<std::endl;
       } else if (event == "systemStatus") {
         p = lws_json_simple_find((const char *)in, len, "\"status\"", &alen);
         if (!p) {
@@ -303,8 +304,9 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
         break;
       }
     } else {
-      lwsl_err("%s, stream map does not contain %s, %s:\n", __func__,
-               string(channelName).c_str(), string(pairName).c_str());
+      lwsl_err("%s, stream map does not contain %s, %s. Message received %.*s:\n", __func__,
+               string(channelName).c_str(), string(pairName).c_str(),
+               static_cast<int>(data.size()), data.data());
       break;
     }
     mco->stats.samples++;
