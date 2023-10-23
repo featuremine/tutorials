@@ -330,15 +330,8 @@ struct runner_t {
                          "Content-Schema ore1.1.3";
   const char *peer = nullptr;
   const char *mappings_file = nullptr;
-  struct string_hash {
-    using hash_type = hash<string_view>;
-    using is_transparent = void;
-
-    size_t operator()(const char *str) const { return hash_type{}(str); }
-    size_t operator()(string_view str) const { return hash_type{}(str); }
-    size_t operator()(string const &str) const { return hash_type{}(str); }
-  };
-  unordered_map<string, string, string_hash, equal_to<>> mappings;
+  vector<string> chnls;
+  unordered_map<string_view, string> mappings;
   const char *ytp_file_in = nullptr;
   const char *ytp_file_out = nullptr;
   fmc_fd fd_in = -1;
@@ -384,7 +377,8 @@ void runner_t::init(fmc_error_t **error) {
     for (auto &sec : secs) {
       auto [mkt, sep, tickers] = split(sec, ",");
       auto [mkt_ticker, sep2, norm_ticker] = split(tickers, ",");
-      mappings.emplace(string(mkt) + "/" + string(mkt_ticker),
+      chnls.emplace_back(string(mkt) + "/" + string(mkt_ticker));
+      mappings.emplace(chnls.back(),
                        string(mkt) + "/" + string(norm_ticker));
     }
   }
