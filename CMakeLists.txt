@@ -64,7 +64,6 @@ endif()
 set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(FmConfig REQUIRED)
 fm_config()
-set(CMAKE_CXX_STANDARD 20)
 
 set(package_DEP "")
 set(package_FILES "")
