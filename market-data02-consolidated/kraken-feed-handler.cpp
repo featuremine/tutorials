@@ -235,7 +235,6 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
           interrupted = 1;
           break;
         }
-        std::cout << "Subscription message: " << data << std::endl;
       } else if (event == "systemStatus") {
         p = lws_json_simple_find((const char *)in, len, "\"status\"", &alen);
         if (!p) {
