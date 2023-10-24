@@ -7,7 +7,7 @@
 
 #include <fmc/component.h>
 
-extern struct fmc_reactor_api_v1 *_reactor;
+struct fmc_reactor_api_v1 *_reactor;
 
 struct binance_feed_handler_component *
 binance_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
@@ -53,9 +53,17 @@ struct fmc_component_def_v1 components[] = {
     {NULL},
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 FMCOMPMODINITFUNC void
 FMCompInit_feed_handler(struct fmc_component_api *api,
                         struct fmc_component_module *mod) {
   api->components_add_v1(mod, components);
   _reactor = api->reactor_v1;
 }
+
+#ifdef __cplusplus
+}
+#endif
