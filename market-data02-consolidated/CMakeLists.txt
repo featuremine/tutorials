@@ -9,7 +9,7 @@
 add_library(
     feed
     SHARED
-    "feed-handler.cpp"
+    "feed.cpp"
     "binance.cpp"
     "kraken.cpp"
     "parser.cpp"

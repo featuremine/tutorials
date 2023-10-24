@@ -107,7 +107,7 @@ add_bin_to_package(minimal-ws-client-binance)
 add_bin_to_package(binance-feed-handler)
 
 add_subdirectory(market-data02-consolidated)
-add_component_to_package(consolidated)
+add_component_to_package(feed)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")
 add_custom_command(
