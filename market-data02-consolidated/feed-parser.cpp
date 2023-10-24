@@ -29,9 +29,9 @@
 #include <fmc++/strings.hpp>
 #include <fmc++/time.hpp>
 #include <fmc/cmdline.h>
+#include <fmc/component.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
-#include <fmc/component.h>
 #include <tuple>
 #include <ytp/announcement.h>
 #include <ytp/data.h>
@@ -393,8 +393,7 @@ void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
 }
 
 bool runner_t::process_one(fmc_error_t **error) {
-  switch (process_state)
-  {
+  switch (process_state) {
   case PROCESS_STATE::RECOVERY:
     if (recover(error)) {
       return true;
@@ -440,7 +439,7 @@ bool runner_t::recover(fmc_error_t **error) {
   ++chan->count;
   if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
     notice("so far recovered", msg_count, "messages on", chn_count,
-            "channels...");
+           "channels...");
   }
   return true;
 }
@@ -495,7 +494,7 @@ bool runner_t::regular(fmc_error_t **error) {
   if (auto now = fmc_cur_time_ns(); last + delay < now) {
     last = now;
     notice("read:", read_count, "written:", msg_count,
-            "duplicates:", dup_count);
+           "duplicates:", dup_count);
     read_count = 0ULL;
     msg_count = 0ULL;
     dup_count = 0ULL;
@@ -595,14 +594,13 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   return s_in.emplace(stream, chan_it->second.get()).first->second;
 }
 
-
 static void feed_parser_component_del(struct runner_t *comp) noexcept {
   delete comp;
 }
 
 static void feed_parser_component_process_one(struct fmc_component *self,
-                                       struct fmc_reactor_ctx *ctx,
-                                       fmc_time64_t now) noexcept {
+                                              struct fmc_reactor_ctx *ctx,
+                                              fmc_time64_t now) noexcept {
   struct runner_t *comp = (runner_t *)self;
   try {
     fmc_error_t *error = nullptr;
@@ -617,8 +615,8 @@ static void feed_parser_component_process_one(struct fmc_component *self,
 }
 
 static struct runner_t *feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
-                                                 struct fmc_reactor_ctx *ctx,
-                                                 char **inp_tps) noexcept {
+                                                  struct fmc_reactor_ctx *ctx,
+                                                  char **inp_tps) noexcept {
   struct runner_t *comp = nullptr;
   try {
     fmc_error_t *error = nullptr;
@@ -684,8 +682,9 @@ struct fmc_component_def_v1 components[] = {
 extern "C" {
 #endif
 
-FMCOMPMODINITFUNC void FMCompInit_feed_parser(struct fmc_component_api *api,
-                                               struct fmc_component_module *mod) {
+FMCOMPMODINITFUNC void
+FMCompInit_feed_parser(struct fmc_component_api *api,
+                       struct fmc_component_module *mod) {
   api->components_add_v1(mod, components);
   _reactor = api->reactor_v1;
 }
