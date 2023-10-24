@@ -23,7 +23,7 @@
     "config" : {
       "peer":"binance-feed-handler",
       "ytp-input":"feed-handler-output.ytp",
-      "ytp-output":"feed-parser-output.ytp"
+      "ytp-output":"feed-parser-output.ytp.0001"
     }
   }
 }
