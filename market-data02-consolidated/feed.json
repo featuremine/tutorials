@@ -3,24 +3,25 @@
     "module" : "feed",
     "component" : "binance-feed-handler",
     "config" : {
-      "securities":["btcusdt","ethusdt"],
       "peer":"binance-feed-handler",
-      "ytp-file":"feed-handler-output.ytp"
+      "ytp-file":"feed-handler-output.ytp",
+      "securities":["btcusdt","ethusdt"]
     }
   },
   "kraken" : {
     "module" : "feed",
     "component" : "kraken-feed-handler",
     "config" : {
-      "securities":["XBT/USD","ETH/USD"],
       "peer":"kraken-feed-handler",
-      "ytp-file":"feed-handler-output.ytp"
+      "ytp-file":"feed-handler-output.ytp",
+      "securities":["XBT/USD","ETH/USD"]
     }
   },
   "parser" : {
     "module" : "feed",
     "component" : "feed-parser",
     "config" : {
+      "peer":"binance-feed-handler",
       "ytp-input":"feed-handler-output.ytp",
       "ytp-output":"feed-parser-output.ytp"
     }
