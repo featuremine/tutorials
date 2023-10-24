@@ -16,8 +16,9 @@ target_link_libraries(
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
 )
 
-add_executable(
+add_library(
     binance-feed-handler
+    SHARED
     "binance-feed-handler.cpp"
 )
 target_link_libraries(
@@ -25,4 +26,10 @@ target_link_libraries(
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
+)
+set_target_properties(
+    binance-feed-handler
+    PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${TUTORIALS_COMP_DIR}"
+    PREFIX ""
 )
