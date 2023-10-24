@@ -369,10 +369,14 @@ runner_t::~runner_t() {
 }
 
 void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
-  fd_in = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str, fmc_fmode::READ, error);
-  RETURN_ON_ERROR(error, , "could not open input yamal file", fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str);
-  fd_out = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str, fmc_fmode::READWRITE, error);
-  RETURN_ON_ERROR(error, , "could not open output yamal file", fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str);
+  fd_in = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str,
+                    fmc_fmode::READ, error);
+  RETURN_ON_ERROR(error, , "could not open input yamal file",
+                  fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str);
+  fd_out = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str,
+                     fmc_fmode::READWRITE, error);
+  RETURN_ON_ERROR(error, , "could not open output yamal file",
+                  fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str);
   ytp_in = ytp_yamal_new(fd_in, error);
   RETURN_ON_ERROR(error, , "could not create input yamal");
   ytp_out = ytp_yamal_new(fd_out, error);
