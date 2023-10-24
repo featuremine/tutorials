@@ -104,7 +104,7 @@ endmacro()
 
 add_subdirectory(market-data01-feedhandler)
 add_bin_to_package(minimal-ws-client-binance)
-add_component_to_package(binance_feed_handler)
+add_bin_to_package(binance-feed-handler)
 
 add_subdirectory(market-data02-consolidated)
 add_component_to_package(feed_handler)
