@@ -84,14 +84,31 @@ macro(add_bin_to_package TARGET)
     list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}")
 endmacro()
 
+macro(add_component_to_package TARGET)
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE:${TARGET}>"
+        "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+
+        DEPENDS
+        ${TARGET}
+    )
+    list(APPEND package_DEP "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+endmacro()
+
 add_subdirectory(market-data01-feedhandler)
 add_bin_to_package(minimal-ws-client-binance)
-add_bin_to_package(binance-feed-handler)
+add_component_to_package(kraken-feed-handler)
 
 add_subdirectory(market-data02-consolidated)
-add_bin_to_package(feed-handler)
-add_bin_to_package(kraken-feed-handler)
-add_bin_to_package(feed-parser)
+add_component_to_package(feed-handler)
+add_component_to_package(binance-feed-handler)
+add_component_to_package(feed-parser)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")
 add_custom_command(
