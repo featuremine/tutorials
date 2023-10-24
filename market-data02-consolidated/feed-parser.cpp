@@ -436,7 +436,7 @@ bool runner_t::recover(fmc_error_t **error) {
     ++chan->count;
     if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
       notice("so far recovered", msg_count, "messages on", chn_count,
-            "channels...");
+             "channels...");
     }
   }
   it_out = ytp_yamal_next(ytp_out, it_out, error);
@@ -456,7 +456,7 @@ bool runner_t::regular(fmc_error_t **error) {
     it_in = ytp_yamal_next(ytp_in, it_in, error);
     RETURN_ON_ERROR(error, false, "could not obtain next iterator");
     auto *info = get_stream_in(stream, error);
-    if (*error){
+    if (*error) {
       return false;
     }
     // if this channel not interesting, skip it
@@ -470,7 +470,7 @@ bool runner_t::regular(fmc_error_t **error) {
     bool skip = info->outinfo->count > 0;
     bool nodup =
         info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
-    if (*error){
+    if (*error) {
       return false;
     }
     // duplicate
