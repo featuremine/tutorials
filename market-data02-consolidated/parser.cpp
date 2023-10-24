@@ -596,9 +596,7 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   return s_in.emplace(stream, chan_it->second.get()).first->second;
 }
 
-void feed_parser_component_del(struct runner_t *comp) noexcept {
-  delete comp;
-}
+void feed_parser_component_del(struct runner_t *comp) noexcept { delete comp; }
 
 static void feed_parser_component_process_one(struct fmc_component *self,
                                               struct fmc_reactor_ctx *ctx,
@@ -617,8 +615,8 @@ static void feed_parser_component_process_one(struct fmc_component *self,
 }
 
 struct runner_t *feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
-                                                  struct fmc_reactor_ctx *ctx,
-                                                  char **inp_tps) noexcept {
+                                           struct fmc_reactor_ctx *ctx,
+                                           char **inp_tps) noexcept {
   fmc_error_t *error = nullptr;
   struct runner_t *comp = new struct runner_t();
   comp->init(cfg, &error);

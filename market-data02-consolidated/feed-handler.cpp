@@ -33,13 +33,11 @@ extern struct fmc_cfg_node_spec *kraken_feed_handler_cfg;
 
 extern size_t kraken_feed_handler_struct_sz;
 
-struct runner_t *
-feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
-                                  struct fmc_reactor_ctx *ctx,
-                                  char **inp_tps) noexcept;
+struct runner_t *feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
+                                           struct fmc_reactor_ctx *ctx,
+                                           char **inp_tps) noexcept;
 
-void feed_parser_component_del(
-    struct runner_t *comp) noexcept;
+void feed_parser_component_del(struct runner_t *comp) noexcept;
 
 extern struct fmc_cfg_node_spec *feed_parser_cfg;
 
