@@ -31,6 +31,15 @@
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
 
+typedef struct range {
+  unsigned int samples;
+} stats_t;
+
+/*
+ * This represents your object that "contains" the client connection and has
+ * the client connection bound to it
+ */
+
 namespace std {
 template <> struct hash<std::pair<std::string_view, std::string_view>> {
   hash() = default;
@@ -42,17 +51,6 @@ template <> struct hash<std::pair<std::string_view, std::string_view>> {
   }
 };
 } // namespace std
-
-namespace kraken {
-
-typedef struct range {
-  unsigned int samples;
-} stats_t;
-
-/*
- * This represents your object that "contains" the client connection and has
- * the client connection bound to it
- */
 
 static struct mco {
   lws_sorted_usec_list_t sul;    /* schedule connection retry */
@@ -389,10 +387,10 @@ static const struct lws_protocols protocols[] = {
     {"lws-minimal-client", callback_minimal, 0, 0, 0, NULL, 0},
     LWS_PROTOCOL_LIST_TERM};
 
-struct feed_handler_component {
+struct kraken_feed_handler_component {
     fmc_component_HEAD;
 
-    feed_handler_component(struct fmc_cfg_sect_item *cfg) {
+    kraken_feed_handler_component(struct fmc_cfg_sect_item *cfg) {
         using namespace std;
 
         fmc_fd fd;
@@ -498,7 +496,7 @@ struct feed_handler_component {
     bool process_one() {
         return !interrupted && lws_service(context, 0) >= 0;
     }
-    ~feed_handler_component() {
+    ~kraken_feed_handler_component() {
         lws_context_destroy(context);
 
         fmc_error_t *error = nullptr;
@@ -510,16 +508,14 @@ struct feed_handler_component {
     ytp_streams_t *streams = nullptr;
 };
 
-} // namespace kraken
-
-static void kraken_feed_handler_component_del(struct kraken::feed_handler_component *comp) noexcept {
+static void kraken_feed_handler_component_del(struct kraken_feed_handler_component *comp) noexcept {
   delete comp;
 }
 
 static void kraken_feed_handler_component_process_one(struct fmc_component *self,
                                        struct fmc_reactor_ctx *ctx,
                                        fmc_time64_t now) noexcept {
-  struct kraken::feed_handler_component *comp = (kraken::feed_handler_component *)self;
+  struct kraken_feed_handler_component *comp = (kraken_feed_handler_component *)self;
   try {
     if (comp->process_one())
         _reactor->queue(ctx);
@@ -528,12 +524,12 @@ static void kraken_feed_handler_component_process_one(struct fmc_component *self
   }
 }
 
-static struct kraken::feed_handler_component *kraken_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
+static struct kraken_feed_handler_component *kraken_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
                                                  struct fmc_reactor_ctx *ctx,
                                                  char **inp_tps) noexcept {
-  struct kraken::feed_handler_component *comp = nullptr;
+  struct kraken_feed_handler_component *comp = nullptr;
   try {
-    comp = new struct kraken::feed_handler_component(cfg);
+    comp = new struct kraken_feed_handler_component(cfg);
     _reactor->on_exec(ctx, kraken_feed_handler_component_process_one);
     _reactor->queue(ctx);
   } catch (std::exception &e) {
@@ -566,3 +562,29 @@ struct fmc_cfg_node_spec kraken_feed_handler_cfgspec[] = {
          }},
     {NULL},
 };
+
+struct fmc_component_def_v1 components[] = {
+    {
+        .tp_name = "kraken_feed_handler",
+        .tp_descr = "kraken_feed_handler component",
+        .tp_size = sizeof(struct kraken_feed_handler_component),
+        .tp_cfgspec = kraken_feed_handler_cfgspec,
+        .tp_new = (fmc_newfunc)kraken_feed_handler_component_new,
+        .tp_del = (fmc_delfunc)kraken_feed_handler_component_del,
+    },
+    {NULL},
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+FMCOMPMODINITFUNC void FMCompInit_feed_handler(struct fmc_component_api *api,
+                                               struct fmc_component_module *mod) {
+  api->components_add_v1(mod, components);
+  _reactor = api->reactor_v1;
+}
+
+#ifdef __cplusplus
+}
+#endif

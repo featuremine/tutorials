@@ -9,7 +9,7 @@
 add_library(
     feed-handler
     SHARED
-    "feed-handler-component.cpp"
+    "feed-handler.cpp"
 )
 target_link_libraries(
     feed-handler
@@ -21,6 +21,24 @@ set_target_properties(
     feed-handler
     PROPERTIES
     LIBRARY_OUTPUT_NAME "feed_handler"
+    PREFIX ""
+)
+
+add_library(
+    kraken-feed-handler
+    SHARED
+    "kraken-feed-handler.cpp"
+)
+target_link_libraries(
+    kraken-feed-handler
+    PRIVATE
+    websockets ${LIBWEBSOCKETS_DEP_LIBS}
+    fmc++ ytp
+)
+set_target_properties(
+    kraken-feed-handler
+    PROPERTIES
+    LIBRARY_OUTPUT_NAME "kraken_feed_handler"
     PREFIX ""
 )
 
