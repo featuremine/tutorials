@@ -34,7 +34,7 @@ add_subproject(
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
-SET(LWS_STATIC_PIC ON)
+SET(LWS_STATIC_PIC ON CACHE BOOL "Build the static version of the websockets library with position-independent code")
 add_subproject(
     NAME websockets
     GIT_REVISION "v4.3.2"
