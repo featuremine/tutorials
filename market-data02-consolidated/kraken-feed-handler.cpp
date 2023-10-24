@@ -65,6 +65,7 @@ static struct mco {
                      ytp_mmnode_offs>
       streams;
   ytp_yamal_t *yamal = nullptr;
+  ytp_streams_t *yamal_streams = nullptr;
   std::string tickers; /* storing the tickers for stream subscription */
 } mco;
 
@@ -253,8 +254,13 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
           interrupted = 1;
           break;
         }
+      } else if (event == "error") {
+        lwsl_err("%s, unable to complete subscription, received error message: "
+                  "%.*s:\n", __func__, static_cast<int>(data.size()), data.data());
+        interrupted = 1;
+        break;
       } else {
-        // Unexpected message
+        // Unhandled message
       }
       break;
     }
@@ -407,15 +413,11 @@ struct kraken_feed_handler_component {
         info.fd_limit_per_thread = 1 + 1 + 1;
         info.extensions = extensions;
 
-        ifstream secfile{fmc_cfg_sect_item_get(cfg, "securities")->node.value.str};
-        if (!secfile) {
-            lwsl_err("%s: failed to open securities file %s\n", __func__, fmc_cfg_sect_item_get(cfg, "securities")->node.value.str);
-            fmc_runtime_error_unless(false) << __func__ << ": failed to open securities file "<<fmc_cfg_sect_item_get(cfg, "securities")->node.value.str;
+        // load securities from the configuration
+        vector<string> secs;
+        for (auto *item = fmc_cfg_sect_item_get(cfg, "securities")->node.value.arr; item; item = item->next) {
+          secs.emplace_back(item->item.value.str);
         }
-
-        // load securities from the file
-        vector<string> secs{istream_iterator<string>(secfile),
-                            istream_iterator<string>()};
         // sort securities
         sort(secs.begin(), secs.end());
         // remove duplicate securities
@@ -433,7 +435,7 @@ struct kraken_feed_handler_component {
             lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
             fmc_runtime_error_unless(false) << "could not create yamal with error "<<fmc_error_msg(error);
         }
-        streams = ytp_streams_new(mco.yamal, &error);
+        mco.yamal_streams = ytp_streams_new(mco.yamal, &error);
         if (error) {
             lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
             fmc_runtime_error_unless(false) << "could not create stream with error "<<fmc_error_msg(error);
@@ -451,7 +453,7 @@ struct kraken_feed_handler_component {
             for (auto &&tp : types) {
                 string chstr = string(prefix) + sec + "@" + tp;
                 auto stream = ytp_streams_announce(
-                    streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
+                    mco.yamal_streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
                     encoding.size(), encoding.data(), &error);
                 uint64_t seqno;
                 size_t psz;
@@ -500,12 +502,11 @@ struct kraken_feed_handler_component {
         lws_context_destroy(context);
 
         fmc_error_t *error = nullptr;
-        ytp_streams_del(streams, &error);
+        ytp_streams_del(mco.yamal_streams, &error);
         ytp_yamal_del(mco.yamal, &error);
 
         lwsl_user("Completed\n");
     }
-    ytp_streams_t *streams = nullptr;
 };
 
 static void kraken_feed_handler_component_del(struct kraken_feed_handler_component *comp) noexcept {
@@ -538,14 +539,18 @@ static struct kraken_feed_handler_component *kraken_feed_handler_component_new(s
   return comp;
 }
 
+struct fmc_cfg_type security_spec = {
+    .type = FMC_CFG_STR,
+};
+
 struct fmc_cfg_node_spec kraken_feed_handler_cfgspec[] = {
     {.key = "securities",
-     .descr = "securities file path",
+     .descr = "Securities for subscription",
      .required = true,
-     .type =
-         {
-             .type = FMC_CFG_STR,
-         }},
+     .type = {.type = FMC_CFG_ARR,
+              .spec{
+                  .array = &security_spec,
+              }}},
     {.key = "peer",
      .descr = "Kraken feed handler peer name",
      .required = true,
@@ -579,8 +584,8 @@ struct fmc_component_def_v1 components[] = {
 extern "C" {
 #endif
 
-FMCOMPMODINITFUNC void FMCompInit_feed_handler(struct fmc_component_api *api,
-                                               struct fmc_component_module *mod) {
+FMCOMPMODINITFUNC void FMCompInit_kraken_feed_handler(struct fmc_component_api *api,
+                                                      struct fmc_component_module *mod) {
   api->components_add_v1(mod, components);
   _reactor = api->reactor_v1;
 }

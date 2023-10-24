@@ -297,15 +297,11 @@ struct binance_feed_handler_component {
             port = 9443;
         }
 
-        ifstream secfile{fmc_cfg_sect_item_get(cfg, "securities")->node.value.str};
-        if (!secfile) {
-            lwsl_err("%s: failed to open securities file %s\n", __func__, fmc_cfg_sect_item_get(cfg, "securities")->node.value.str);
-            fmc_runtime_error_unless(false) << __func__ << ": failed to open securities file "<<fmc_cfg_sect_item_get(cfg, "securities")->node.value.str;
+        // load securities from the configuration
+        vector<string> secs;
+        for (auto *item = fmc_cfg_sect_item_get(cfg, "securities")->node.value.arr; item; item = item->next) {
+          secs.emplace_back(item->item.value.str);
         }
-
-        // load securities from the file
-        vector<string> secs{istream_iterator<string>(secfile),
-                            istream_iterator<string>()};
         // sort securities
         sort(secs.begin(), secs.end());
         // remove duplicate securities
@@ -428,14 +424,18 @@ static struct binance_feed_handler_component *binance_feed_handler_component_new
   return comp;
 }
 
+struct fmc_cfg_type security_spec = {
+    .type = FMC_CFG_STR,
+};
+
 struct fmc_cfg_node_spec binance_feed_handler_cfgspec[] = {
     {.key = "securities",
-     .descr = "securities file path",
+     .descr = "Securities for subscription",
      .required = true,
-     .type =
-         {
-             .type = FMC_CFG_STR,
-         }},
+     .type = {.type = FMC_CFG_ARR,
+              .spec{
+                  .array = &security_spec,
+              }}},
     {.key = "peer",
      .descr = "Binance feed handler peer name",
      .required = true,
