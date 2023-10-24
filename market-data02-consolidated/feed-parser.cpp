@@ -302,10 +302,16 @@ struct runner_t {
     uint64_t seqno = 0ULL;
   };
 
+  enum class PROCESS_STATE {
+    RECOVERY,
+    REGULAR,
+  };
+
   ~runner_t();
   void init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error);
-  void recover(fmc_error_t **error);
   bool process_one(fmc_error_t **error);
+  bool recover(fmc_error_t **error);
+  bool regular(fmc_error_t **error);
 
   stream_out_t *get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error);
   stream_out_t *get_stream_out(string_view sv, fmc_error_t **error);
@@ -338,11 +344,16 @@ struct runner_t {
   ytp_streams_t *streams = nullptr;
   cmp_str_t cmp;
   ytp_iterator_t it_in;
+  ytp_iterator_t it_out;
   int64_t last;
   static constexpr int64_t delay = 1000000000LL;
   uint64_t read_count = 0ULL;
   uint64_t msg_count = 0ULL;
   uint64_t dup_count = 0ULL;
+  uint64_t chn_count = 0ULL;
+  static constexpr uint64_t msg_batch = 1000000ULL;
+  static constexpr uint64_t chn_batch = 1000ULL;
+  PROCESS_STATE process_state;
 };
 
 runner_t::~runner_t() {
@@ -377,43 +388,64 @@ void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
   peer = fmc_cfg_sect_item_get(cfg, "peer")->node.value.str;
   ytp_file_in = fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str;
   ytp_file_out = fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str;
-}
-
-void runner_t::recover(fmc_error_t **error) {
-  // This is where we do recovery. We count the number of messages we written
-  // for each channel. Then we skip the correct number of messages for each
-  // channel from the input to recover
-  uint64_t msg_count = 0ULL;
-  uint64_t chn_count = 0ULL;
-  constexpr auto msg_batch = 1000000ULL;
-  constexpr auto chn_batch = 1000ULL;
-  auto it_out = ytp_data_begin(ytp_out, error);
+  it_out = ytp_data_begin(ytp_out, error);
   RETURN_ON_ERROR(error, , "could not obtain iterator");
-  for (; !ytp_yamal_term(it_out);
-       it_out = ytp_yamal_next(ytp_out, it_out, error)) {
-    RETURN_ON_ERROR(error, , "could not obtain iterator");
-    uint64_t seqno;
-    int64_t ts;
-    ytp_mmnode_offs stream;
-    size_t sz;
-    const char *data;
-    ytp_data_read(ytp_out, it_out, &seqno, &ts, &stream, &sz, &data, error);
-    RETURN_ON_ERROR(error, , "could not read data");
-    auto *chan = get_stream_out(stream, error);
-    RETURN_ON_ERROR(error, , "could not create output stream");
-    if (!chan)
-      continue;
-    chn_count += chan->count == 0ULL;
-    ++chan->count;
-    if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
-      notice("so far recovered", msg_count, "messages on", chn_count,
-             "channels...");
-    }
-  }
-  notice("recovered", msg_count, "messages on", chn_count, "channels");
 }
 
 bool runner_t::process_one(fmc_error_t **error) {
+  switch (process_state)
+  {
+  case PROCESS_STATE::RECOVERY:
+    if (recover(error)) {
+      return true;
+    }
+    if (!error) {
+      process_state = PROCESS_STATE::REGULAR;
+      notice("recovered", msg_count, "messages on", chn_count, "channels");
+      msg_count = 0ULL;
+      return true;
+    }
+    break;
+  case PROCESS_STATE::REGULAR:
+    return regular(error);
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
+bool runner_t::recover(fmc_error_t **error) {
+  // This is where we do recovery. We count the number of messages we written
+  // for each channel. Then we skip the correct number of messages for each
+  // channel from the input to recover
+  if (ytp_yamal_term(it_out)) {
+    // Recovery is done
+    return false;
+  }
+  it_out = ytp_yamal_next(ytp_out, it_out, error);
+  RETURN_ON_ERROR(error, false, "could not obtain iterator");
+  uint64_t seqno;
+  int64_t ts;
+  ytp_mmnode_offs stream;
+  size_t sz;
+  const char *data;
+  ytp_data_read(ytp_out, it_out, &seqno, &ts, &stream, &sz, &data, error);
+  RETURN_ON_ERROR(error, false, "could not read data");
+  auto *chan = get_stream_out(stream, error);
+  RETURN_ON_ERROR(error, false, "could not create output stream");
+  if (!chan)
+    return true;
+  chn_count += chan->count == 0ULL;
+  ++chan->count;
+  if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
+    notice("so far recovered", msg_count, "messages on", chn_count,
+            "channels...");
+  }
+  return true;
+}
+
+bool runner_t::regular(fmc_error_t **error) {
   if (ytp_yamal_term(it_in)) {
     return true;
   }
