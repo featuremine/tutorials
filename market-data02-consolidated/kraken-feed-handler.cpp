@@ -261,7 +261,7 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
         interrupted = 1;
         break;
       } else {
-        // Unhandled message
+        // Unexpected message
       }
       break;
     }
@@ -415,7 +415,6 @@ struct kraken_feed_handler_component {
     info.extensions = extensions;
 
     // load securities from the configuration
-    vector<string> secs;
     for (auto *item = fmc_cfg_sect_item_get(cfg, "securities")->node.value.arr;
          item; item = item->next) {
       secs.emplace_back(item->item.value.str);
@@ -453,10 +452,8 @@ struct kraken_feed_handler_component {
     string_view vpeer(fmc_cfg_sect_item_get(cfg, "peer")->node.value.str);
     string encoding = "Content-Type application/json\n"
                       "Content-Schema Kraken";
-    vector<string> types = {"spread", "trade"};
     ostringstream ss;
     bool first = true;
-    ss << "/stream?streams=";
     constexpr string_view prefix = "raw/kraken/";
     for (auto &&sec : secs) {
       for (auto &&tp : types) {
@@ -514,6 +511,8 @@ struct kraken_feed_handler_component {
 
     lwsl_user("Completed\n");
   }
+  std::vector<std::string> secs;
+  const std::vector<std::string> types = {"spread", "trade"};
 };
 
 static void kraken_feed_handler_component_del(
