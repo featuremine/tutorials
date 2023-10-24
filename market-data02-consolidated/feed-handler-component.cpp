@@ -13,7 +13,7 @@ struct fmc_component_def_v1 components[] = {
     {
         .tp_name = "kraken_feed_handler",
         .tp_descr = "kraken_feed_handler component",
-        .tp_size = sizeof(struct kraken_feed_handler_component),
+        .tp_size = sizeof(struct kraken::feed_handler_component),
         .tp_cfgspec = kraken_feed_handler_cfgspec,
         .tp_new = (fmc_newfunc)kraken_feed_handler_component_new,
         .tp_del = (fmc_delfunc)kraken_feed_handler_component_del,

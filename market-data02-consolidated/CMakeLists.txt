@@ -9,8 +9,7 @@
 add_library(
     feed-handler
     SHARED
-    "feed-handler.cpp"
-    "kraken-feed-handler.cpp"
+    "feed-handler-component.cpp"
 )
 target_link_libraries(
     feed-handler

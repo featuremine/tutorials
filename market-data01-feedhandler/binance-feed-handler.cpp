@@ -274,6 +274,7 @@ static const struct lws_protocols protocols[] = {
     LWS_PROTOCOL_LIST_TERM};
 
 struct binance_feed_handler_component {
+    fmc_component_HEAD;
     binance_feed_handler_component(struct fmc_cfg_sect_item *cfg) {
         using namespace std;
 
