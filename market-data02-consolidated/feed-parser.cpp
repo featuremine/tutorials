@@ -290,6 +290,8 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
 }
 
 struct runner_t {
+  fmc_component_HEAD;
+
   // This is where we store information about channel processed
   struct stream_out_t {
     ytp_mmnode_offs stream = 0ULL;
@@ -343,7 +345,7 @@ struct runner_t {
   cmp_str_t cmp;
   ytp_iterator_t it_in;
   ytp_iterator_t it_out;
-  int64_t last;
+  int64_t last = 0LL;
   static constexpr int64_t delay = 1000000000LL;
   uint64_t read_count = 0ULL;
   uint64_t msg_count = 0ULL;
@@ -386,7 +388,6 @@ void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
   cmp_str_init(&cmp);
   it_in = ytp_data_begin(ytp_in, error);
   RETURN_ON_ERROR(error, , "could not obtain iterator");
-  last = fmc_cur_time_ns();
   peer = fmc_cfg_sect_item_get(cfg, "peer")->node.value.str;
   it_out = ytp_data_begin(ytp_out, error);
   RETURN_ON_ERROR(error, , "could not obtain iterator");
@@ -400,7 +401,6 @@ bool runner_t::process_one(fmc_error_t **error) {
     }
     if (!*error) {
       process_state = PROCESS_STATE::REGULAR;
-      notice("recovered", msg_count, "messages on", chn_count, "channels");
       msg_count = 0ULL;
       return true;
     }
@@ -419,11 +419,9 @@ bool runner_t::recover(fmc_error_t **error) {
   // for each channel. Then we skip the correct number of messages for each
   // channel from the input to recover
   if (ytp_yamal_term(it_out)) {
-    // Recovery is done
+    notice("recovered", msg_count, "messages on", chn_count, "channels");
     return false;
   }
-  it_out = ytp_yamal_next(ytp_out, it_out, error);
-  RETURN_ON_ERROR(error, false, "could not obtain iterator");
   uint64_t seqno;
   int64_t ts;
   ytp_mmnode_offs stream;
@@ -433,64 +431,68 @@ bool runner_t::recover(fmc_error_t **error) {
   RETURN_ON_ERROR(error, false, "could not read data");
   auto *chan = get_stream_out(stream, error);
   RETURN_ON_ERROR(error, false, "could not create output stream");
-  if (!chan)
-    return true;
-  chn_count += chan->count == 0ULL;
-  ++chan->count;
-  if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
-    notice("so far recovered", msg_count, "messages on", chn_count,
-           "channels...");
+  if (chan) {
+    chn_count += chan->count == 0ULL;
+    ++chan->count;
+    if (++msg_count % msg_batch == 0 || chn_count % chn_batch == 0) {
+      notice("so far recovered", msg_count, "messages on", chn_count,
+            "channels...");
+    }
   }
+  it_out = ytp_yamal_next(ytp_out, it_out, error);
+  RETURN_ON_ERROR(error, false, "could not obtain next iterator");
   return true;
 }
 
 bool runner_t::regular(fmc_error_t **error) {
-  if (ytp_yamal_term(it_in)) {
-    return true;
+  if (!ytp_yamal_term(it_in)) {
+    uint64_t seqno;
+    int64_t ts;
+    ytp_mmnode_offs stream;
+    size_t sz;
+    const char *data;
+    ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
+    RETURN_ON_ERROR(error, false, "could not obtain iterator");
+    it_in = ytp_yamal_next(ytp_in, it_in, error);
+    RETURN_ON_ERROR(error, false, "could not obtain next iterator");
+    auto *info = get_stream_in(stream, error);
+    if (*error){
+      return false;
+    }
+    // if this channel not interesting, skip it
+    if (!info) {
+      it_in = ytp_yamal_next(ytp_in, it_in, error);
+      return true;
+    }
+    ++read_count;
+    seqno = info->seqno;
+    cmp_str_reset(&cmp);
+    bool skip = info->outinfo->count > 0;
+    bool nodup =
+        info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
+    if (*error){
+      return false;
+    }
+    // duplicate
+    if (!nodup) {
+      ++dup_count;
+      return true;
+    }
+    info->seqno = seqno;
+    // otherwise check if we still recovering
+    if (skip) {
+      --info->outinfo->count;
+      return true;
+    }
+    size_t bufsz = cmp_str_size(&cmp);
+    auto dst = ytp_data_reserve(ytp_out, bufsz, error);
+    RETURN_ON_ERROR(error, false, "could not reserve message");
+    memcpy(dst, cmp_str_data(&cmp), bufsz);
+    ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
+                    error);
+    RETURN_ON_ERROR(error, false, "could not commit message");
+    ++msg_count;
   }
-  it_in = ytp_yamal_next(ytp_in, it_in, error);
-  RETURN_ON_ERROR(error, false, "could not obtain iterator");
-  uint64_t seqno;
-  int64_t ts;
-  ytp_mmnode_offs stream;
-  size_t sz;
-  const char *data;
-  ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
-  RETURN_ON_ERROR(error, false, "could not obtain iterator");
-  auto *info = get_stream_in(stream, error);
-  if (*error)
-    return false;
-  // if this channel not interesting, skip it
-  if (!info)
-    return true;
-  ++read_count;
-  seqno = info->seqno;
-  cmp_str_reset(&cmp);
-  bool skip = info->outinfo->count > 0;
-  bool nodup =
-      info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
-  if (*error)
-    return false;
-  // duplicate
-  if (!nodup) {
-    ++dup_count;
-    return true;
-  }
-  info->seqno = seqno;
-  // otherwise check if we still recovering
-  if (skip) {
-    --info->outinfo->count;
-    return true;
-  }
-  size_t bufsz = cmp_str_size(&cmp);
-  auto dst = ytp_data_reserve(ytp_out, bufsz, error);
-  RETURN_ON_ERROR(error, false, "could not reserve message");
-  memcpy(dst, cmp_str_data(&cmp), bufsz);
-  ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
-                  error);
-  RETURN_ON_ERROR(error, false, "could not commit message");
-  ++msg_count;
-
   if (auto now = fmc_cur_time_ns(); last + delay < now) {
     last = now;
     notice("read:", read_count, "written:", msg_count,
