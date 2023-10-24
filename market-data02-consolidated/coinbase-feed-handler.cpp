@@ -49,11 +49,15 @@ static struct mco {
   std::unordered_map<std::string_view, ytp_mmnode_offs> streams;
   ytp_yamal_t *yamal = nullptr;
   std::string path; /* storing the path for stream subscription */
+  std::string subscription;
+  std::string apikey;
+  std::string secret;
+  std::string passphrase;
 } mco;
 
 static struct lws_context *context;
 static int interrupted;
-static const char *address = "stream.binance.com";
+static const char *address = "ws-direct.exchange.coinbase.com";
 static int port = 443;
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
@@ -194,19 +198,14 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
     break;
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
-    p = lws_json_simple_find((const char *)in, len, "\"stream\"", &alen);
+    //TODO: Validate subscriptions message as a response
+    p = lws_json_simple_find((const char *)in, len, "\"product_id\"", &alen);
     if (!p) {
-      lwsl_err("%s, message does not contain \"stream\":\n", __func__);
+      lwsl_err("%s, message does not contain \"product_id\":\n", __func__);
       break;
     }
     stream = std::string_view((const char *)p + 2, alen - 3);
-    p = lws_json_simple_find((const char *)in, len, "\"data\"", &alen);
-    if (!p) {
-      lwsl_err("%s, message does not contain \"data\":\n", __func__);
-      break;
-    }
-    data =
-        std::string_view((const char *)p + 1, len - (p - (const char *)in) - 2);
+    data = std::string_view((const char *)in, len);
     if (auto where = mco->streams.find(stream); where != mco->streams.end()) {
       auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
       if (err) {
@@ -234,6 +233,10 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
                      LWS_US_PER_SEC);
     mco->wsi = wsi;
     stats_reset(&mco->stats);
+    //TODO: Check for error on write
+    lws_write(mco->wsi, (unsigned char *) mco->subscription.data() + LWS_SEND_BUFFER_PRE_PADDING,
+              mco->subscription.size() - LWS_SEND_BUFFER_PRE_PADDING - LWS_SEND_BUFFER_POST_PADDING,
+              LWS_WRITE_TEXT);
     break;
 
   case LWS_CALLBACK_CLIENT_CLOSED:
@@ -272,6 +275,67 @@ static const struct lws_protocols protocols[] = {
 
 static void sigint_handler(int sig) { interrupted = 1; }
 
+static void hmac_sha256(unsigned char *digest, std::string_view key,
+                        std::string_view msg) {
+  unsigned int len = SHA256_DIGEST_LENGTH;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  HMAC_CTX hmac;
+  HMAC_CTX_init(&hmac);
+  HMAC_Init_ex(&hmac, key.data(), key.length(), EVP_sha256(), NULL);
+  HMAC_Update(&hmac, (const unsigned char *)msg.data(), msg.length());
+  HMAC_Final(&hmac, digest, &len);
+  HMAC_CTX_cleanup(&hmac);
+#elif OPENSSL_VERSION_NUMBER < 0x30000000L
+  auto hmac = HMAC_CTX_new();
+  HMAC_Init_ex(hmac, key.data(), key.length(), EVP_sha256(), NULL);
+  HMAC_Update(hmac, (const unsigned char *)msg.data(), msg.length());
+  HMAC_Final(hmac, digest, &len);
+  HMAC_CTX_free(hmac);
+#else
+  HMAC(EVP_sha256(), key.data(), key.length(), (unsigned char *)msg.data(),
+       msg.length(), digest, &len);
+#endif
+}
+
+inline std::string base64_encode(const unsigned char *input, size_t length) {
+  const unsigned int pl = 4 * ((length + 2) / 3);
+  std::string output(pl, 0);
+  const unsigned int ol =
+      EVP_EncodeBlock((unsigned char *)output.data(), input, length);
+  if (pl != ol) {
+    std::cerr << "Encode predicted " << pl << " but we got " << ol << "\n";
+  }
+  return output;
+}
+
+inline std::string base64_decode(const char *input, int length) {
+
+  BIO *b64, *bmem;
+  std::string buffer(length, 0);
+  b64 = BIO_new(BIO_f_base64());
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+  bmem = BIO_new_mem_buf(input, -1);
+  bmem = BIO_push(b64, bmem);
+  const int maxlen = strlen(input) / 4 * 3 + 1;
+  const int len = BIO_read(bmem, buffer.data(), maxlen);
+  BIO_free_all(bmem);
+  buffer.resize(len);
+  return buffer;
+}
+
+inline std::string hmac_base64(std::string_view key, std::string_view msg) {
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  unsigned int len = SHA256_DIGEST_LENGTH;
+  hmac_sha256(hash, key, msg);
+
+  std::stringstream ss;
+  ss << std::setfill('0');
+  for (unsigned int i = 0; i < len; i++) {
+    ss << hash[i];
+  }
+  return base64_encode((unsigned char *)ss.str().c_str(), len);
+}
+
 int main(int argc, const char **argv) {
   using namespace std;
 
@@ -283,7 +347,7 @@ int main(int argc, const char **argv) {
   memset(&info, 0, sizeof info);
   lws_cmdline_option_handle_builtin(argc, argv, &info);
 
-  lwsl_user("binance feed handler\n");
+  lwsl_user("coinbase feed handler\n");
 
   info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
   info.port = CONTEXT_PORT_NO_LISTEN; /* we do not run any server */
@@ -294,17 +358,24 @@ int main(int argc, const char **argv) {
   const char *securities = nullptr;
   const char *peer = nullptr;
   const char *ytpfile = nullptr;
+  const char *apikey = nullptr;
+  const char *secret = nullptr;
+  const char *password = nullptr;
   fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
                                  /* 1 */ {"--securities", true, &securities},
                                  /* 2 */ {"--peer", true, &peer},
                                  /* 3 */ {"--ytp-file", true, &ytpfile},
-                                 /* 4 */ {"--us-region", false, NULL},
+                                 /* 4 */ {"--api-key", false, &apikey},
+                                 /* 5 */ {"--secret", false, &secret},
+                                 /* 6 */ {"--password", false, &password},
+                                 /* 7 */ {"--public", false, NULL},
+                                 /* 7 */ {"--batch", false, NULL},
                                  {NULL}};
   fmc_cmdline_opt_proc(argc, argv, options, &error);
   if (options[0].set) {
-    printf("binance-feed-handler --ytp-file FILE --peer PEER --securities "
+    printf("coinbase-feed-handler --ytp-file FILE --peer PEER --securities "
            "SECURITIES\n\n"
-           "Binance Feed Server.\n\n"
+           "Coinbase Feed Server.\n\n"
            "Application will subscribe to quotes and trades streams for the "
            "securities provided\n"
            "in the file SECURITIES and will publish each stream onto a "
@@ -319,9 +390,13 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  if (options[4].set) {
-    address = "stream.binance.us";
-    port = 9443;
+  mco.apikey = apikey;
+  mco.secret = secret;
+  mco.passphrase = password;
+
+  if (options[7].set) {
+    address = "ws-feed.exchange.coinbase.com";
+    port = 443;
   }
 
   ifstream secfile{securities};
@@ -358,38 +433,41 @@ int main(int argc, const char **argv) {
 
   string_view vpeer(peer);
   string encoding = "Content-Type application/json\n"
-                    "Content-Schema Binance";
-  vector<string> types = {"@bookTicker", "@trade"};
+                    "Content-Schema Coinbase";
   ostringstream ss;
   bool first = true;
-  ss << "/stream?streams=";
-  constexpr string_view prefix = "raw/binance/";
+  constexpr string_view prefix = "raw/coinbase/";
   for (auto &&sec : secs) {
-    for (auto &&tp : types) {
-      string chstr = string(prefix) + sec + tp;
-      auto stream = ytp_streams_announce(
-          streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
-          encoding.size(), encoding.data(), &error);
-      uint64_t seqno;
-      size_t psz;
-      const char *peer;
-      size_t csz;
-      const char *channel;
-      size_t esz;
-      const char *encoding;
-      ytp_mmnode_offs *original;
-      ytp_mmnode_offs *subscribed;
+    string chstr = string(prefix) + sec + "full";
+    auto stream = ytp_streams_announce(
+        streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
+        encoding.size(), encoding.data(), &error);
+    uint64_t seqno;
+    size_t psz;
+    const char *peer;
+    size_t csz;
+    const char *channel;
+    size_t esz;
+    const char *encoding;
+    ytp_mmnode_offs *original;
+    ytp_mmnode_offs *subscribed;
 
-      ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
-                              &channel, &esz, &encoding, &original, &subscribed,
-                              &error);
-      auto chview = string_view(channel, csz).substr(prefix.size());
-      mco.streams.emplace(chview, stream);
-      ss << (first ? "" : "/") << chview;
-      first = false;
-    }
+    ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
+                            &channel, &esz, &encoding, &original, &subscribed,
+                            &error);
+    auto chview = string_view(channel, csz).substr(prefix.size());
+    mco.streams.emplace(sec, stream);
+    ss << (first ? "" : ",") << "\""<<sec << "\"";
+    first = false;
   }
-  mco.path = ss.str();
+  std::string timestamp = std::to_string(fmc_cur_time_ns() / 1000000000);
+  std::string what = timestamp + "GET" + "/users/self/verify";
+  std::string signature = hmac_base64(mco.secret, what);
+  mco.subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') +
+    "{\"type\":\"subscribe\",\"product_ids\":["+ss.str()+"],\"channels\":[\"full\",\"heartbeat\"]," +
+    "\"key\":\"" + mco.apikey + "\",\"signature\":\"" + signature + 
+    "\",\"timestamp\":"+timestamp+",\"passphrase\":\"" + mco.passphrase + "\"}" +
+    std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
   /*
