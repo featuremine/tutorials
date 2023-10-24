@@ -75,9 +75,8 @@ struct fmc_component_def_v1 components[] = {
 extern "C" {
 #endif
 
-FMCOMPMODINITFUNC void
-FMCompInit_feed(struct fmc_component_api *api,
-                        struct fmc_component_module *mod) {
+FMCOMPMODINITFUNC void FMCompInit_feed(struct fmc_component_api *api,
+                                       struct fmc_component_module *mod) {
   api->components_add_v1(mod, components);
   _reactor = api->reactor_v1;
 }
