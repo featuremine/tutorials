@@ -335,8 +335,6 @@ struct runner_t {
   string_view encoding = "Content-Type application/msgpack\n"
                          "Content-Schema ore1.1.3";
   const char *peer = nullptr;
-  const char *ytp_file_in = nullptr;
-  const char *ytp_file_out = nullptr;
   fmc_fd fd_in = -1;
   fmc_fd fd_out = -1;
   ytp_yamal_t *ytp_in = nullptr;
@@ -353,7 +351,7 @@ struct runner_t {
   uint64_t chn_count = 0ULL;
   static constexpr uint64_t msg_batch = 1000000ULL;
   static constexpr uint64_t chn_batch = 1000ULL;
-  PROCESS_STATE process_state;
+  PROCESS_STATE process_state = PROCESS_STATE::RECOVERY;
 };
 
 runner_t::~runner_t() {
@@ -371,10 +369,10 @@ runner_t::~runner_t() {
 }
 
 void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
-  fd_in = fmc_fopen(ytp_file_in, fmc_fmode::READ, error);
-  RETURN_ON_ERROR(error, , "could not open input yamal file", ytp_file_in);
-  fd_out = fmc_fopen(ytp_file_out, fmc_fmode::READWRITE, error);
-  RETURN_ON_ERROR(error, , "could not open output yamal file", ytp_file_out);
+  fd_in = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str, fmc_fmode::READ, error);
+  RETURN_ON_ERROR(error, , "could not open input yamal file", fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str);
+  fd_out = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str, fmc_fmode::READWRITE, error);
+  RETURN_ON_ERROR(error, , "could not open output yamal file", fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str);
   ytp_in = ytp_yamal_new(fd_in, error);
   RETURN_ON_ERROR(error, , "could not create input yamal");
   ytp_out = ytp_yamal_new(fd_out, error);
@@ -386,8 +384,6 @@ void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
   RETURN_ON_ERROR(error, , "could not obtain iterator");
   last = fmc_cur_time_ns();
   peer = fmc_cfg_sect_item_get(cfg, "peer")->node.value.str;
-  ytp_file_in = fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str;
-  ytp_file_out = fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str;
   it_out = ytp_data_begin(ytp_out, error);
   RETURN_ON_ERROR(error, , "could not obtain iterator");
 }
@@ -398,7 +394,7 @@ bool runner_t::process_one(fmc_error_t **error) {
     if (recover(error)) {
       return true;
     }
-    if (!error) {
+    if (!*error) {
       process_state = PROCESS_STATE::REGULAR;
       notice("recovered", msg_count, "messages on", chn_count, "channels");
       msg_count = 0ULL;
@@ -617,28 +613,19 @@ static void feed_parser_component_process_one(struct fmc_component *self,
 static struct runner_t *feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
                                                   struct fmc_reactor_ctx *ctx,
                                                   char **inp_tps) noexcept {
-  struct runner_t *comp = nullptr;
-  try {
-    fmc_error_t *error = nullptr;
-    comp = new struct runner_t();
-    comp->init(cfg, &error);
-    if (error) {
-      delete comp;
-      _reactor->set_error(ctx, "%s", fmc_error_msg(error));
-      return nullptr;
-    }
-    comp->recover(&error);
-    if (error) {
-      delete comp;
-      _reactor->set_error(ctx, "%s", fmc_error_msg(error));
-      return nullptr;
-    }
-    _reactor->on_exec(ctx, feed_parser_component_process_one);
-    _reactor->queue(ctx);
-  } catch (std::exception &e) {
-    _reactor->set_error(ctx, "%s", e.what());
+  fmc_error_t *error = nullptr;
+  struct runner_t *comp = new struct runner_t();
+  comp->init(cfg, &error);
+  if (error) {
+    goto cleanup;
   }
+  _reactor->on_exec(ctx, feed_parser_component_process_one);
+  _reactor->queue(ctx);
   return comp;
+cleanup:
+  delete comp;
+  _reactor->set_error(ctx, "%s", fmc_error_msg(error));
+  return nullptr;
 }
 
 struct fmc_cfg_node_spec feed_parser_cfgspec[] = {
