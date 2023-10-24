@@ -103,11 +103,12 @@ endmacro()
 
 add_subdirectory(market-data01-feedhandler)
 add_bin_to_package(minimal-ws-client-binance)
-add_component_to_package(feed-handler)
+add_component_to_package(binance_feed_handler)
 
 add_subdirectory(market-data02-consolidated)
-add_component_to_package(feed-handler)
-add_component_to_package(feed-parser)
+add_component_to_package(feed_handler)
+add_component_to_package(kraken_feed_handler)
+add_component_to_package(feed_parser)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")
 add_custom_command(

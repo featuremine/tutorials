@@ -17,18 +17,18 @@ target_link_libraries(
 )
 
 add_library(
-    binance-feed-handler
+    binance_feed_handler
     SHARED
     "binance-feed-handler.cpp"
 )
 target_link_libraries(
-    binance-feed-handler
+    binance_feed_handler
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
 set_target_properties(
-    binance-feed-handler
+    binance_feed_handler
     PROPERTIES
     LIBRARY_OUTPUT_NAME "binance_feed_handler"
     PREFIX ""

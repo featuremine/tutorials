@@ -50,6 +50,7 @@ static struct mco {
 
   std::unordered_map<std::string_view, ytp_mmnode_offs> streams;
   ytp_yamal_t *yamal = nullptr;
+  ytp_streams_t *yamal_streams = nullptr;
   std::string path; /* storing the path for stream subscription */
 } mco;
 
@@ -296,15 +297,11 @@ struct binance_feed_handler_component {
             port = 9443;
         }
 
-        ifstream secfile{fmc_cfg_sect_item_get(cfg, "securities")->node.value.str};
-        if (!secfile) {
-            lwsl_err("%s: failed to open securities file %s\n", __func__, fmc_cfg_sect_item_get(cfg, "securities")->node.value.str);
-            fmc_runtime_error_unless(false) << __func__ << ": failed to open securities file "<<fmc_cfg_sect_item_get(cfg, "securities")->node.value.str;
+        // load securities from the configuration
+        vector<string> secs;
+        for (auto *item = fmc_cfg_sect_item_get(cfg, "securities")->node.value.arr; item; item = item->next) {
+          secs.emplace_back(item->item.value.str);
         }
-
-        // load securities from the file
-        vector<string> secs{istream_iterator<string>(secfile),
-                            istream_iterator<string>()};
         // sort securities
         sort(secs.begin(), secs.end());
         // remove duplicate securities
@@ -322,7 +319,7 @@ struct binance_feed_handler_component {
             lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
             fmc_runtime_error_unless(false) << "could not create yamal with error "<<fmc_error_msg(error);
         }
-        streams = ytp_streams_new(mco.yamal, &error);
+        mco.yamal_streams = ytp_streams_new(mco.yamal, &error);
         if (error) {
             lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
             fmc_runtime_error_unless(false) << "could not create stream with error "<<fmc_error_msg(error);
@@ -340,7 +337,7 @@ struct binance_feed_handler_component {
             for (auto &&tp : types) {
                 string chstr = string(prefix) + sec + tp;
                 auto stream = ytp_streams_announce(
-                    streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
+                    mco.yamal_streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
                     encoding.size(), encoding.data(), &error);
                 uint64_t seqno;
                 size_t psz;
@@ -389,12 +386,11 @@ struct binance_feed_handler_component {
         lws_context_destroy(context);
 
         fmc_error_t *error = nullptr;
-        ytp_streams_del(streams, &error);
+        ytp_streams_del(mco.yamal_streams, &error);
         ytp_yamal_del(mco.yamal, &error);
 
         lwsl_user("Completed\n");
     }
-    ytp_streams_t *streams = nullptr;
 };
 
 static void binance_feed_handler_component_del(struct binance_feed_handler_component *comp) noexcept {
@@ -427,14 +423,18 @@ static struct binance_feed_handler_component *binance_feed_handler_component_new
   return comp;
 }
 
+struct fmc_cfg_type security_spec = {
+    .type = FMC_CFG_STR,
+};
+
 struct fmc_cfg_node_spec binance_feed_handler_cfgspec[] = {
     {.key = "securities",
-     .descr = "securities file path",
+     .descr = "Securities for subscription",
      .required = true,
-     .type =
-         {
-             .type = FMC_CFG_STR,
-         }},
+     .type = {.type = FMC_CFG_ARR,
+              .spec{
+                  .array = &security_spec,
+              }}},
     {.key = "peer",
      .descr = "Binance feed handler peer name",
      .required = true,
@@ -461,8 +461,8 @@ struct fmc_cfg_node_spec binance_feed_handler_cfgspec[] = {
 
 struct fmc_component_def_v1 components[] = {
     {
-        .tp_name = "binance_feed_handler",
-        .tp_descr = "binance_feed_handler component",
+        .tp_name = "feed_handler",
+        .tp_descr = "feed_handler component",
         .tp_size = sizeof(struct binance_feed_handler_component),
         .tp_cfgspec = binance_feed_handler_cfgspec,
         .tp_new = (fmc_newfunc)binance_feed_handler_component_new,

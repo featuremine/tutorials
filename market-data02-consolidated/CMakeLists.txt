@@ -7,54 +7,54 @@
 ]===]
 
 add_library(
-    feed-handler
+    feed_handler
     SHARED
     "feed-handler.cpp"
 )
 target_link_libraries(
-    feed-handler
+    feed_handler
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
 set_target_properties(
-    feed-handler
+    feed_handler
     PROPERTIES
     LIBRARY_OUTPUT_NAME "feed_handler"
     PREFIX ""
 )
 
 add_library(
-    kraken-feed-handler
+    kraken_feed_handler
     SHARED
     "kraken-feed-handler.cpp"
 )
 target_link_libraries(
-    kraken-feed-handler
+    kraken_feed_handler
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
 set_target_properties(
-    kraken-feed-handler
+    kraken_feed_handler
     PROPERTIES
     LIBRARY_OUTPUT_NAME "kraken_feed_handler"
     PREFIX ""
 )
 
 add_library(
-    feed-parser
+    feed_parser
     SHARED
     "feed-parser.cpp"
 )
 target_link_libraries(
-    feed-parser
+    feed_parser
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
 set_target_properties(
-    feed-parser
+    feed_parser
     PROPERTIES
     LIBRARY_OUTPUT_NAME "feed_parser"
     PREFIX ""
