@@ -108,7 +108,6 @@ add_bin_to_package(binance-feed-handler)
 
 add_subdirectory(market-data02-consolidated)
 add_component_to_package(feed_handler)
-add_component_to_package(kraken_feed_handler)
 add_component_to_package(feed_parser)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")

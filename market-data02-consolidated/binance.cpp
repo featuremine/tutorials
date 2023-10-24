@@ -21,7 +21,6 @@
 #include <vector>
 
 #include <fmc++/mpl.hpp>
-#include <fmc/alignment.h>
 #include <fmc/component.h>
 #include <fmc/config.h>
 #include <fmc/files.h>
@@ -30,6 +29,8 @@
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
+
+#include "common.hpp"
 
 typedef struct range {
   unsigned int samples;
@@ -40,18 +41,6 @@ typedef struct range {
  * the client connection bound to it
  */
 
-namespace std {
-template <> struct hash<std::pair<std::string_view, std::string_view>> {
-  hash() = default;
-  using argument_type = std::pair<std::string_view, std::string_view>;
-  using result_type = std::size_t;
-  result_type operator()(argument_type const &obj) const {
-    return fmc_hash_combine(std::hash<std::string_view>{}(std::get<0>(obj)),
-                            std::hash<std::string_view>{}(std::get<1>(obj)));
-  }
-};
-} // namespace std
-
 static struct mco {
   lws_sorted_usec_list_t sul;    /* schedule connection retry */
   lws_sorted_usec_list_t sul_hz; /* 1hz summary */
@@ -61,18 +50,16 @@ static struct mco {
   struct lws *wsi;      /* related wsi if any */
   uint16_t retry_count; /* count of consequetive retries */
 
-  std::unordered_map<std::pair<std::string_view, std::string_view>,
-                     ytp_mmnode_offs>
-      streams;
+  std::unordered_map<std::string_view, ytp_mmnode_offs> streams;
   ytp_yamal_t *yamal = nullptr;
   ytp_streams_t *yamal_streams = nullptr;
-  std::string tickers; /* storing the tickers for stream subscription */
+  std::string path; /* storing the path for stream subscription */
 } mco;
 
-static struct fmc_reactor_api_v1 *_reactor;
+extern struct fmc_reactor_api_v1 *_reactor;
 static struct lws_context *context;
 static int interrupted;
-static const char *address = "ws.kraken.com";
+static const char *address = "stream.binance.com";
 static int port = 443;
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
@@ -155,6 +142,7 @@ static void connect_client(lws_sorted_usec_list_t *sul) {
   i.context = context;
   i.port = port;
   i.address = address;
+  i.path = mco->path.c_str();
   i.host = i.address;
   i.origin = i.address;
   i.ssl_connection = LCCSCF_USE_SSL | LCCSCF_PRIORITIZE_READS;
@@ -201,10 +189,8 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
   const char *p = nullptr;
   size_t alen = 0;
   fmc_error_t *err = nullptr;
-  string_view channelName;
-  string_view pairName;
+  string_view stream;
   string_view data;
-  string_view::size_type offset1, offset2;
 
   switch (reason) {
 
@@ -214,91 +200,20 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
     break;
 
   case LWS_CALLBACK_CLIENT_RECEIVE:
-    data = std::string_view((const char *)in, len);
-    if (data[0] == '{') {
-      p = lws_json_simple_find((const char *)in, len, "\"event\"", &alen);
-      if (!p) {
-        lwsl_err("%s, message does not contain \"event\":\n", __func__);
-        break;
-      }
-      std::string_view event = std::string_view((const char *)p + 2, alen - 3);
-      if (event == "heratbeat") {
-        break;
-      } else if (event == "subscriptionStatus") {
-        p = lws_json_simple_find((const char *)in, len, "\"status\"", &alen);
-        if (!p) {
-          lwsl_err("%s, message does not contain \"status\":\n", __func__);
-          break;
-        }
-        std::string_view status =
-            std::string_view((const char *)p + 2, alen - 3);
-        if (status != "subscribed") {
-          lwsl_err("%s, unable to complete subscription, \"status\" value is "
-                   "%.*s:\n",
-                   __func__, static_cast<int>(status.size()), status.data());
-          interrupted = 1;
-          break;
-        }
-      } else if (event == "systemStatus") {
-        p = lws_json_simple_find((const char *)in, len, "\"status\"", &alen);
-        if (!p) {
-          lwsl_err("%s, message does not contain \"status\":\n", __func__);
-          break;
-        }
-        std::string_view status =
-            std::string_view((const char *)p + 2, alen - 3);
-        if (status != "online") {
-          lwsl_err("%s, unable to complete subscription, \"status\" value is "
-                   "%.*s:\n",
-                   __func__, static_cast<int>(status.size()), status.data());
-          interrupted = 1;
-          break;
-        }
-      } else if (event == "error") {
-        lwsl_err("%s, unable to complete subscription, received error message: "
-                 "%.*s:\n",
-                 __func__, static_cast<int>(data.size()), data.data());
-        interrupted = 1;
-        break;
-      } else {
-        // Unexpected message
-      }
+    p = lws_json_simple_find((const char *)in, len, "\"stream\"", &alen);
+    if (!p) {
+      lwsl_err("%s, message does not contain \"stream\":\n", __func__);
       break;
     }
-    offset2 = data.rfind("\"");
-    if (offset2 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, "
-               "invalid data received \"%.*s\":\n",
-               __func__, static_cast<int>(data.size()), data.data());
+    stream = std::string_view((const char *)p + 2, alen - 3);
+    p = lws_json_simple_find((const char *)in, len, "\"data\"", &alen);
+    if (!p) {
+      lwsl_err("%s, message does not contain \"data\":\n", __func__);
       break;
     }
-    offset1 = data.rfind("\"", offset2 - 1);
-    if (offset1 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, "
-               "invalid data received \"%.*s\":\n",
-               __func__, static_cast<int>(data.size()), data.data());
-      break;
-    }
-    channelName = data.substr(offset1 + 1, offset2 - offset1 - 1);
-    offset2 = data.rfind("\"", offset1 - 1);
-    if (offset2 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, "
-               "invalid data received \"%.*s\":\n",
-               __func__, static_cast<int>(data.size()), data.data());
-      break;
-    }
-    offset1 = data.rfind("\"", offset2 - 1);
-    if (offset1 == std::string_view::npos) {
-      lwsl_err("%s, could not find expected quote character in message, "
-               "invalid data received \"%.*s\":\n",
-               __func__, static_cast<int>(data.size()), data.data());
-      break;
-    }
-    pairName = data.substr(offset1 + 1, offset2 - offset1 - 1);
-    if (auto where =
-            mco->streams.find(std::pair<std::string_view, std::string_view>(
-                channelName, pairName));
-        where != mco->streams.end()) {
+    data =
+        std::string_view((const char *)p + 1, len - (p - (const char *)in) - 2);
+    if (auto where = mco->streams.find(stream); where != mco->streams.end()) {
       auto dst = ytp_data_reserve(mco->yamal, data.size(), &err);
       if (err) {
         lwsl_err("%s, could not reserve yamal message with error %s:\n",
@@ -313,53 +228,20 @@ static int callback_minimal(struct lws *wsi, enum lws_callback_reasons reason,
         break;
       }
     } else {
-      lwsl_err(
-          "%s, stream map does not contain %s, %s. Message received %.*s:\n",
-          __func__, string(channelName).c_str(), string(pairName).c_str(),
-          static_cast<int>(data.size()), data.data());
+      lwsl_err("%s, stream map does not contain %s:\n", __func__,
+               string(stream).c_str());
       break;
     }
     mco->stats.samples++;
     break;
-  case LWS_CALLBACK_CLIENT_ESTABLISHED: {
+  case LWS_CALLBACK_CLIENT_ESTABLISHED:
     lwsl_user("%s: established\n", __func__);
     lws_sul_schedule(lws_get_context(wsi), 0, &mco->sul_hz, sul_hz_cb,
                      LWS_US_PER_SEC);
     mco->wsi = wsi;
     stats_reset(&mco->stats);
-    std::string subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') +
-                               "{\"event\":\"subscribe\",\"pair\":[" +
-                               mco->tickers +
-                               "],\"subscription\":{\"name\":\"spread\"}}" +
-                               std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    auto wret = lws_write(mco->wsi,
-                          (unsigned char *)subscription.data() +
-                              LWS_SEND_BUFFER_PRE_PADDING,
-                          subscription.size() - LWS_SEND_BUFFER_PRE_PADDING -
-                              LWS_SEND_BUFFER_POST_PADDING,
-                          LWS_WRITE_TEXT);
-    if (wret == -1) {
-      lwsl_err("%s: unable to write subscription message\n", __func__);
-      interrupted = 1;
-      break;
-    }
-    subscription = std::string(LWS_SEND_BUFFER_PRE_PADDING, '\0') +
-                   "{\"event\":\"subscribe\",\"pair\":[" + mco->tickers +
-                   "],\"subscription\":{\"name\":\"trade\"}}" +
-                   std::string(LWS_SEND_BUFFER_POST_PADDING, '\0');
-    wret = lws_write(mco->wsi,
-                     (unsigned char *)subscription.data() +
-                         LWS_SEND_BUFFER_PRE_PADDING,
-                     subscription.size() - LWS_SEND_BUFFER_PRE_PADDING -
-                         LWS_SEND_BUFFER_POST_PADDING,
-                     LWS_WRITE_TEXT);
-    if (wret == -1) {
-      lwsl_err("%s: unable to write subscription message\n", __func__);
-      interrupted = 1;
-      break;
-    }
     break;
-  }
+
   case LWS_CALLBACK_CLIENT_CLOSED:
     lws_sul_cancel(&mco->sul_hz);
     goto do_retry;
@@ -394,10 +276,10 @@ static const struct lws_protocols protocols[] = {
     {"lws-minimal-client", callback_minimal, 0, 0, 0, NULL, 0},
     LWS_PROTOCOL_LIST_TERM};
 
-struct kraken_feed_handler_component {
+struct binance_feed_handler_component {
   fmc_component_HEAD;
 
-  kraken_feed_handler_component(struct fmc_cfg_sect_item *cfg) {
+  binance_feed_handler_component(struct fmc_cfg_sect_item *cfg) {
     using namespace std;
 
     fmc_fd fd;
@@ -406,7 +288,7 @@ struct kraken_feed_handler_component {
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info);
 
-    lwsl_user("kraken feed handler\n");
+    lwsl_user("binance feed handler\n");
 
     info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.port = CONTEXT_PORT_NO_LISTEN; /* we do not run any server */
@@ -414,7 +296,14 @@ struct kraken_feed_handler_component {
     info.fd_limit_per_thread = 1 + 1 + 1;
     info.extensions = extensions;
 
+    if (auto usregion = fmc_cfg_sect_item_get(cfg, "us-region");
+        usregion && usregion->node.value.boolean) {
+      address = "stream.binance.us";
+      port = 9443;
+    }
+
     // load securities from the configuration
+    vector<string> secs;
     for (auto *item = fmc_cfg_sect_item_get(cfg, "securities")->node.value.arr;
          item; item = item->next) {
       secs.emplace_back(item->item.value.str);
@@ -451,13 +340,15 @@ struct kraken_feed_handler_component {
 
     string_view vpeer(fmc_cfg_sect_item_get(cfg, "peer")->node.value.str);
     string encoding = "Content-Type application/json\n"
-                      "Content-Schema Kraken";
+                      "Content-Schema Binance";
+    vector<string> types = {"@bookTicker", "@trade"};
     ostringstream ss;
     bool first = true;
-    constexpr string_view prefix = "raw/kraken/";
+    ss << "/stream?streams=";
+    constexpr string_view prefix = "raw/binance/";
     for (auto &&sec : secs) {
       for (auto &&tp : types) {
-        string chstr = string(prefix) + sec + "@" + tp;
+        string chstr = string(prefix) + sec + tp;
         auto stream = ytp_streams_announce(
             mco.yamal_streams, vpeer.size(), vpeer.data(), chstr.size(),
             chstr.data(), encoding.size(), encoding.data(), &error);
@@ -474,13 +365,13 @@ struct kraken_feed_handler_component {
         ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
                                 &channel, &esz, &encoding, &original,
                                 &subscribed, &error);
-        mco.streams.emplace(
-            std::pair<std::string_view, std::string_view>(sec, tp), stream);
+        auto chview = string_view(channel, csz).substr(prefix.size());
+        mco.streams.emplace(chview, stream);
+        ss << (first ? "" : "/") << chview;
+        first = false;
       }
-      ss << (first ? "" : ",") << "\"" << sec << "\"";
-      first = false;
     }
-    mco.tickers = ss.str();
+    mco.path = ss.str();
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
     /*
@@ -502,7 +393,7 @@ struct kraken_feed_handler_component {
     lws_sul_schedule(context, 0, &mco.sul, connect_client, 1);
   }
   bool process_one() { return !interrupted && lws_service(context, 0) >= 0; }
-  ~kraken_feed_handler_component() {
+  ~binance_feed_handler_component() {
     lws_context_destroy(context);
 
     fmc_error_t *error = nullptr;
@@ -511,21 +402,19 @@ struct kraken_feed_handler_component {
 
     lwsl_user("Completed\n");
   }
-  std::vector<std::string> secs;
-  const std::vector<std::string> types = {"spread", "trade"};
 };
 
-static void kraken_feed_handler_component_del(
-    struct kraken_feed_handler_component *comp) noexcept {
+void binance_feed_handler_component_del(
+    struct binance_feed_handler_component *comp) noexcept {
   delete comp;
 }
 
 static void
-kraken_feed_handler_component_process_one(struct fmc_component *self,
-                                          struct fmc_reactor_ctx *ctx,
-                                          fmc_time64_t now) noexcept {
-  struct kraken_feed_handler_component *comp =
-      (kraken_feed_handler_component *)self;
+binance_feed_handler_component_process_one(struct fmc_component *self,
+                                           struct fmc_reactor_ctx *ctx,
+                                           fmc_time64_t now) noexcept {
+  struct binance_feed_handler_component *comp =
+      (binance_feed_handler_component *)self;
   try {
     if (comp->process_one())
       _reactor->queue(ctx);
@@ -534,14 +423,14 @@ kraken_feed_handler_component_process_one(struct fmc_component *self,
   }
 }
 
-static struct kraken_feed_handler_component *
-kraken_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
-                                  struct fmc_reactor_ctx *ctx,
-                                  char **inp_tps) noexcept {
-  struct kraken_feed_handler_component *comp = nullptr;
+struct binance_feed_handler_component *
+binance_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
+                                   struct fmc_reactor_ctx *ctx,
+                                   char **inp_tps) noexcept {
+  struct binance_feed_handler_component *comp = nullptr;
   try {
-    comp = new struct kraken_feed_handler_component(cfg);
-    _reactor->on_exec(ctx, kraken_feed_handler_component_process_one);
+    comp = new struct binance_feed_handler_component(cfg);
+    _reactor->on_exec(ctx, binance_feed_handler_component_process_one);
     _reactor->queue(ctx);
   } catch (std::exception &e) {
     _reactor->set_error(ctx, "%s", e.what());
@@ -549,11 +438,11 @@ kraken_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
   return comp;
 }
 
-struct fmc_cfg_type security_spec = {
+static struct fmc_cfg_type security_spec = {
     .type = FMC_CFG_STR,
 };
 
-struct fmc_cfg_node_spec kraken_feed_handler_cfgspec[] = {
+struct fmc_cfg_node_spec binance_feed_handler_cfgspec[] = {
     {.key = "securities",
      .descr = "Securities for subscription",
      .required = true,
@@ -562,45 +451,29 @@ struct fmc_cfg_node_spec kraken_feed_handler_cfgspec[] = {
                   .array = &security_spec,
               }}},
     {.key = "peer",
-     .descr = "Kraken feed handler peer name",
+     .descr = "Binance feed handler peer name",
      .required = true,
      .type =
          {
              .type = FMC_CFG_STR,
          }},
     {.key = "ytp-file",
-     .descr = "Kraken feed handler ytp-file name",
+     .descr = "Binance feed handler ytp-file name",
      .required = true,
      .type =
          {
              .type = FMC_CFG_STR,
          }},
+    {.key = "us-region",
+     .descr = "Configure Binance feed handler to use US region URLs",
+     .required = false,
+     .type =
+         {
+             .type = FMC_CFG_BOOLEAN,
+         }},
     {NULL},
 };
 
-struct fmc_component_def_v1 components[] = {
-    {
-        .tp_name = "kraken_feed_handler",
-        .tp_descr = "kraken_feed_handler component",
-        .tp_size = sizeof(struct kraken_feed_handler_component),
-        .tp_cfgspec = kraken_feed_handler_cfgspec,
-        .tp_new = (fmc_newfunc)kraken_feed_handler_component_new,
-        .tp_del = (fmc_delfunc)kraken_feed_handler_component_del,
-    },
-    {NULL},
-};
+struct fmc_cfg_node_spec *binance_feed_handler_cfg = binance_feed_handler_cfgspec;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-FMCOMPMODINITFUNC void
-FMCompInit_kraken_feed_handler(struct fmc_component_api *api,
-                               struct fmc_component_module *mod) {
-  api->components_add_v1(mod, components);
-  _reactor = api->reactor_v1;
-}
-
-#ifdef __cplusplus
-}
-#endif
+size_t binance_feed_handler_struct_sz = sizeof(struct binance_feed_handler_component);
