@@ -30,6 +30,7 @@ target_link_libraries(
 set_target_properties(
     binance-feed-handler
     PROPERTIES
+    LIBRARY_OUTPUT_NAME "binance_feed_handler"
     LIBRARY_OUTPUT_DIRECTORY "${TUTORIALS_COMP_DIR}"
     PREFIX ""
 )
