@@ -580,4 +580,5 @@ struct fmc_cfg_node_spec kraken_feed_handler_cfgspec[] = {
 
 struct fmc_cfg_node_spec *kraken_feed_handler_cfg = kraken_feed_handler_cfgspec;
 
-size_t kraken_feed_handler_struct_sz = sizeof(struct kraken_feed_handler_component);
+size_t kraken_feed_handler_struct_sz =
+    sizeof(struct kraken_feed_handler_component);

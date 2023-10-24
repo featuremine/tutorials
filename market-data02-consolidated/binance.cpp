@@ -474,6 +474,8 @@ struct fmc_cfg_node_spec binance_feed_handler_cfgspec[] = {
     {NULL},
 };
 
-struct fmc_cfg_node_spec *binance_feed_handler_cfg = binance_feed_handler_cfgspec;
+struct fmc_cfg_node_spec *binance_feed_handler_cfg =
+    binance_feed_handler_cfgspec;
 
-size_t binance_feed_handler_struct_sz = sizeof(struct binance_feed_handler_component);
+size_t binance_feed_handler_struct_sz =
+    sizeof(struct binance_feed_handler_component);

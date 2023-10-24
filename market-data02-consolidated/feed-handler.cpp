@@ -23,8 +23,8 @@ extern size_t binance_feed_handler_struct_sz;
 
 struct kraken_feed_handler_component *
 kraken_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
-                                   struct fmc_reactor_ctx *ctx,
-                                   char **inp_tps) noexcept;
+                                  struct fmc_reactor_ctx *ctx,
+                                  char **inp_tps) noexcept;
 
 void kraken_feed_handler_component_del(
     struct kraken_feed_handler_component *comp) noexcept;
