@@ -78,7 +78,7 @@ extern "C" {
 #endif
 
 FMCOMPMODINITFUNC void
-FMCompInit_consolidated(struct fmc_component_api *api,
+FMCompInit_feed(struct fmc_component_api *api,
                         struct fmc_component_module *mod) {
   api->components_add_v1(mod, components);
   _reactor = api->reactor_v1;
