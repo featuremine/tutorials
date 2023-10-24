@@ -33,6 +33,18 @@ extern struct fmc_cfg_node_spec *kraken_feed_handler_cfg;
 
 extern size_t kraken_feed_handler_struct_sz;
 
+struct runner_t *
+feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
+                                  struct fmc_reactor_ctx *ctx,
+                                  char **inp_tps) noexcept;
+
+void feed_parser_component_del(
+    struct runner_t *comp) noexcept;
+
+extern struct fmc_cfg_node_spec *feed_parser_cfg;
+
+extern size_t feed_parser_struct_sz;
+
 struct fmc_component_def_v1 components[] = {
     {
         .tp_name = "binance-feed-handler",
@@ -50,6 +62,14 @@ struct fmc_component_def_v1 components[] = {
         .tp_new = (fmc_newfunc)kraken_feed_handler_component_new,
         .tp_del = (fmc_delfunc)kraken_feed_handler_component_del,
     },
+    {
+        .tp_name = "feed-parser",
+        .tp_descr = "Feed parser component",
+        .tp_size = feed_parser_struct_sz,
+        .tp_cfgspec = feed_parser_cfg,
+        .tp_new = (fmc_newfunc)feed_parser_component_new,
+        .tp_del = (fmc_delfunc)feed_parser_component_del,
+    },
     {NULL},
 };
 
@@ -58,7 +78,7 @@ extern "C" {
 #endif
 
 FMCOMPMODINITFUNC void
-FMCompInit_feed_handler(struct fmc_component_api *api,
+FMCompInit_consolidated(struct fmc_component_api *api,
                         struct fmc_component_module *mod) {
   api->components_add_v1(mod, components);
   _reactor = api->reactor_v1;

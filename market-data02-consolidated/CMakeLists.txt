@@ -7,39 +7,22 @@
 ]===]
 
 add_library(
-    feed_handler
+    consolidated
     SHARED
     "feed-handler.cpp"
     "binance.cpp"
     "kraken.cpp"
+    "parser.cpp"
 )
 target_link_libraries(
-    feed_handler
+    consolidated
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
 set_target_properties(
-    feed_handler
+    consolidated
     PROPERTIES
-    LIBRARY_OUTPUT_NAME "feed_handler"
-    PREFIX ""
-)
-
-add_library(
-    feed_parser
-    SHARED
-    "feed-parser.cpp"
-)
-target_link_libraries(
-    feed_parser
-    PRIVATE
-    websockets ${LIBWEBSOCKETS_DEP_LIBS}
-    fmc++ ytp
-)
-set_target_properties(
-    feed_parser
-    PROPERTIES
-    LIBRARY_OUTPUT_NAME "feed_parser"
+    LIBRARY_OUTPUT_NAME "consolidated"
     PREFIX ""
 )
