@@ -31,6 +31,7 @@
 #include <fmc/cmdline.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
+#include <fmc/component.h>
 #include <tuple>
 #include <ytp/announcement.h>
 #include <ytp/data.h>
@@ -39,6 +40,8 @@
 
 using namespace std;
 using namespace fmc;
+
+static struct fmc_reactor_api_v1 *_reactor;
 
 struct binance_parse_ctx {
   string_view bidqt = "null"sv;
@@ -286,9 +289,6 @@ pair<string_view, parser_t> get_binance_channel_in(string_view sv,
   RETURN_ERROR(error, none, "unknown Binance stream type", feedtype);
 }
 
-static int interrupted = 0;
-static void sigint_handler(int sig) { interrupted = 1; }
-
 struct runner_t {
   // This is where we store information about channel processed
   struct stream_out_t {
@@ -303,9 +303,9 @@ struct runner_t {
   };
 
   ~runner_t();
-  void init(fmc_error_t **error);
+  void init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error);
   void recover(fmc_error_t **error);
-  void run(fmc_error_t **error);
+  bool process_one(fmc_error_t **error);
 
   stream_out_t *get_stream_out(ytp_mmnode_offs stream, fmc_error_t **error);
   stream_out_t *get_stream_out(string_view sv, fmc_error_t **error);
@@ -336,6 +336,13 @@ struct runner_t {
   ytp_yamal_t *ytp_in = nullptr;
   ytp_yamal_t *ytp_out = nullptr;
   ytp_streams_t *streams = nullptr;
+  cmp_str_t cmp;
+  ytp_iterator_t it_in;
+  int64_t last;
+  static constexpr int64_t delay = 1000000000LL;
+  uint64_t read_count = 0ULL;
+  uint64_t msg_count = 0ULL;
+  uint64_t dup_count = 0ULL;
 };
 
 runner_t::~runner_t() {
@@ -352,7 +359,7 @@ runner_t::~runner_t() {
     fmc_fclose(fd_out, &error);
 }
 
-void runner_t::init(fmc_error_t **error) {
+void runner_t::init(struct fmc_cfg_sect_item *cfg, fmc_error_t **error) {
   fd_in = fmc_fopen(ytp_file_in, fmc_fmode::READ, error);
   RETURN_ON_ERROR(error, , "could not open input yamal file", ytp_file_in);
   fd_out = fmc_fopen(ytp_file_out, fmc_fmode::READWRITE, error);
@@ -363,6 +370,13 @@ void runner_t::init(fmc_error_t **error) {
   RETURN_ON_ERROR(error, , "could not create output yamal");
   streams = ytp_streams_new(ytp_out, error);
   RETURN_ON_ERROR(error, , "could not create stream");
+  cmp_str_init(&cmp);
+  it_in = ytp_data_begin(ytp_in, error);
+  RETURN_ON_ERROR(error, , "could not obtain iterator");
+  last = fmc_cur_time_ns();
+  peer = fmc_cfg_sect_item_get(cfg, "peer")->node.value.str;
+  ytp_file_in = fmc_cfg_sect_item_get(cfg, "ytp-input")->node.value.str;
+  ytp_file_out = fmc_cfg_sect_item_get(cfg, "ytp-output")->node.value.str;
 }
 
 void runner_t::recover(fmc_error_t **error) {
@@ -375,7 +389,7 @@ void runner_t::recover(fmc_error_t **error) {
   constexpr auto chn_batch = 1000ULL;
   auto it_out = ytp_data_begin(ytp_out, error);
   RETURN_ON_ERROR(error, , "could not obtain iterator");
-  for (; !ytp_yamal_term(it_out) && !interrupted;
+  for (; !ytp_yamal_term(it_out);
        it_out = ytp_yamal_next(ytp_out, it_out, error)) {
     RETURN_ON_ERROR(error, , "could not obtain iterator");
     uint64_t seqno;
@@ -399,70 +413,62 @@ void runner_t::recover(fmc_error_t **error) {
   notice("recovered", msg_count, "messages on", chn_count, "channels");
 }
 
-void runner_t::run(fmc_error_t **error) {
-  cmp_str_t cmp;
-  cmp_str_init(&cmp);
-  auto it_in = ytp_data_begin(ytp_in, error);
-  RETURN_ON_ERROR(error, , "could not obtain iterator");
-  int64_t last = fmc_cur_time_ns();
-  constexpr auto delay = 1000000000LL;
-  uint64_t read_count = 0ULL;
-  uint64_t msg_count = 0ULL;
-  uint64_t dup_count = 0ULL;
-  while (!interrupted) {
-    for (; !ytp_yamal_term(it_in);
-         it_in = ytp_yamal_next(ytp_in, it_in, error)) {
-      RETURN_ON_ERROR(error, , "could not obtain iterator");
-      uint64_t seqno;
-      int64_t ts;
-      ytp_mmnode_offs stream;
-      size_t sz;
-      const char *data;
-      ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
-      RETURN_ON_ERROR(error, , "could not obtain iterator");
-      auto *info = get_stream_in(stream, error);
-      if (*error)
-        return;
-      // if this channel not interesting, skip it
-      if (!info)
-        continue;
-      ++read_count;
-      seqno = info->seqno;
-      cmp_str_reset(&cmp);
-      bool skip = info->outinfo->count > 0;
-      bool nodup =
-          info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
-      if (*error)
-        return;
-      // duplicate
-      if (!nodup) {
-        ++dup_count;
-        continue;
-      }
-      info->seqno = seqno;
-      // otherwise check if we still recovering
-      if (skip) {
-        --info->outinfo->count;
-        continue;
-      }
-      size_t bufsz = cmp_str_size(&cmp);
-      auto dst = ytp_data_reserve(ytp_out, bufsz, error);
-      RETURN_ON_ERROR(error, , "could not reserve message");
-      memcpy(dst, cmp_str_data(&cmp), bufsz);
-      ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
-                      error);
-      RETURN_ON_ERROR(error, , "could not commit message");
-      ++msg_count;
-    }
-    if (auto now = fmc_cur_time_ns(); last + delay < now) {
-      last = now;
-      notice("read:", read_count, "written:", msg_count,
-             "duplicates:", dup_count);
-      read_count = 0ULL;
-      msg_count = 0ULL;
-      dup_count = 0ULL;
-    }
+bool runner_t::process_one(fmc_error_t **error) {
+  if (ytp_yamal_term(it_in)) {
+    return true;
   }
+  it_in = ytp_yamal_next(ytp_in, it_in, error);
+  RETURN_ON_ERROR(error, false, "could not obtain iterator");
+  uint64_t seqno;
+  int64_t ts;
+  ytp_mmnode_offs stream;
+  size_t sz;
+  const char *data;
+  ytp_data_read(ytp_in, it_in, &seqno, &ts, &stream, &sz, &data, error);
+  RETURN_ON_ERROR(error, false, "could not obtain iterator");
+  auto *info = get_stream_in(stream, error);
+  if (*error)
+    return false;
+  // if this channel not interesting, skip it
+  if (!info)
+    return true;
+  ++read_count;
+  seqno = info->seqno;
+  cmp_str_reset(&cmp);
+  bool skip = info->outinfo->count > 0;
+  bool nodup =
+      info->parser(string_view(data, sz), &cmp, ts, &seqno, skip, error);
+  if (*error)
+    return false;
+  // duplicate
+  if (!nodup) {
+    ++dup_count;
+    return true;
+  }
+  info->seqno = seqno;
+  // otherwise check if we still recovering
+  if (skip) {
+    --info->outinfo->count;
+    return true;
+  }
+  size_t bufsz = cmp_str_size(&cmp);
+  auto dst = ytp_data_reserve(ytp_out, bufsz, error);
+  RETURN_ON_ERROR(error, false, "could not reserve message");
+  memcpy(dst, cmp_str_data(&cmp), bufsz);
+  ytp_data_commit(ytp_out, fmc_cur_time_ns(), info->outinfo->stream, dst,
+                  error);
+  RETURN_ON_ERROR(error, false, "could not commit message");
+  ++msg_count;
+
+  if (auto now = fmc_cur_time_ns(); last + delay < now) {
+    last = now;
+    notice("read:", read_count, "written:", msg_count,
+            "duplicates:", dup_count);
+    read_count = 0ULL;
+    msg_count = 0ULL;
+    dup_count = 0ULL;
+  }
+  return true;
 }
 
 runner_t::stream_out_t *runner_t::emplace_stream_out(ytp_mmnode_offs stream) {
@@ -557,40 +563,101 @@ runner_t::stream_in_t *runner_t::get_stream_in(ytp_mmnode_offs stream,
   return s_in.emplace(stream, chan_it->second.get()).first->second;
 }
 
-int main(int argc, const char **argv) {
-  using namespace std;
 
-  fmc_error_t *error = nullptr;
-
-  // set up signal handler
-  signal(SIGINT, sigint_handler);
-
-  runner_t runner;
-
-  // command line option processing
-  fmc_cmdline_opt_t options[] = {
-      /* 0 */ {"--help", false, NULL},
-      /* 1 */ {"--peer", true, &runner.peer},
-      /* 2 */ {"--ytp-input", true, &runner.ytp_file_in},
-      /* 3 */ {"--ytp-output", true, &runner.ytp_file_out},
-      {NULL}};
-  fmc_cmdline_opt_proc(argc, argv, options, &error);
-  if (options[0].set) {
-    printf("feed-parse --peer PEER --ytp-input FILE --ytp-output FILE\n\n"
-           "Feed Parser.\n\n"
-           "Application parses data produced by the feed handler.\n");
-    return 0;
-  }
-  EXIT_ON_ERROR(&error);
-
-  runner.init(&error);
-  EXIT_ON_ERROR(&error);
-
-  runner.recover(&error);
-  EXIT_ON_ERROR(&error);
-
-  runner.run(&error);
-  EXIT_ON_ERROR(&error);
-
-  return 0;
+static void feed_parser_component_del(struct runner_t *comp) noexcept {
+  delete comp;
 }
+
+static void feed_parser_component_process_one(struct fmc_component *self,
+                                       struct fmc_reactor_ctx *ctx,
+                                       fmc_time64_t now) noexcept {
+  struct runner_t *comp = (runner_t *)self;
+  try {
+    fmc_error_t *error = nullptr;
+    if (comp->process_one(&error)) {
+      _reactor->queue(ctx);
+    } else {
+      _reactor->set_error(ctx, "%s", fmc_error_msg(error));
+    }
+  } catch (std::exception &e) {
+    _reactor->set_error(ctx, "%s", e.what());
+  }
+}
+
+static struct runner_t *feed_parser_component_new(struct fmc_cfg_sect_item *cfg,
+                                                 struct fmc_reactor_ctx *ctx,
+                                                 char **inp_tps) noexcept {
+  struct runner_t *comp = nullptr;
+  try {
+    fmc_error_t *error = nullptr;
+    comp = new struct runner_t();
+    comp->init(cfg, &error);
+    if (error) {
+      delete comp;
+      _reactor->set_error(ctx, "%s", fmc_error_msg(error));
+      return nullptr;
+    }
+    comp->recover(&error);
+    if (error) {
+      delete comp;
+      _reactor->set_error(ctx, "%s", fmc_error_msg(error));
+      return nullptr;
+    }
+    _reactor->on_exec(ctx, feed_parser_component_process_one);
+    _reactor->queue(ctx);
+  } catch (std::exception &e) {
+    _reactor->set_error(ctx, "%s", e.what());
+  }
+  return comp;
+}
+
+struct fmc_cfg_node_spec feed_parser_cfgspec[] = {
+    {.key = "peer",
+     .descr = "Feed parser peer name",
+     .required = true,
+     .type =
+         {
+             .type = FMC_CFG_STR,
+         }},
+    {.key = "ytp-input",
+     .descr = "Feed parser ytp input name",
+     .required = true,
+     .type =
+         {
+             .type = FMC_CFG_STR,
+         }},
+    {.key = "ytp-output",
+     .descr = "Feed parser ytp output name",
+     .required = true,
+     .type =
+         {
+             .type = FMC_CFG_STR,
+         }},
+    {NULL},
+};
+
+struct fmc_component_def_v1 components[] = {
+    {
+        .tp_name = "feed_parser",
+        .tp_descr = "feed_parser component",
+        .tp_size = sizeof(struct runner_t),
+        .tp_cfgspec = feed_parser_cfgspec,
+        .tp_new = (fmc_newfunc)feed_parser_component_new,
+        .tp_del = (fmc_delfunc)feed_parser_component_del,
+    },
+    {NULL},
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+FMCOMPMODINITFUNC void FMCompInit_feed_parser(struct fmc_component_api *api,
+                                               struct fmc_component_module *mod) {
+  api->components_add_v1(mod, components);
+  _reactor = api->reactor_v1;
+}
+
+#ifdef __cplusplus
+}
+#endif
