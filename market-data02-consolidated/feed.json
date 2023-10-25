@@ -41,7 +41,7 @@
     "config" : {
       "peer":"binance-feed-handler",
       "ytp-input":"mktdata.ytp",
-      "ytp-output":"feed-parser-output.ytp.0001"
+      "ytp-output":"consolidated.ytp.0001"
     }
   }
 }

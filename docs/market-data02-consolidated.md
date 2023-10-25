@@ -17,27 +17,21 @@ Post-build, you should be able to find the tutorial binaries under **release/mar
 
 ### **Validating and Assessing Performance**
 
-Now, it’s time to test our feed handler in action. For this exercise, we’ve prepared two configuration files, each containing a curated list of securities. To start, run one feed handler instance:
+Now, it’s time to test our feed handler and parser in action. For this exercise, we’ve prepared a configuration file, which contains the configurations for main and backup feed handler components for binance and kraken and a feed parser component. To start, run one feed handler instance:
 ```bash
-./release/bin/yamal-run -c market-data02-consolidated/feed-handler-one.json --json
+./release/bin/yamal-run -c market-data02-consolidated/feed.json --json
 ```
+The feed parser instantiated will arbitrate between multiple feeds and normalizes the data. Notice the extension of the output file in the feed parser configuration is **ytp.0001**. This is important because we will later introduce file rollover, where data will be split among multiple files.
+
 To check content directly, we need Yamal tools. For this blog, these utilities are built together with a tutorial project. To install these utilities normally you can either download one of the [releases](https://github.com/featuremine/yamal/releases) or build from source directly. Let's first run `yamal-tail` to dump the content of the file to the screen
 ```bash
 ./release/bin/yamal-tail -f mktdata.ytp
 ```
-Now, we can run another feed handler with the second set of configurations.
-```bash
-./release/bin/yamal-run -c market-data02-consolidated/feed-handler-two.json --json
-```
+
 We can run `yamal-stats` to see that the streams corresponding to the second configuration also appear in Yamal.
 ```bash
 ./release/bin/yamal-stats mktdata.ytp
 ```
-Then we run the consolidating feed parser.
-```bash
-./release/bin/yamal-run -c market-data02-consolidated/feed-parser.json --json
-```
-It arbitrates between multiple feeds and normalizes the data. Notice the extension of the output file in the feed parser configuration is **ytp.0001**. This is important because we will later introduce file rollover, where data will be split among multiple files.
 
 You can dump market data to the terminal using the following script:
 ```bash
