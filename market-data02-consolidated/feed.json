@@ -5,7 +5,7 @@
     "config" : {
       "peer":"binance-feed-handler",
       "ytp-file":"mktdata.ytp",
-      "securities":["btcusdt","ethusdt","busdusdt","xrpusdt"]
+      "securities":["btcusdt","ethusdt","xrpusdt"]
     }
   },
   "binance-backup" : {
@@ -14,7 +14,7 @@
     "config" : {
       "peer":"binance-feed-handler-backup",
       "ytp-file":"mktdata.ytp",
-      "securities":["btcusdt","ethusdt","busdusdt","xrpusdt"]
+      "securities":["btcusdt","ethusdt","xrpusdt"]
     }
   },
   "kraken" : {
