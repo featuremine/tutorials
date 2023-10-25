@@ -41,7 +41,7 @@ typedef struct range {
  * the client connection bound to it
  */
 
-static struct mco {
+struct mco {
   lws_sorted_usec_list_t sul;    /* schedule connection retry */
   lws_sorted_usec_list_t sul_hz; /* 1hz summary */
 
@@ -54,7 +54,7 @@ static struct mco {
   ytp_yamal_t *yamal = nullptr;
   ytp_streams_t *yamal_streams = nullptr;
   std::string path; /* storing the path for stream subscription */
-} mco;
+};
 
 extern struct fmc_reactor_api_v1 *_reactor;
 static struct lws_context *context;
@@ -278,6 +278,7 @@ static const struct lws_protocols protocols[] = {
 
 struct binance_feed_handler_component {
   fmc_component_HEAD;
+  struct mco mco;
 
   binance_feed_handler_component(struct fmc_cfg_sect_item *cfg) {
     using namespace std;
@@ -392,7 +393,10 @@ struct binance_feed_handler_component {
     /* schedule the first client connection attempt to happen immediately */
     lws_sul_schedule(context, 0, &mco.sul, connect_client, 1);
   }
-  bool process_one() { return !interrupted && lws_service(context, 0) >= 0; }
+  bool process_one() {
+    fmc_runtime_error_unless(!interrupted) << "Kraken feed handler has been interrupted";
+    return lws_service(context, 0) >= 0;
+  }
   ~binance_feed_handler_component() {
     lws_context_destroy(context);
 
