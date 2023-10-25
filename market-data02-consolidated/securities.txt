@@ -1,4 +1,0 @@
-btcusdt
-ethusdt
-busdusdt
-xrpusdt
