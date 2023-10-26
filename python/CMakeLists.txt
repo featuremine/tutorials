@@ -20,7 +20,6 @@ function(wheel_copy_file)
     cmake_path(RELATIVE_PATH OUTPUT BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" OUTPUT_VARIABLE OUTPUT_REL)
     set(DEST_PATH "${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_REL}")
     cmake_path(GET DEST_PATH PARENT_PATH DEST_BASE)
-    message(WARNING "CREATING DIRECTORY ${DEST_BASE}")
     add_custom_command(
         OUTPUT "${OUTPUT}"
         DEPENDS "${PROJECT_SOURCE_DIR}/python/${ARG_SRC}"
@@ -116,7 +115,13 @@ if(BUILD_TESTING)
                 PACKAGE tutorials
                 TIMEOUT 100
                 TEST "test-tutorials-python"
-                DEPENDS tutorials-py
+                PYTHONPATH "${WHEEL_yamal_BUILD_DIR}/build/lib"
+                ENVIRONMENT
+                "YAMALCOMPPATH=${PROJECT_BINARY_DIR}/lib/yamal/modules"
+            )
+            add_custom_target(
+                tutorials_py ALL
+                DEPENDS yamal-py tutorials-py
             )
         endif()
     endif()
