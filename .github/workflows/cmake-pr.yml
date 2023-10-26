@@ -41,7 +41,7 @@ jobs:
       with:
         gh_token: ${{ secrets.GITHUB_TOKEN }}
         docs: true
-        wheel: false
+        wheel: true
         upload: ${{ needs.utility.outputs.release-check == 'release' }}
 
   build-macos:
@@ -61,7 +61,7 @@ jobs:
       with:
         gh_token: ${{ secrets.GITHUB_TOKEN }}
         docs: false
-        wheel: false
+        wheel: true
         upload: ${{ needs.utility.outputs.release-check == 'release' }}
 
   build-macos-13-arm:
@@ -82,5 +82,5 @@ jobs:
       with:
         gh_token: ${{ secrets.GITHUB_TOKEN }}
         docs: false
-        wheel: false
+        wheel: true
         upload: ${{ needs.utility.outputs.release-check == 'release' }}
