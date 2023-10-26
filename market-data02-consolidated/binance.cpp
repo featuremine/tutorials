@@ -54,11 +54,11 @@ struct mco {
   ytp_yamal_t *yamal = nullptr;
   ytp_streams_t *yamal_streams = nullptr;
   std::string path; /* storing the path for stream subscription */
+  struct lws_context *context;
+  int interrupted;
 };
 
 extern struct fmc_reactor_api_v1 *_reactor;
-static struct lws_context *context;
-static int interrupted;
 static const char *address = "stream.binance.com";
 static int port = 443;
 
@@ -139,7 +139,7 @@ static void connect_client(lws_sorted_usec_list_t *sul) {
 
   memset(&i, 0, sizeof(i));
 
-  i.context = context;
+  i.context = mco->context;
   i.port = port;
   i.address = address;
   i.path = mco->path.c_str();
@@ -158,10 +158,10 @@ static void connect_client(lws_sorted_usec_list_t *sul) {
      * convenience wrapper api here because no valid wsi at this
      * point.
      */
-    if (lws_retry_sul_schedule(context, 0, sul, &retry, connect_client,
+    if (lws_retry_sul_schedule(mco->context, 0, sul, &retry, connect_client,
                                &mco->retry_count)) {
       lwsl_err("%s: connection attempts exhausted\n", __func__);
-      interrupted = 1;
+      mco->interrupted = 1;
     }
 }
 
@@ -266,7 +266,7 @@ do_retry:
   if (lws_retry_sul_schedule_retry_wsi(wsi, &mco->sul, connect_client,
                                        &mco->retry_count)) {
     lwsl_err("%s: connection attempts exhausted\n", __func__);
-    interrupted = 1;
+    mco->interrupted = 1;
   }
 
   return 0;
@@ -384,22 +384,22 @@ struct binance_feed_handler_component {
         (unsigned int)strlen(ca_pem_digicert_global_root);
 #endif
 
-    context = lws_create_context(&info);
-    if (!context) {
+    mco.context = lws_create_context(&info);
+    if (!mco.context) {
       lwsl_err("lws init failed\n");
       fmc_runtime_error_unless(false) << "lws init failed";
     }
 
     /* schedule the first client connection attempt to happen immediately */
-    lws_sul_schedule(context, 0, &mco.sul, connect_client, 1);
+    lws_sul_schedule(mco.context, 0, &mco.sul, connect_client, 1);
   }
   bool process_one() {
-    fmc_runtime_error_unless(!interrupted)
+    fmc_runtime_error_unless(!mco.interrupted)
         << "Kraken feed handler has been interrupted";
-    return lws_service(context, 0) >= 0;
+    return lws_service(mco.context, 0) >= 0;
   }
   ~binance_feed_handler_component() {
-    lws_context_destroy(context);
+    lws_context_destroy(mco.context);
 
     fmc_error_t *error = nullptr;
     ytp_streams_del(mco.yamal_streams, &error);

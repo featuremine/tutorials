@@ -461,7 +461,6 @@ bool runner_t::regular(fmc_error_t **error) {
     }
     // if this channel not interesting, skip it
     if (!info) {
-      it_in = ytp_yamal_next(ytp_in, it_in, error);
       return true;
     }
     ++read_count;
