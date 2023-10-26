@@ -66,6 +66,10 @@ set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(FmConfig REQUIRED)
 fm_config()
 
+set(ReleaseTools_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(ReleaseTools REQUIRED)
+get_python_platform(PYTHON_PLATFORM)
+
 set(testing_FILES "")
 macro(add_bin_to_builddir TARGET)
     add_custom_command(
@@ -170,3 +174,9 @@ add_custom_target(
     testing-environment ALL
     DEPENDS ${testing_FILES}
 )
+
+add_subdirectory(python)
+
+if(BUILD_TESTING)
+    enable_testing()
+endif()
