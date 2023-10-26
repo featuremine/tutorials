@@ -6,35 +6,23 @@
         file, You can obtain one at https://mozilla.org/MPL/2.0/.
 ]===]
 
-add_executable(
-    feed-handler
-    "feed-handler.cpp"
+add_library(
+    feed
+    SHARED
+    "feed.cpp"
+    "binance.cpp"
+    "kraken.cpp"
+    "parser.cpp"
 )
 target_link_libraries(
-    feed-handler
+    feed
     PRIVATE
     websockets ${LIBWEBSOCKETS_DEP_LIBS}
     fmc++ ytp
 )
-
-add_executable(
-    kraken-feed-handler
-    "kraken-feed-handler.cpp"
+set_target_properties(
+    feed
+    PROPERTIES
+    LIBRARY_OUTPUT_NAME "feed"
+    PREFIX ""
 )
-target_link_libraries(
-    kraken-feed-handler
-    PRIVATE
-    websockets ${LIBWEBSOCKETS_DEP_LIBS}
-    fmc++ ytp
-)
-
-add_executable(
-    feed-parser
-    "feed-parser.cpp"
-)
-target_link_libraries(
-    feed-parser
-    PRIVATE
-    fmc++ ytp
-)
-

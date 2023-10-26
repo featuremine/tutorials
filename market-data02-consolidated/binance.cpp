@@ -20,13 +20,17 @@
 #include <unordered_map>
 #include <vector>
 
-#include <fmc/cmdline.h>
+#include <fmc++/mpl.hpp>
+#include <fmc/component.h>
+#include <fmc/config.h>
 #include <fmc/files.h>
 #include <fmc/time.h>
 #include <ytp/announcement.h>
 #include <ytp/data.h>
 #include <ytp/streams.h>
 #include <ytp/yamal.h>
+
+#include "common.hpp"
 
 typedef struct range {
   unsigned int samples;
@@ -37,7 +41,7 @@ typedef struct range {
  * the client connection bound to it
  */
 
-static struct mco {
+struct mco {
   lws_sorted_usec_list_t sul;    /* schedule connection retry */
   lws_sorted_usec_list_t sul_hz; /* 1hz summary */
 
@@ -48,11 +52,13 @@ static struct mco {
 
   std::unordered_map<std::string_view, ytp_mmnode_offs> streams;
   ytp_yamal_t *yamal = nullptr;
+  ytp_streams_t *yamal_streams = nullptr;
   std::string path; /* storing the path for stream subscription */
-} mco;
+  struct lws_context *context;
+  int interrupted;
+};
 
-static struct lws_context *context;
-static int interrupted;
+extern struct fmc_reactor_api_v1 *_reactor;
 static const char *address = "stream.binance.com";
 static int port = 443;
 
@@ -133,7 +139,7 @@ static void connect_client(lws_sorted_usec_list_t *sul) {
 
   memset(&i, 0, sizeof(i));
 
-  i.context = context;
+  i.context = mco->context;
   i.port = port;
   i.address = address;
   i.path = mco->path.c_str();
@@ -152,10 +158,10 @@ static void connect_client(lws_sorted_usec_list_t *sul) {
      * convenience wrapper api here because no valid wsi at this
      * point.
      */
-    if (lws_retry_sul_schedule(context, 0, sul, &retry, connect_client,
+    if (lws_retry_sul_schedule(mco->context, 0, sul, &retry, connect_client,
                                &mco->retry_count)) {
       lwsl_err("%s: connection attempts exhausted\n", __func__);
-      interrupted = 1;
+      mco->interrupted = 1;
     }
 }
 
@@ -260,7 +266,7 @@ do_retry:
   if (lws_retry_sul_schedule_retry_wsi(wsi, &mco->sul, connect_client,
                                        &mco->retry_count)) {
     lwsl_err("%s: connection attempts exhausted\n", __func__);
-    interrupted = 1;
+    mco->interrupted = 1;
   }
 
   return 0;
@@ -270,155 +276,211 @@ static const struct lws_protocols protocols[] = {
     {"lws-minimal-client", callback_minimal, 0, 0, 0, NULL, 0},
     LWS_PROTOCOL_LIST_TERM};
 
-static void sigint_handler(int sig) { interrupted = 1; }
+struct binance_feed_handler_component {
+  fmc_component_HEAD;
+  struct mco mco;
 
-int main(int argc, const char **argv) {
-  using namespace std;
+  binance_feed_handler_component(struct fmc_cfg_sect_item *cfg) {
+    using namespace std;
 
-  struct lws_context_creation_info info;
-  fmc_fd fd;
-  fmc_error_t *error = nullptr;
+    fmc_fd fd;
+    fmc_error_t *error = nullptr;
 
-  signal(SIGINT, sigint_handler);
-  memset(&info, 0, sizeof info);
-  lws_cmdline_option_handle_builtin(argc, argv, &info);
+    struct lws_context_creation_info info;
+    memset(&info, 0, sizeof info);
 
-  lwsl_user("binance feed handler\n");
+    lwsl_user("binance feed handler\n");
 
-  info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
-  info.port = CONTEXT_PORT_NO_LISTEN; /* we do not run any server */
-  info.protocols = protocols;
-  info.fd_limit_per_thread = 1 + 1 + 1;
-  info.extensions = extensions;
+    info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+    info.port = CONTEXT_PORT_NO_LISTEN; /* we do not run any server */
+    info.protocols = protocols;
+    info.fd_limit_per_thread = 1 + 1 + 1;
+    info.extensions = extensions;
 
-  const char *securities = nullptr;
-  const char *peer = nullptr;
-  const char *ytpfile = nullptr;
-  fmc_cmdline_opt_t options[] = {/* 0 */ {"--help", false, NULL},
-                                 /* 1 */ {"--securities", true, &securities},
-                                 /* 2 */ {"--peer", true, &peer},
-                                 /* 3 */ {"--ytp-file", true, &ytpfile},
-                                 /* 4 */ {"--us-region", false, NULL},
-                                 {NULL}};
-  fmc_cmdline_opt_proc(argc, argv, options, &error);
-  if (options[0].set) {
-    printf("binance-feed-handler --ytp-file FILE --peer PEER --securities "
-           "SECURITIES\n\n"
-           "Binance Feed Server.\n\n"
-           "Application will subscribe to quotes and trades streams for the "
-           "securities provided\n"
-           "in the file SECURITIES and will publish each stream onto a "
-           "separate channel with the\n"
-           "same name as the stream. It will publish only the data part of the "
-           "stream.\n");
-    return 0;
-  }
-  if (error) {
-    lwsl_err("%s, could not process args: %s\n", __func__,
-             fmc_error_msg(error));
-    return 1;
-  }
-
-  if (options[4].set) {
-    address = "stream.binance.us";
-    port = 9443;
-  }
-
-  ifstream secfile{securities};
-  if (!secfile) {
-    lwsl_err("%s: failed to open securities file %s\n", __func__, securities);
-    return 1;
-  }
-
-  // load securities from the file
-  vector<string> secs{istream_iterator<string>(secfile),
-                      istream_iterator<string>()};
-  // sort securities
-  sort(secs.begin(), secs.end());
-  // remove duplicate securities
-  auto last = unique(secs.begin(), secs.end());
-  secs.erase(last, secs.end());
-
-  fd = fmc_fopen(ytpfile, fmc_fmode::READWRITE, &error);
-  if (error) {
-    lwsl_err("could not open file %s with error %s\n", ytpfile,
-             fmc_error_msg(error));
-    return 1;
-  }
-  mco.yamal = ytp_yamal_new(fd, &error);
-  if (error) {
-    lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
-    return 1;
-  }
-  auto *streams = ytp_streams_new(mco.yamal, &error);
-  if (error) {
-    lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
-    return 1;
-  }
-
-  string_view vpeer(peer);
-  string encoding = "Content-Type application/json\n"
-                    "Content-Schema Binance";
-  vector<string> types = {"@bookTicker", "@trade"};
-  ostringstream ss;
-  bool first = true;
-  ss << "/stream?streams=";
-  constexpr string_view prefix = "raw/binance/";
-  for (auto &&sec : secs) {
-    for (auto &&tp : types) {
-      string chstr = string(prefix) + sec + tp;
-      auto stream = ytp_streams_announce(
-          streams, vpeer.size(), vpeer.data(), chstr.size(), chstr.data(),
-          encoding.size(), encoding.data(), &error);
-      uint64_t seqno;
-      size_t psz;
-      const char *peer;
-      size_t csz;
-      const char *channel;
-      size_t esz;
-      const char *encoding;
-      ytp_mmnode_offs *original;
-      ytp_mmnode_offs *subscribed;
-
-      ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
-                              &channel, &esz, &encoding, &original, &subscribed,
-                              &error);
-      auto chview = string_view(channel, csz).substr(prefix.size());
-      mco.streams.emplace(chview, stream);
-      ss << (first ? "" : "/") << chview;
-      first = false;
+    if (auto usregion = fmc_cfg_sect_item_get(cfg, "us-region");
+        usregion && usregion->node.value.boolean) {
+      address = "stream.binance.us";
+      port = 9443;
     }
-  }
-  mco.path = ss.str();
+
+    // load securities from the configuration
+    vector<string> secs;
+    for (auto *item = fmc_cfg_sect_item_get(cfg, "securities")->node.value.arr;
+         item; item = item->next) {
+      secs.emplace_back(item->item.value.str);
+    }
+    // sort securities
+    sort(secs.begin(), secs.end());
+    // remove duplicate securities
+    auto last = unique(secs.begin(), secs.end());
+    secs.erase(last, secs.end());
+
+    fd = fmc_fopen(fmc_cfg_sect_item_get(cfg, "ytp-file")->node.value.str,
+                   fmc_fmode::READWRITE, &error);
+    if (error) {
+      lwsl_err("could not open file %s with error %s\n",
+               fmc_cfg_sect_item_get(cfg, "ytp-file")->node.value.str,
+               fmc_error_msg(error));
+      fmc_runtime_error_unless(false)
+          << "could not open file "
+          << fmc_cfg_sect_item_get(cfg, "ytp-file")->node.value.str
+          << " with error " << fmc_error_msg(error);
+    }
+    mco.yamal = ytp_yamal_new(fd, &error);
+    if (error) {
+      lwsl_err("could not create yamal with error %s\n", fmc_error_msg(error));
+      fmc_runtime_error_unless(false)
+          << "could not create yamal with error " << fmc_error_msg(error);
+    }
+    mco.yamal_streams = ytp_streams_new(mco.yamal, &error);
+    if (error) {
+      lwsl_err("could not create stream with error %s\n", fmc_error_msg(error));
+      fmc_runtime_error_unless(false)
+          << "could not create stream with error " << fmc_error_msg(error);
+    }
+
+    string_view vpeer(fmc_cfg_sect_item_get(cfg, "peer")->node.value.str);
+    string encoding = "Content-Type application/json\n"
+                      "Content-Schema Binance";
+    vector<string> types = {"@bookTicker", "@trade"};
+    ostringstream ss;
+    bool first = true;
+    ss << "/stream?streams=";
+    constexpr string_view prefix = "raw/binance/";
+    for (auto &&sec : secs) {
+      for (auto &&tp : types) {
+        string chstr = string(prefix) + sec + tp;
+        auto stream = ytp_streams_announce(
+            mco.yamal_streams, vpeer.size(), vpeer.data(), chstr.size(),
+            chstr.data(), encoding.size(), encoding.data(), &error);
+        uint64_t seqno;
+        size_t psz;
+        const char *peer;
+        size_t csz;
+        const char *channel;
+        size_t esz;
+        const char *encoding;
+        ytp_mmnode_offs *original;
+        ytp_mmnode_offs *subscribed;
+
+        ytp_announcement_lookup(mco.yamal, stream, &seqno, &psz, &peer, &csz,
+                                &channel, &esz, &encoding, &original,
+                                &subscribed, &error);
+        auto chview = string_view(channel, csz).substr(prefix.size());
+        mco.streams.emplace(chview, stream);
+        ss << (first ? "" : "/") << chview;
+        first = false;
+      }
+    }
+    mco.path = ss.str();
 
 #if defined(LWS_WITH_MBEDTLS) || defined(USE_WOLFSSL)
-  /*
-   * OpenSSL uses the system trust store.  mbedTLS / WolfSSL have to be
-   * told which CA to trust explicitly.
-   */
-  info.client_ssl_ca_mem = ca_pem_digicert_global_root;
-  info.client_ssl_ca_mem_len =
-      (unsigned int)strlen(ca_pem_digicert_global_root);
+    /*
+     * OpenSSL uses the system trust store.  mbedTLS / WolfSSL have to be
+     * told which CA to trust explicitly.
+     */
+    info.client_ssl_ca_mem = ca_pem_digicert_global_root;
+    info.client_ssl_ca_mem_len =
+        (unsigned int)strlen(ca_pem_digicert_global_root);
 #endif
 
-  context = lws_create_context(&info);
-  if (!context) {
-    lwsl_err("lws init failed\n");
-    return 1;
+    mco.context = lws_create_context(&info);
+    if (!mco.context) {
+      lwsl_err("lws init failed\n");
+      fmc_runtime_error_unless(false) << "lws init failed";
+    }
+
+    /* schedule the first client connection attempt to happen immediately */
+    lws_sul_schedule(mco.context, 0, &mco.sul, connect_client, 1);
   }
+  bool process_one() {
+    fmc_runtime_error_unless(!mco.interrupted)
+        << "Kraken feed handler has been interrupted";
+    return lws_service(mco.context, 0) >= 0;
+  }
+  ~binance_feed_handler_component() {
+    lws_context_destroy(mco.context);
 
-  /* schedule the first client connection attempt to happen immediately */
-  lws_sul_schedule(context, 0, &mco.sul, connect_client, 1);
+    fmc_error_t *error = nullptr;
+    ytp_streams_del(mco.yamal_streams, &error);
+    ytp_yamal_del(mco.yamal, &error);
 
-  for (int n = 0; n >= 0 && !interrupted;)
-    n = lws_service(context, 0);
+    lwsl_user("Completed\n");
+  }
+};
 
-  lws_context_destroy(context);
-
-  ytp_streams_del(streams, &error);
-  ytp_yamal_del(mco.yamal, &error);
-
-  lwsl_user("Completed\n");
-
-  return 0;
+void binance_feed_handler_component_del(
+    struct binance_feed_handler_component *comp) noexcept {
+  delete comp;
 }
+
+static void
+binance_feed_handler_component_process_one(struct fmc_component *self,
+                                           struct fmc_reactor_ctx *ctx,
+                                           fmc_time64_t now) noexcept {
+  struct binance_feed_handler_component *comp =
+      (binance_feed_handler_component *)self;
+  try {
+    if (comp->process_one())
+      _reactor->queue(ctx);
+  } catch (std::exception &e) {
+    _reactor->set_error(ctx, "%s", e.what());
+  }
+}
+
+struct binance_feed_handler_component *
+binance_feed_handler_component_new(struct fmc_cfg_sect_item *cfg,
+                                   struct fmc_reactor_ctx *ctx,
+                                   char **inp_tps) noexcept {
+  struct binance_feed_handler_component *comp = nullptr;
+  try {
+    comp = new struct binance_feed_handler_component(cfg);
+    _reactor->on_exec(ctx, binance_feed_handler_component_process_one);
+    _reactor->queue(ctx);
+  } catch (std::exception &e) {
+    _reactor->set_error(ctx, "%s", e.what());
+  }
+  return comp;
+}
+
+static struct fmc_cfg_type security_spec = {
+    .type = FMC_CFG_STR,
+};
+
+struct fmc_cfg_node_spec binance_feed_handler_cfgspec[] = {
+    {.key = "securities",
+     .descr = "Securities for subscription",
+     .required = true,
+     .type = {.type = FMC_CFG_ARR,
+              .spec{
+                  .array = &security_spec,
+              }}},
+    {.key = "peer",
+     .descr = "Binance feed handler peer name",
+     .required = true,
+     .type =
+         {
+             .type = FMC_CFG_STR,
+         }},
+    {.key = "ytp-file",
+     .descr = "Binance feed handler ytp-file name",
+     .required = true,
+     .type =
+         {
+             .type = FMC_CFG_STR,
+         }},
+    {.key = "us-region",
+     .descr = "Configure Binance feed handler to use US region URLs",
+     .required = false,
+     .type =
+         {
+             .type = FMC_CFG_BOOLEAN,
+         }},
+    {NULL},
+};
+
+struct fmc_cfg_node_spec *binance_feed_handler_cfg =
+    binance_feed_handler_cfgspec;
+
+size_t binance_feed_handler_struct_sz =
+    sizeof(struct binance_feed_handler_component);

@@ -1,0 +1,47 @@
+{
+  "binance" : {
+    "module" : "feed",
+    "component" : "binance-feed-handler",
+    "config" : {
+      "peer":"binance-feed-handler",
+      "ytp-file":"mktdata.ytp",
+      "securities":["btcusdt","ethusdt","xrpusdt"]
+    }
+  },
+  "binance-backup" : {
+    "module" : "feed",
+    "component" : "binance-feed-handler",
+    "config" : {
+      "peer":"binance-feed-handler-backup",
+      "ytp-file":"mktdata.ytp",
+      "securities":["btcusdt","ethusdt","xrpusdt"]
+    }
+  },
+  "kraken" : {
+    "module" : "feed",
+    "component" : "kraken-feed-handler",
+    "config" : {
+      "peer":"kraken-feed-handler",
+      "ytp-file":"mktdata.ytp",
+      "securities":["XBT/USD","ETH/USD","XRP/USD"]
+    }
+  },
+  "kraken-backup" : {
+    "module" : "feed",
+    "component" : "kraken-feed-handler",
+    "config" : {
+      "peer":"kraken-feed-handler-backup",
+      "ytp-file":"mktdata.ytp",
+      "securities":["XBT/USD","ETH/USD","XRP/USD"]
+    }
+  },
+  "parser" : {
+    "module" : "feed",
+    "component" : "feed-parser",
+    "config" : {
+      "peer":"feed-parser",
+      "ytp-input":"mktdata.ytp",
+      "ytp-output":"consolidated.ytp.0001"
+    }
+  }
+}
