@@ -248,10 +248,15 @@ class TestMarketData02Consolidated(unittest.TestCase):
 
         start = datetime.now()
 
-        done = False
+        def validate_data():
+            if len(rawdata) != 2 * len(binance_securities) + 2 * len(binance_securities):
+                return False
+            if len(oredata) != len(binance_securities) + len(binance_securities):
+                return False
+            return True
 
         #Exhaust data
-        while not done:
+        while not validate_data():
             processed = False
             for seq, ts, strm, msg in it:
                 processed = True
@@ -262,15 +267,10 @@ class TestMarketData02Consolidated(unittest.TestCase):
                     oredata[strm.channel[3:]].append((seq, ts, msg))
             if not processed:
                 now = datetime.now()
-                if now > start + timedelta(seconds=2):
-                    done = True
+
         if parserproc.is_alive():
             parserproc.terminate()
         parserproc.join()
-
-        #validate if all data was parsed and consolidated
-        print("rawdata", rawdata)
-        print("oredata", oredata)
 
 if __name__ == '__main__':
     unittest.main()
