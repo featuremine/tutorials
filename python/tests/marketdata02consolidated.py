@@ -135,11 +135,11 @@ class TestMarketData02Consolidated(unittest.TestCase):
 
         self.assertRaises(RuntimeError, run_reactor, cfg=cfg)
 
-    def test_consolidation(self):
-        print("test_consolidation")
+    def test_feed_parser(self):
+        print("test_feed_parser")
 
         try:
-            remove("test_consolidation.ytp")
+            remove("test_feed_parser.ytp")
         except OSError:
             pass
 
@@ -149,8 +149,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "feed-parser",
                 "config" : {
                     "peer":"feed-parser",
-                    "ytp-input":"test_consolidation.ytp",
-                    "ytp-output":"test_consolidation.ytp"
+                    "ytp-input":"test_feed_parser.ytp",
+                    "ytp-output":"test_feed_parser.ytp"
                 }
             }
         }
@@ -167,7 +167,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "binance-feed-handler",
                 "config" : {
                     "peer":"binance-feed-handler",
-                    "ytp-file":"test_consolidation.ytp",
+                    "ytp-file":"test_feed_parser.ytp",
                     "securities":binance_securities
                 }
             },
@@ -176,7 +176,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "binance-feed-handler",
                 "config" : {
                     "peer":"binance-feed-handler-backup",
-                    "ytp-file":"test_consolidation.ytp",
+                    "ytp-file":"test_feed_parser.ytp",
                     "securities":binance_securities
                 }
             },
@@ -185,7 +185,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "kraken-feed-handler",
                 "config" : {
                     "peer":"kraken-feed-handler",
-                    "ytp-file":"test_consolidation.ytp",
+                    "ytp-file":"test_feed_parser.ytp",
                     "securities":kraken_securities
                 }
             },
@@ -194,7 +194,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "kraken-feed-handler",
                 "config" : {
                     "peer":"kraken-feed-handler-backup",
-                    "ytp-file":"test_consolidation.ytp",
+                    "ytp-file":"test_feed_parser.ytp",
                     "securities":kraken_securities
                 }
             }
@@ -203,7 +203,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
         proc = Process(target=run_reactor, kwargs={"cfg":cfg})
         proc.start()
         
-        fname = "test_consolidation.ytp"
+        fname = "test_feed_parser.ytp"
 
         y = yamal(fname, closable=False)
         dat = y.data()
@@ -234,13 +234,9 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 if not expected:
                     break
         
-        print("terminating")
-
         if proc.is_alive():
             proc.terminate()
         proc.join()
-
-        print("Consuming rest")
 
         #Consume rest
 
@@ -255,7 +251,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 return False
             return True
 
-        #Exhaust data
+        #Wait until we can confirm proper functioning of parser
         while not validate_data():
             processed = False
             for seq, ts, strm, msg in it:
@@ -271,6 +267,39 @@ class TestMarketData02Consolidated(unittest.TestCase):
         if parserproc.is_alive():
             parserproc.terminate()
         parserproc.join()
+
+        #Exhaust data
+        for seq, ts, strm, msg in it:
+            if strm.channel.startswith("raw"):
+                rawdata[strm.channel[3:]].append((seq, ts, strm.peer, msg))
+            else:
+                oredata[strm.channel[3:]].append((seq, ts, msg))
+
+        self.assertTrue(validate_data())
+
+        parsercfg = {
+            "parser" : {
+                "module" : "feed",
+                "component" : "feed-parser",
+                "config" : {
+                    "peer":"feed-parser",
+                    "ytp-input":"test_feed_parser.ytp",
+                    "ytp-output":"test_feed_parser.ytp"
+                }
+            }
+        }
+
+        parserproc = Process(target=run_reactor, kwargs={"cfg":parsercfg})
+        parserproc.start()
+
+        sleep(2)
+
+        parserproc.terminate()
+        parserproc.join()
+
+        # No additional data has been produced by parser
+        self.assertRaises(StopIteration, lambda: next(it))
+
 
 if __name__ == '__main__':
     unittest.main()
