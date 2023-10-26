@@ -217,14 +217,18 @@ class TestMarketData02Consolidated(unittest.TestCase):
         timeout = timedelta(seconds=100)
         start = datetime.now()
 
-        data = defaultdict(lambda:[])
+        rawdata = defaultdict(lambda:[])
+        oredata = defaultdict(lambda:[])
 
         #Ensure we have data
         while expected:
             now = datetime.now()
             self.assertLess(now, start + timeout)
             for seq, ts, strm, msg in it:
-                data[strm.channel, strm.peer].append((seq, ts, msg))
+                if strm.channel.startswith("raw"):
+                    rawdata[strm.channel[3:]].append((seq, ts, strm.peer, msg))
+                else:
+                    oredata[strm.channel[3:]].append((seq, ts, msg))
                 if strm.channel in expected:
                     expected.remove(strm.channel)
                 if not expected:
@@ -246,18 +250,27 @@ class TestMarketData02Consolidated(unittest.TestCase):
 
         done = False
 
-        #Ensure we have data
+        #Exhaust data
         while not done:
-            now = datetime.now()
-            if now > start + timedelta(seconds=10):
-                print(data)
+            processed = False
             for seq, ts, strm, msg in it:
-                data[strm.channel, strm.peer].append((seq, ts, msg))
-            #validate if all data was parsed and consolidated
-
+                processed = True
+                self.assertLess(now, start + timeout)
+                if strm.channel.startswith("raw"):
+                    rawdata[strm.channel[3:]].append((seq, ts, strm.peer, msg))
+                else:
+                    oredata[strm.channel[3:]].append((seq, ts, msg))
+            if not processed:
+                now = datetime.now()
+                if now > start + timedelta(seconds=2):
+                    done = True
         if parserproc.is_alive():
             parserproc.terminate()
         parserproc.join()
+
+        #validate if all data was parsed and consolidated
+        print("rawdata", rawdata)
+        print("oredata", oredata)
 
 if __name__ == '__main__':
     unittest.main()
