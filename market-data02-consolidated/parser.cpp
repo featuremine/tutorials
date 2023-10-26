@@ -336,7 +336,7 @@ struct runner_t {
   string_view prefix_in = "raw/";
   string_view encoding = "Content-Type application/msgpack\n"
                          "Content-Schema ore1.1.3";
-  const char *peer = nullptr;
+  std::string peer;
   fmc_fd fd_in = -1;
   fmc_fd fd_out = -1;
   ytp_yamal_t *ytp_in = nullptr;
@@ -536,11 +536,10 @@ runner_t::stream_out_t *runner_t::get_stream_out(ytp_mmnode_offs stream,
 
 runner_t::stream_out_t *runner_t::get_stream_out(string_view sv,
                                                  fmc_error_t **error) {
-  auto vpeer = string_view(peer);
   string chstr;
   chstr.append(prefix_out);
   chstr.append(sv);
-  auto stream = ytp_streams_announce(streams, vpeer.size(), vpeer.data(),
+  auto stream = ytp_streams_announce(streams, peer.size(), peer.data(),
                                      chstr.size(), chstr.data(),
                                      encoding.size(), encoding.data(), error);
   RETURN_ON_ERROR(error, nullptr, "could not announce stream");

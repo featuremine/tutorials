@@ -39,7 +39,7 @@
     "module" : "feed",
     "component" : "feed-parser",
     "config" : {
-      "peer":"binance-feed-handler",
+      "peer":"feed-parser",
       "ytp-input":"mktdata.ytp",
       "ytp-output":"consolidated.ytp.0001"
     }
