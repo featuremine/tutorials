@@ -308,6 +308,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
         parserproc.start()
 
         sleep(2)
+        self.assertTrue(parserproc.is_alive())
 
         parserproc.terminate()
         parserproc.join()
