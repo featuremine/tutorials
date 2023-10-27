@@ -54,8 +54,8 @@ struct mco {
   ytp_yamal_t *yamal = nullptr;
   ytp_streams_t *yamal_streams = nullptr;
   std::string path; /* storing the path for stream subscription */
-  struct lws_context *context;
-  int interrupted;
+  struct lws_context *context = nullptr;
+  int interrupted = 0;
 };
 
 extern struct fmc_reactor_api_v1 *_reactor;
