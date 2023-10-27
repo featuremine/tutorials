@@ -61,6 +61,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
         while expected:
             now = datetime.now()
             self.assertLess(now, start + timeout)
+            self.assertTrue(proc.is_alive())
             for seq, ts, strm, msg in it:
                 if strm.channel in expected:
                     expected.remove(strm.channel)
@@ -111,6 +112,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
         while expected:
             now = datetime.now()
             self.assertLess(now, start + timeout)
+            self.assertTrue(proc.is_alive())
             for seq, ts, strm, msg in it:
                 if strm.channel in expected:
                     expected.remove(strm.channel)
@@ -232,6 +234,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
         while expected:
             now = datetime.now()
             self.assertLess(now, start + timeout)
+            self.assertTrue(proc.is_alive())
             for seq, ts, strm, msg in it:
                 if strm.channel.startswith("raw"):
                     rawdata[strm.channel[3:]].append((seq, ts, strm.peer, msg))
@@ -265,6 +268,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
             for seq, ts, strm, msg in it:
                 processed = True
                 self.assertLess(now, start + timeout)
+                self.assertTrue(parserproc.is_alive())
                 if strm.channel.startswith("raw"):
                     rawdata[strm.channel[3:]].append((seq, ts, strm.peer, msg))
                 else:
