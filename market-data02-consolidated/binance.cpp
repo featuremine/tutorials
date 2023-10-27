@@ -288,6 +288,8 @@ struct binance_feed_handler_component {
 
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info);
+    memset(&mco.sul, 0, sizeof mco.sul);
+    memset(&mco.sul_hz, 0, sizeof mco.sul_hz);
 
     lwsl_user("binance feed handler\n");
 
