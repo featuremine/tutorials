@@ -507,7 +507,7 @@ struct kraken_feed_handler_component {
   bool process_one() {
     fmc_runtime_error_unless(!mco.interrupted)
         << "Kraken feed handler has been interrupted";
-    return lws_service(mco.context, 0) >= 0;
+    return lws_service(mco.context, -1) >= 0;
   }
   ~kraken_feed_handler_component() {
     lws_context_destroy(mco.context);
