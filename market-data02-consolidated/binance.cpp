@@ -397,7 +397,7 @@ struct binance_feed_handler_component {
   }
   bool process_one() {
     fmc_runtime_error_unless(!mco.interrupted)
-        << "Kraken feed handler has been interrupted";
+        << "Binance feed handler has been interrupted";
     return lws_service(mco.context, -1) >= 0;
   }
   ~binance_feed_handler_component() {
