@@ -42,7 +42,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                     "config" : {
                         "peer":"binance-feed-handler",
                         "ytp-file": fname,
-                        "securities": securities
+                        "securities": securities,
+                        "us-region": True
                     }
                 }
             }
@@ -200,7 +201,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                     "config" : {
                         "peer":"binance-feed-handler",
                         "ytp-file": fname,
-                        "securities":binance_securities
+                        "securities":binance_securities,
+                        "us-region": True
                     }
                 },
                 "binance-backup" : {
@@ -209,7 +211,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                     "config" : {
                         "peer":"binance-feed-handler-backup",
                         "ytp-file": fname,
-                        "securities":binance_securities
+                        "securities":binance_securities,
+                        "us-region": True
                     }
                 },
                 "kraken" : {
