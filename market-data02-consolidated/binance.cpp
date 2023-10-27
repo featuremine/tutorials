@@ -425,6 +425,8 @@ binance_feed_handler_component_process_one(struct fmc_component *self,
   try {
     if (comp->process_one())
       _reactor->queue(ctx);
+    else
+      _reactor->set_error(ctx, "Binance feed handler has stopped");
   } catch (std::exception &e) {
     _reactor->set_error(ctx, "%s", e.what());
   }
