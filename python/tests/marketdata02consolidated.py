@@ -24,8 +24,10 @@ class TestMarketData02Consolidated(unittest.TestCase):
     def test_feed_handler_binance_unit(self):
         print("test_feed_handler_binance_unit")
 
+        fname = "test_feed_handler_binance_unit.ytp"
+
         try:
-            remove("test_feed_handler_binance_unit.ytp")
+            remove(fname)
         except OSError:
             pass
 
@@ -37,8 +39,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "binance-feed-handler",
                 "config" : {
                     "peer":"binance-feed-handler",
-                    "ytp-file":"test_feed_handler_binance_unit.ytp",
-                    "securities":securities
+                    "ytp-file": fname,
+                    "securities": securities
                 }
             }
         }
@@ -46,8 +48,6 @@ class TestMarketData02Consolidated(unittest.TestCase):
         proc = Process(target=run_reactor, kwargs={"cfg":cfg})
         proc.start()
         
-        fname = "test_feed_handler_binance_unit.ytp"
-
         y = yamal(fname, closable=False)
         dat = y.data()
 
@@ -75,8 +75,10 @@ class TestMarketData02Consolidated(unittest.TestCase):
     def test_feed_handler_kraken_unit(self):
         print("test_feed_handler_kraken_unit")
 
+        fname = "test_feed_handler_kraken_unit.ytp"
+
         try:
-            remove("test_feed_handler_kraken_unit.ytp")
+            remove(fname)
         except OSError:
             pass
 
@@ -88,8 +90,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "kraken-feed-handler",
                 "config" : {
                     "peer":"kraken-feed-handler",
-                    "ytp-file":"test_feed_handler_kraken_unit.ytp",
-                    "securities":securities
+                    "ytp-file": fname,
+                    "securities": securities
                 }
             }
         }
@@ -97,8 +99,6 @@ class TestMarketData02Consolidated(unittest.TestCase):
         proc = Process(target=run_reactor, kwargs={"cfg":cfg})
         proc.start()
         
-        fname = "test_feed_handler_kraken_unit.ytp"
-
         y = yamal(fname, closable=False)
         dat = y.data()
 
@@ -126,8 +126,10 @@ class TestMarketData02Consolidated(unittest.TestCase):
     def test_feed_handler_kraken_bad_symbology(self):
         print("test_feed_handler_kraken_bad_symbology")
 
+        fname = "test_feed_handler_kraken_bad_symbology.ytp"
+
         try:
-            remove("test_feed_handler_kraken_bad_symbology.ytp")
+            remove(fname)
         except OSError:
             pass
 
@@ -137,7 +139,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "kraken-feed-handler",
                 "config" : {
                     "peer":"kraken-feed-handler",
-                    "ytp-file":"test_feed_handler_kraken_bad_symbology.ytp",
+                    "ytp-file": fname,
                     "securities":["bad","invalid"]
                 }
             }
@@ -148,10 +150,14 @@ class TestMarketData02Consolidated(unittest.TestCase):
     def test_feed_parser(self):
         print("test_feed_parser")
 
+        fname = "test_feed_parser.ytp"
+
         try:
-            remove("test_feed_parser.ytp")
+            remove(fname)
         except OSError:
             pass
+
+        y = yamal(fname, closable=False)
 
         parsercfg = {
             "parser" : {
@@ -159,8 +165,8 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "feed-parser",
                 "config" : {
                     "peer":"feed-parser",
-                    "ytp-input":"test_feed_parser.ytp",
-                    "ytp-output":"test_feed_parser.ytp"
+                    "ytp-input": fname,
+                    "ytp-output": fname
                 }
             }
         }
@@ -177,7 +183,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "binance-feed-handler",
                 "config" : {
                     "peer":"binance-feed-handler",
-                    "ytp-file":"test_feed_parser.ytp",
+                    "ytp-file": fname,
                     "securities":binance_securities
                 }
             },
@@ -186,7 +192,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "binance-feed-handler",
                 "config" : {
                     "peer":"binance-feed-handler-backup",
-                    "ytp-file":"test_feed_parser.ytp",
+                    "ytp-file": fname,
                     "securities":binance_securities
                 }
             },
@@ -195,7 +201,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "kraken-feed-handler",
                 "config" : {
                     "peer":"kraken-feed-handler",
-                    "ytp-file":"test_feed_parser.ytp",
+                    "ytp-file": fname,
                     "securities":kraken_securities
                 }
             },
@@ -204,7 +210,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                 "component" : "kraken-feed-handler",
                 "config" : {
                     "peer":"kraken-feed-handler-backup",
-                    "ytp-file":"test_feed_parser.ytp",
+                    "ytp-file": fname,
                     "securities":kraken_securities
                 }
             }
@@ -213,9 +219,6 @@ class TestMarketData02Consolidated(unittest.TestCase):
         proc = Process(target=run_reactor, kwargs={"cfg":cfg})
         proc.start()
         
-        fname = "test_feed_parser.ytp"
-
-        y = yamal(fname, closable=False)
         dat = y.data()
 
         it = iter(dat)
