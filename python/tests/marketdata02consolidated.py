@@ -58,7 +58,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
             expected = [*[f"raw/binance/{sec}@trade" for sec in securities],
                         *[f"raw/binance/{sec}@bookTicker" for sec in securities]]
 
-            timeout = timedelta(seconds=100)
+            timeout = timedelta(seconds=200)
             start = datetime.now()
 
             while expected:
@@ -115,7 +115,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
             expected = [*[f"raw/kraken/{sec}@trade" for sec in securities],
                         *[f"raw/kraken/{sec}@spread" for sec in securities]]
 
-            timeout = timedelta(seconds=100)
+            timeout = timedelta(seconds=200)
             start = datetime.now()
 
             while expected:
@@ -246,7 +246,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
                         *[f"raw/kraken/{sec}@trade" for sec in kraken_securities],
                         *[f"raw/kraken/{sec}@spread" for sec in kraken_securities]]
 
-            timeout = timedelta(seconds=100)
+            timeout = timedelta(seconds=200)
             start = datetime.now()
 
             rawdata = defaultdict(lambda:[])

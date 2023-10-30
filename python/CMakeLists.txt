@@ -113,7 +113,7 @@ if(BUILD_TESTING)
             test_python_package(
                 NAME tutorials_py
                 PACKAGE tutorials
-                TIMEOUT 2400
+                TIMEOUT 1000
                 TEST "test-tutorials-python"
                 PYTHONPATH "${WHEEL_yamal_BUILD_DIR}/build/lib"
                 ENVIRONMENT
