@@ -28,25 +28,10 @@ jobs:
   build-manylinux:
     needs: utility
     runs-on: ubuntu-20.04
+    env:
+      SSL_CERT_DIR: /usr/lib/ssl/certs
     container:
-      image: public.ecr.aws/p0w8t0l8/ci-hosted-gh-centos7-gcc10.2.0
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Build ${{ github.event.repository.name }} with fm gcc
-      uses: featuremine/actions/package/build@v2
-      with:
-        gh_token: ${{ secrets.GITHUB_TOKEN }}
-        docs: true
-        wheel: true
-        upload: ${{ needs.utility.outputs.release-check == 'release' }}
-
-  build-macos:
-    needs: utility
-    runs-on: macos-11
+      image: public.ecr.aws/p0w8t0l8/ci-hosted-gh-ubuntu20.04-gcc10.2.0
 
     steps:
     - uses: actions/checkout@v3
@@ -54,7 +39,11 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: brew install pkg-config cmake openssl python
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends ca-certificates
+        update-ca-certificates
+      shell: bash
 
     - name: Build ${{ github.event.repository.name }} with fm gcc
       uses: featuremine/actions/package/build@v2
