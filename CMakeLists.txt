@@ -29,8 +29,8 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
-    VERSION "8.0.8"
-    GIT_REVISION "yamal-component-search-path-improvements"
+    VERSION "8.0.9"
+    GIT_REVISION "v8.0.9"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
@@ -65,6 +65,10 @@ endif()
 set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(FmConfig REQUIRED)
 fm_config()
+
+set(ReleaseTools_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(ReleaseTools REQUIRED)
+get_python_platform(PYTHON_PLATFORM)
 
 set(testing_FILES "")
 macro(add_bin_to_builddir TARGET)
@@ -170,3 +174,9 @@ add_custom_target(
     testing-environment ALL
     DEPENDS ${testing_FILES}
 )
+
+add_subdirectory(python)
+
+if(BUILD_TESTING)
+    enable_testing()
+endif()

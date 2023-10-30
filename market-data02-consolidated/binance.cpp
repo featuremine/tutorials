@@ -54,8 +54,8 @@ struct mco {
   ytp_yamal_t *yamal = nullptr;
   ytp_streams_t *yamal_streams = nullptr;
   std::string path; /* storing the path for stream subscription */
-  struct lws_context *context;
-  int interrupted;
+  struct lws_context *context = nullptr;
+  int interrupted = 0;
 };
 
 extern struct fmc_reactor_api_v1 *_reactor;
@@ -288,6 +288,8 @@ struct binance_feed_handler_component {
 
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info);
+    memset(&mco.sul, 0, sizeof mco.sul);
+    memset(&mco.sul_hz, 0, sizeof mco.sul_hz);
 
     lwsl_user("binance feed handler\n");
 
@@ -395,8 +397,8 @@ struct binance_feed_handler_component {
   }
   bool process_one() {
     fmc_runtime_error_unless(!mco.interrupted)
-        << "Kraken feed handler has been interrupted";
-    return lws_service(mco.context, 0) >= 0;
+        << "Binance feed handler has been interrupted";
+    return lws_service(mco.context, -1) >= 0;
   }
   ~binance_feed_handler_component() {
     lws_context_destroy(mco.context);
@@ -423,6 +425,8 @@ binance_feed_handler_component_process_one(struct fmc_component *self,
   try {
     if (comp->process_one())
       _reactor->queue(ctx);
+    else
+      _reactor->set_error(ctx, "Binance feed handler has stopped");
   } catch (std::exception &e) {
     _reactor->set_error(ctx, "%s", e.what());
   }

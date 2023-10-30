@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+"""
+        COPYRIGHT (c) 2019-2023 by Featuremine Corporation.
+        
+        This Source Code Form is subject to the terms of the Mozilla Public
+        License, v. 2.0. If a copy of the MPL was not distributed with this
+        file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+import tutorials.tests
+import unittest
+
+
+if __name__ == '__main__':
+    dir = tutorials.tests.__path__[0]
+    testsuite = unittest.defaultTestLoader.discover(start_dir=dir, pattern='*.py')
+    assert unittest.TextTestRunner(verbosity=2).run(testsuite).wasSuccessful(), 'Test runner failed'
