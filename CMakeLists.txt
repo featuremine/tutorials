@@ -30,7 +30,7 @@ find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
     VERSION "8.0.9"
-    GIT_REVISION "dev"
+    GIT_REVISION "v8.0.9"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
