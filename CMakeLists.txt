@@ -29,8 +29,9 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
-    VERSION "8.0.9"
-    GIT_REVISION "v8.0.9"
+    VERSION_MIN "8.0.6"
+    VERSION_MAX "8.1.0"
+    GIT_REVISION "v8.0.10"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
@@ -71,6 +72,22 @@ find_package(ReleaseTools REQUIRED)
 get_python_platform(PYTHON_PLATFORM)
 
 set(testing_FILES "")
+macro(add_py_to_builddir LOCATION TARGET)
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/bin/${TARGET}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "${LOCATION}/${TARGET}"
+        "${PROJECT_BINARY_DIR}/bin/${TARGET}"
+
+        DEPENDS
+        "${LOCATION}/${TARGET}"
+    )
+    list(APPEND testing_FILES "${PROJECT_BINARY_DIR}/bin/${TARGET}")
+endmacro()
+
 macro(add_bin_to_builddir TARGET)
     add_custom_command(
         OUTPUT
@@ -105,6 +122,25 @@ endmacro()
 
 set(package_DEP "")
 set(package_FILES "")
+
+macro(add_py_to_package LOCATION TARGET)
+    add_py_to_builddir(${LOCATION} ${TARGET})
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/package/bin/${TARGET}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "${LOCATION}/${TARGET}"
+        "${PROJECT_BINARY_DIR}/package/bin/${TARGET}"
+
+        DEPENDS
+        "${LOCATION}/${TARGET}"
+    )
+    list(APPEND package_DEP "${PROJECT_BINARY_DIR}/package/bin/${TARGET}")
+    list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/bin/${TARGET}")
+endmacro()
+
 macro(add_bin_to_package TARGET)
     add_bin_to_builddir(${TARGET})
     add_custom_command(
@@ -147,6 +183,8 @@ add_bin_to_package(binance-feed-handler)
 add_bin_to_builddir(yamal-run)
 add_bin_to_builddir(yamal-stats)
 add_bin_to_builddir(yamal-tail)
+add_py_to_package("${CMAKE_CURRENT_SOURCE_DIR}/market-data02-consolidated" "ore-dump.py")
+add_py_to_package("${CMAKE_CURRENT_SOURCE_DIR}/market-data02-consolidated" "book-dump.py")
 
 add_subdirectory(market-data02-consolidated)
 add_component_to_package(feed)
