@@ -29,11 +29,13 @@ option (TEST_EXTENSIONS "Enable testing the extensions." ON)
 find_package(OpenSSL REQUIRED)
 add_subproject(
     NAME yamal
-    VERSION "8.0.8"
-    GIT_REVISION "v8.0.8"
+    VERSION_MIN "8.0.6"
+    VERSION_MAX "8.1.0"
+    GIT_REVISION "v8.0.10"
     GIT_URL "https://github.com/featuremine/yamal.git"
     TARGETS fmc++ ytp yamal-tail yamal-local-perf yamal-stats
 )
+SET(LWS_STATIC_PIC ON CACHE BOOL "Build the static version of the websockets library with position-independent code")
 add_subproject(
     NAME websockets
     GIT_REVISION "v4.3.2"
@@ -65,9 +67,82 @@ set(FmConfig_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(FmConfig REQUIRED)
 fm_config()
 
+set(ReleaseTools_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(ReleaseTools REQUIRED)
+get_python_platform(PYTHON_PLATFORM)
+
+set(testing_FILES "")
+macro(add_py_to_builddir LOCATION TARGET)
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/bin/${TARGET}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "${LOCATION}/${TARGET}"
+        "${PROJECT_BINARY_DIR}/bin/${TARGET}"
+
+        DEPENDS
+        "${LOCATION}/${TARGET}"
+    )
+    list(APPEND testing_FILES "${PROJECT_BINARY_DIR}/bin/${TARGET}")
+endmacro()
+
+macro(add_bin_to_builddir TARGET)
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE:${TARGET}>"
+        "${PROJECT_BINARY_DIR}/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}"
+
+        DEPENDS
+        ${TARGET}
+    )
+    list(APPEND testing_FILES "${PROJECT_BINARY_DIR}/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}")
+endmacro()
+
+macro(add_component_to_builddir TARGET)
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE:${TARGET}>"
+        "${PROJECT_BINARY_DIR}/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+
+        DEPENDS
+        ${TARGET}
+    )
+    list(APPEND testing_FILES "${PROJECT_BINARY_DIR}/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+endmacro()
+
 set(package_DEP "")
 set(package_FILES "")
+
+macro(add_py_to_package LOCATION TARGET)
+    add_py_to_builddir(${LOCATION} ${TARGET})
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/package/bin/${TARGET}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "${LOCATION}/${TARGET}"
+        "${PROJECT_BINARY_DIR}/package/bin/${TARGET}"
+
+        DEPENDS
+        "${LOCATION}/${TARGET}"
+    )
+    list(APPEND package_DEP "${PROJECT_BINARY_DIR}/package/bin/${TARGET}")
+    list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/bin/${TARGET}")
+endmacro()
+
 macro(add_bin_to_package TARGET)
+    add_bin_to_builddir(${TARGET})
     add_custom_command(
         OUTPUT
         "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}"
@@ -84,13 +159,35 @@ macro(add_bin_to_package TARGET)
     list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/bin/${TARGET}${CMAKE_EXECUTABLE_SUFFIX}")
 endmacro()
 
+macro(add_component_to_package TARGET)
+    add_component_to_builddir(${TARGET})
+    add_custom_command(
+        OUTPUT
+        "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE:${TARGET}>"
+        "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+
+        DEPENDS
+        ${TARGET}
+    )
+    list(APPEND package_DEP "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    list(APPEND package_FILES "${PROJECT_BINARY_DIR}/package/lib/yamal/modules/${TARGET}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+endmacro()
+
 add_subdirectory(market-data01-feedhandler)
 add_bin_to_package(minimal-ws-client-binance)
 add_bin_to_package(binance-feed-handler)
+add_bin_to_builddir(yamal-run)
+add_bin_to_builddir(yamal-stats)
+add_bin_to_builddir(yamal-tail)
+add_py_to_package("${CMAKE_CURRENT_SOURCE_DIR}/market-data02-consolidated" "ore-dump.py")
+add_py_to_package("${CMAKE_CURRENT_SOURCE_DIR}/market-data02-consolidated" "book-dump.py")
 
 add_subdirectory(market-data02-consolidated)
-add_bin_to_package(feed-handler)
-add_bin_to_package(feed-parser)
+add_component_to_package(feed)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/output")
 add_custom_command(
@@ -110,3 +207,14 @@ add_custom_target(
     tutorials-package ALL
     DEPENDS "${CMAKE_BINARY_DIR}/output/tutorials-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}.tar.gz"
 )
+
+add_custom_target(
+    testing-environment ALL
+    DEPENDS ${testing_FILES}
+)
+
+add_subdirectory(python)
+
+if(BUILD_TESTING)
+    enable_testing()
+endif()
