@@ -10,8 +10,8 @@
 #include <tuple>
 
 #include <fmc++/error.hpp>
-#include <fmc++/strings.hpp>
 #include <fmc++/serialization.hpp>
+#include <fmc++/strings.hpp>
 #include <fmc/error.h>
 
 using namespace std;
