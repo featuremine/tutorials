@@ -19,7 +19,7 @@ Post-build, you should be able to find the tutorial binaries under **release/mar
 
 Now, it’s time to test our feed handler and parser in action. For this exercise, we’ve prepared a configuration file, which contains the configurations for main and backup feed handler components for binance and kraken and a feed parser component. To start, run one feed handler instance:
 ```bash
-./release/bin/yamal-run market-data02-consolidated/feed.json
+./release/bin/yamal-run -j market-data02-consolidated/feed-handler.json
 ```
 The feed parser instantiated will arbitrate between multiple feeds and normalizes the data. Notice the extension of the output file in the feed parser configuration is **ytp.0001**. This is important because we will later introduce file rollover, where data will be split among multiple files.
 
@@ -35,7 +35,7 @@ We can run `yamal-stats` to see that the streams corresponding to the second con
 
 You can dump market data to the terminal using the following script:
 ```bash
-python3 market-data02-consolidated/ore-dump.py --follow=true --ytp-file consolidated.ytp.0001
+python3 market-data02-consolidated/ore-dump.py --follow --ytp-file consolidated.ytp.0001
 ```
 
 To display the data you can use **trade_view** script:
