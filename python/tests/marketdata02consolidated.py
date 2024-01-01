@@ -255,7 +255,7 @@ class TestMarketData02Consolidated(unittest.TestCase):
             #Ensure we have data
             while expected:
                 now = datetime.now()
-                self.assertLess(now, start + timeout)
+                self.assertLessEqual(now, start + timeout)
                 self.assertTrue(proc.is_alive())
                 for seq, ts, strm, msg in it:
                     if strm.channel.startswith("raw"):

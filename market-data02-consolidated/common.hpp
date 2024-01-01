@@ -11,21 +11,10 @@
 
 #include <fmc++/error.hpp>
 #include <fmc++/serialization.hpp>
+#include <fmc++/strings.hpp>
 #include <fmc/error.h>
 
 using namespace std;
-
-// If you compiling with C++20 you don't need this
-inline bool starts_with(string_view a, string_view b) {
-  return a.substr(0, b.size()) == b;
-}
-
-inline tuple<string_view, string_view, string_view> split(string_view a,
-                                                          string_view sep) {
-  auto pos = a.find_first_of(sep);
-  return {a.substr(0, pos), a.substr(pos, sep.size()),
-          a.substr(pos + sep.size())};
-}
 
 // passing json string and json key
 // return parsed value and remainder after value
