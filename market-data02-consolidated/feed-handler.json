@@ -1,0 +1,55 @@
+{
+    "binance" : {
+        "module": "feed",
+        "component": "binance-feed-handler",
+        "config" : {
+            "securities": [
+                "usdt",
+                "eth",
+                "btc",
+                "busd",
+                "xrp",
+                "qtum",
+                "ada",
+                "busdusdt",
+                "bnbusdt",
+                "ethusdt",
+                "qtumusdt",
+                "btcusdt",
+                "adausdt",
+                "xrpusdt",
+                "busdeth",
+                "ltcusdt"
+            ],
+            "peer": "feed-handler",
+            "ytp-file": "mktdata.ytp",
+            "us-region": true
+        }
+    },
+    "kraken" : {
+        "module": "feed",
+        "component": "kraken-feed-handler",
+        "config" : {
+            "securities": [
+                "XBT/USD",
+                "USDT/USD",
+                "SOL/USD",
+                "ETH/USD",
+                "USDT/EUR",
+                "XBT/EUR",
+                "ETH/XBT"
+            ],
+            "peer": "feed-handler",
+            "ytp-file": "mktdata.ytp"
+        }
+    },
+    "parser" : {
+        "module": "feed",
+        "component": "feed-parser",
+        "config" : {
+            "peer": "feed-parser",
+            "ytp-input": "mktdata.ytp",
+            "ytp-output": "consolidated.ytp.0001"
+        }
+    }
+}
