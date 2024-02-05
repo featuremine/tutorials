@@ -49,7 +49,7 @@ jobs:
       uses: featuremine/actions/package/build@v2
       with:
         gh_token: ${{ secrets.GITHUB_TOKEN }}
-        docs: false
+        docs: true
         wheel: true
         upload: ${{ needs.utility.outputs.release-check == 'release' }}
 
